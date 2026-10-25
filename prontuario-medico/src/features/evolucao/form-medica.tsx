@@ -233,6 +233,10 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
 
   /** Envio imediato do rascunho (sem esperar o autosave). Falha não deixa o botão travado. */
   async function salvarAgora() {
+    if (fila.estado === 'salvo') {
+      toast.info('Nada a salvar — já está tudo salvo.')
+      return
+    }
     setSalvando(true)
     try {
       await fila.forcar()

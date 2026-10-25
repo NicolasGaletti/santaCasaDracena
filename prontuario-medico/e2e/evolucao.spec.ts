@@ -73,6 +73,9 @@ test('botão Salvar grava na hora', async ({ page }) => {
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 5_000 });
 
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText('Nada a salvar — já está tudo salvo.')).toBeVisible();
+
   await page.reload();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto salvo pelo botão');
 });
@@ -216,6 +219,32 @@ test('sinal vital inválido mostra erro e bloqueia finalizar', async ({ page }) 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(alertas(page)).toContainText('FC (bpm)');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('troca de leito em envio: mostra "Salvando leito…" e grava antes do reload', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+
+  // Segura só a Server Action do leito até o teste liberar.
+  let liberar: () => void = () => {};
+  const segurado = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  await page.route(`**/internacoes/${id}`, async (r) => {
+    if (r.request().method() === 'POST' && r.request().headers()['next-action']) await segurado;
+    await r.continue();
+  });
+
+  await page.getByLabel('Leito / ala').fill('E2E-ENVIO');
+  await page.getByLabel('Leito / ala').press('Tab');
+  await expect(page.getByText('Salvando leito…')).toBeVisible();
+
+  liberar();
+  await expect(page.getByText('Salvando leito…')).toHaveCount(0, { timeout: 10_000 });
+  await page.unroute(`**/internacoes/${id}`);
+
+  await page.reload();
+  await expect(page.getByLabel('Leito / ala')).toHaveValue('E2E-ENVIO');
 });
 
 test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }) => {

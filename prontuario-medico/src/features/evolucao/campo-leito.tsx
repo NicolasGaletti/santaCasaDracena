@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { toast } from 'sonner'
 import { trocarLeito } from './actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +18,18 @@ export function CampoLeito({
   const [valor, setValor] = useState(leitoInicial)
   const [salvo, setSalvo] = useState(leitoInicial)
   const [erro, setErro] = useState<string | null>(null)
-  const [, startTransition] = useTransition()
+  const [enviando, startTransition] = useTransition()
+
+  // Sem este aviso, fechar ou recarregar com a troca em voo perde a gravação.
+  useEffect(() => {
+    if (!enviando) return
+    function aoSair(e: BeforeUnloadEvent) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', aoSair)
+    return () => window.removeEventListener('beforeunload', aoSair)
+  }, [enviando])
 
   function confirmar() {
     const novo = valor.trim()
@@ -34,6 +46,7 @@ export function CampoLeito({
       const resultado = await trocarLeito(internacaoId, novo)
       if (resultado.erro) {
         setErro(resultado.erro)
+        toast.error(resultado.erro)
         setValor(salvo)
         return
       }
@@ -68,6 +81,11 @@ export function CampoLeito({
         aria-describedby={erro ? 'erro-leito' : undefined}
         className="h-11 w-full max-w-40 text-lg font-bold tabular-nums"
       />
+      {enviando && (
+        <p role="status" className="text-sm font-semibold text-muted-foreground">
+          Salvando leito…
+        </p>
+      )}
       {erro && (
         <p id="erro-leito" role="alert" className="text-sm font-semibold text-destructive">
           {erro}
