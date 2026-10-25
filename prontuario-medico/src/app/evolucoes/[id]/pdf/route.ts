@@ -5,5 +5,6 @@ export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return gerarPdf([id], request.nextUrl.searchParams.get('k'))
+  const busca = request.nextUrl.searchParams
+  return gerarPdf([id], { chave: busca.get('k'), incluirImagens: busca.get('anexos') === '1' })
 }

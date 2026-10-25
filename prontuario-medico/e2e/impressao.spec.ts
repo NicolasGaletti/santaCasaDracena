@@ -1,8 +1,12 @@
+import path from 'node:path'
 import { PDFParse } from 'pdf-parse'
 import { expect, test, type Page } from '@playwright/test'
 
 const SENHA = 'Teste@123'
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const FIXTURES = path.join(__dirname, 'fixtures')
+const FOTO = path.join(FIXTURES, 'exame.jpg')
+const PDF = path.join(FIXTURES, 'laudo.pdf')
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
 async function entrar(page: Page, email: string) {
@@ -158,4 +162,61 @@ test('mesma chave de impressão repetida não gera nova via', async ({ page }) =
   const repetida = await page.request.get(url);
   expect(repetida.status()).toBe(200);
   expect(await textoDoPdf(await repetida.body())).not.toContain('2ª via');
+})
+
+/** Cria evolução com foto (Outro, "Foto do exame") e PDF (Laboratório, "Hemograma completo") e finaliza. */
+async function finalizarComAnexos(page: Page, internacaoId: string, texto: string): Promise<string> {
+  await page.goto(`/internacoes/${internacaoId}`)
+  await page.getByRole('link', { name: 'Nova evolução' }).click()
+  await expect(page).toHaveURL(/\/evolucao$/)
+  await page.getByRole('button', { name: 'Exames', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeVisible()
+  await page.getByLabel('Descrição').fill('Foto do exame')
+  await page.getByTestId('entrada-foto').setInputFiles(FOTO)
+  await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 })
+  await page.getByRole('radio', { name: 'Laboratório' }).click()
+  await page.getByLabel('Descrição').fill('Hemograma completo')
+  await page.getByTestId('entrada-arquivo').setInputFiles(PDF)
+  await expect(page.getByTestId('anexo-item')).toHaveCount(2, { timeout: 20_000 })
+  await page.getByLabel('Evolução clínica').fill(texto)
+  await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await expect(page).toHaveURL(URL_PRONTUARIO)
+  const link = page.locator('a[href$="/pdf"]').first()
+  await expect(link).toBeVisible()
+  const id = (await link.getAttribute('href'))?.match(UUID)?.[0]
+  if (!id) throw new Error('id da evolução não encontrado no link Imprimir')
+  return id
+}
+
+test('PDF lista os anexos da evolução', async ({ page }) => {
+  const internacao = await admitirPaciente(page, leitoUnico())
+  const id = await finalizarComAnexos(page, internacao, 'Evolução com anexos')
+
+  const resposta = await page.request.get(`/evolucoes/${id}/pdf`)
+  expect(resposta.status()).toBe(200)
+  const texto = await textoDoPdf(await resposta.body())
+  expect(texto).toContain('Anexos')
+  expect(texto).toContain('Laboratório')
+  expect(texto).toContain('Hemograma completo')
+  expect(texto).toContain('Página 1 de 1')
+})
+
+test('com anexos=1 o PDF tem página da imagem', async ({ page }) => {
+  const internacao = await admitirPaciente(page, leitoUnico())
+  const id = await finalizarComAnexos(page, internacao, 'Evolução com imagem no PDF')
+
+  await page.goto(`/internacoes/${internacao}`)
+  await expect(page.getByRole('link', { name: 'Imprimir com imagens' }).first()).toBeVisible()
+
+  const semImagens = await page.request.get(`/evolucoes/${id}/pdf`)
+  expect(await textoDoPdf(await semImagens.body())).toContain('Página 1 de 1')
+
+  const comImagens = await page.request.get(`/evolucoes/${id}/pdf?anexos=1`)
+  expect(comImagens.status()).toBe(200)
+  const texto = await textoDoPdf(await comImagens.body())
+  expect(texto).toMatch(/Outro · \d{2}\/\d{2}\/\d{4} · Foto do exame/)
+  expect(texto).toContain(`Evolução ${id.slice(0, 8).toUpperCase()}`)
+  expect(texto).toContain('Página 1 de 2')
 })

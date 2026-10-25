@@ -40,11 +40,18 @@ export async function urlAssinada(anexoId: string): Promise<{ url?: string; erro
 
   const { data: anexo, error: erroBusca } = await supabase
     .from('anexos')
-    .select('storage_path')
+    .select('storage_path, internacao_id')
     .eq('id', anexoId)
     .maybeSingle()
   if (erroBusca) return { erro: 'Não foi possível abrir o anexo. Tente novamente.' }
   if (!anexo) return { erro: 'Anexo não encontrado.' }
+
+  // Registro de acesso: falha aqui não impede a visualização.
+  try {
+    await supabase.rpc('registrar_acesso', { p_internacao_id: anexo.internacao_id, p_acao: 'ver_anexo' })
+  } catch {
+    // Melhor esforço.
+  }
 
   const { data, error } = await supabase.storage
     .from('anexos')

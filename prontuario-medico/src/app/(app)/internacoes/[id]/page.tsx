@@ -44,7 +44,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     clinico
       ? supabase
           .from('vw_evolucoes_timeline')
-          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre')
+          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre, qtd_anexos')
           .eq('internacao_id', id)
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),

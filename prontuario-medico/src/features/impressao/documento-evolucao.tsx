@@ -1,4 +1,5 @@
-import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { formatarDataAnexo, ROTULO_TIPO_ANEXO, type TipoAnexo } from '@/features/anexos/rotulos'
 import type { DadosMedica } from '@/features/evolucao/modelos/medica'
 import { ROTULO_CATEGORIA } from '@/features/evolucao/rotulos'
 import { formatarData, idade } from '@/lib/datas'
@@ -15,6 +16,16 @@ export type Assinante = {
   uf: string | null
 }
 
+/** Anexo confirmado da evolução. `imagem` só vem preenchido para JPEG/PNG (formatos que o PDF embute). */
+export type AnexoImpressao = {
+  id: string
+  tipo: TipoAnexo
+  descricao: string
+  dataExame: string
+  mime: string
+  imagem: { data: Uint8Array; formato: 'jpg' | 'png' } | null
+}
+
 export type EvolucaoImpressao = {
   evolucao: {
     id: string
@@ -26,6 +37,7 @@ export type EvolucaoImpressao = {
     snapshot_autor: Assinante | null
     snapshot_validador: Assinante | null
     conteudo_hash: string | null
+    hash_versao: number
   }
   internacao: {
     leito_ala: string
@@ -37,6 +49,14 @@ export type EvolucaoImpressao = {
     convenio: string
   }
   via: number
+  anexos: AnexoImpressao[]
+}
+
+/** Legenda de um anexo: `<Tipo> · <dd/mm/aaaa> · <descrição>`; sem descrição, sem o último trecho. */
+export function legendaAnexo(anexo: Pick<AnexoImpressao, 'tipo' | 'dataExame' | 'descricao'>): string {
+  return [ROTULO_TIPO_ANEXO[anexo.tipo], formatarDataAnexo(anexo.dataExame), anexo.descricao.trim()]
+    .filter((parte) => parte !== '')
+    .join(' · ')
 }
 
 /** Código curto impresso no rodapé: 8 primeiros caracteres do uuid, em maiúsculas. */
@@ -184,13 +204,100 @@ const estilos = StyleSheet.create({
   },
   linhaAssinatura: { borderTopWidth: 0.75, borderColor: '#000000', marginBottom: 4 },
   rotuloAssinatura: { fontSize: 10, textAlign: 'center' },
+  tabelaAnexos: { borderWidth: 0.75, borderColor: '#000000', marginBottom: 9 },
+  linhaAnexo: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderColor: '#777777' },
+  celulaAnexo: { paddingVertical: 4, paddingHorizontal: 5 },
+  cabecalhoAnexo: { fontSize: 9, fontWeight: 'bold', color: cinza },
+  miniatura: { width: 120, height: 90, objectFit: 'contain' },
+  legendaImagem: { fontSize: 10.5, fontWeight: 'bold', marginBottom: 2 },
+  imagemPagina: { width: 511, height: 600, objectFit: 'contain' },
 })
+
+/** Fonte da imagem no formato que o react-pdf espera (bytes + formato). */
+function fonteImagem(imagem: NonNullable<AnexoImpressao['imagem']>) {
+  return { data: Buffer.from(imagem.data), format: imagem.formato }
+}
+
+const LARGURAS_ANEXO = { tipo: '15%', data: '15%', descricao: '35%', formato: '12%', miniatura: '23%' } as const
+
+function RodapeEvolucao({ evolucao }: { evolucao: EvolucaoImpressao['evolucao'] }) {
+  const codigo = codigoCurto(evolucao.id)
+  const hash = evolucao.conteudo_hash?.slice(0, 12) ?? '—'
+  return (
+    <Text
+      fixed
+      style={estilos.rodape}
+      render={({ pageNumber, totalPages }) =>
+        `Código ${codigo} · Hash v${evolucao.hash_versao} ${hash} · Página ${pageNumber} de ${totalPages}`
+      }
+    />
+  )
+}
+
+function CabecalhoDocumento({ categoria, via }: { categoria: string; via: number }) {
+  return (
+    <View fixed style={estilos.cabecalho}>
+      <View style={estilos.cabecalhoLinha}>
+        <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
+        {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
+      </View>
+      <Text style={estilos.titulo}>{tituloDocumento(categoria)}</Text>
+    </View>
+  )
+}
+
+/** Tabela de anexos da evolução. Não renderiza nada sem anexos. */
+function TabelaAnexos({ anexos }: { anexos: AnexoImpressao[] }) {
+  if (anexos.length === 0) return null
+  return (
+    <View style={estilos.secao} wrap>
+      <Text style={estilos.tituloSecao}>Anexos</Text>
+      <View style={estilos.tabelaAnexos}>
+        <View style={estilos.linhaAnexo} wrap={false}>
+          <Text style={[estilos.celulaAnexo, estilos.cabecalhoAnexo, { width: LARGURAS_ANEXO.tipo }]}>Tipo</Text>
+          <Text style={[estilos.celulaAnexo, estilos.cabecalhoAnexo, { width: LARGURAS_ANEXO.data }]}>Data do exame</Text>
+          <Text style={[estilos.celulaAnexo, estilos.cabecalhoAnexo, { width: LARGURAS_ANEXO.descricao }]}>Descrição</Text>
+          <Text style={[estilos.celulaAnexo, estilos.cabecalhoAnexo, { width: LARGURAS_ANEXO.formato }]}>Formato</Text>
+          <Text style={[estilos.celulaAnexo, estilos.cabecalhoAnexo, { width: LARGURAS_ANEXO.miniatura }]}>Miniatura</Text>
+        </View>
+        {anexos.map((a) => (
+          <View key={a.id} style={estilos.linhaAnexo} wrap={false}>
+            <Text style={[estilos.celulaAnexo, estilos.valor, { width: LARGURAS_ANEXO.tipo }]}>{ROTULO_TIPO_ANEXO[a.tipo]}</Text>
+            <Text style={[estilos.celulaAnexo, estilos.valor, { width: LARGURAS_ANEXO.data }]}>{formatarDataAnexo(a.dataExame)}</Text>
+            <Text style={[estilos.celulaAnexo, estilos.valor, { width: LARGURAS_ANEXO.descricao }]}>{a.descricao || '—'}</Text>
+            <Text style={[estilos.celulaAnexo, estilos.valor, { width: LARGURAS_ANEXO.formato }]}>
+              {a.mime.startsWith('image/') ? 'Imagem' : 'PDF'}
+            </Text>
+            <View style={[estilos.celulaAnexo, { width: LARGURAS_ANEXO.miniatura }]}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF do react-pdf não tem alt; a legenda é o texto da página */}
+              {a.imagem && <Image style={estilos.miniatura} src={fonteImagem(a.imagem)} />}
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+/** Página própria de uma imagem anexada: legenda acima, imagem ajustada às margens, mesmo rodapé. */
+function PaginaImagem({ item, anexo }: { item: EvolucaoImpressao; anexo: AnexoImpressao & { imagem: NonNullable<AnexoImpressao['imagem']> } }) {
+  return (
+    <Page size="A4" style={estilos.pagina} wrap={false}>
+      <CabecalhoDocumento categoria={item.evolucao.categoria} via={item.via} />
+      <Text style={estilos.legendaImagem}>{legendaAnexo(anexo)}</Text>
+      <Text style={estilos.valor}>{`Evolução ${codigoCurto(item.evolucao.id)}`}</Text>
+      <View style={{ marginTop: 8 }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF do react-pdf não tem alt; a legenda é o texto da página */}
+        <Image style={estilos.imagemPagina} src={fonteImagem(anexo.imagem)} />
+      </View>
+      <RodapeEvolucao evolucao={item.evolucao} />
+    </Page>
+  )
+}
 
 function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
   const { evolucao, internacao, paciente, via } = item
   const dados = evolucao.dados
-  const codigo = codigoCurto(evolucao.id)
-  const hash = evolucao.conteudo_hash?.slice(0, 12) ?? '—'
   const sinais = sinaisVisiveis(dados)
   const secoes = secoesVisiveis(dados, evolucao.texto_livre ?? '')
 
@@ -243,6 +350,8 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
         </View>
       ))}
 
+      <TabelaAnexos anexos={item.anexos} />
+
       <View wrap={false} style={estilos.blocoAssinatura}>
         <Text style={estilos.validacao}>{linhaValidacao(evolucao)}</Text>
         <View style={estilos.caixaAssinatura}>
@@ -251,22 +360,39 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
         </View>
       </View>
 
-      <Text
-        fixed
-        style={estilos.rodape}
-        render={({ pageNumber, totalPages }) =>
-          `Código ${codigo} · Hash ${hash} · Página ${pageNumber} de ${totalPages}`
-        }
-      />
+      <RodapeEvolucao evolucao={evolucao} />
     </Page>
   )
 }
 
-export function DocumentoEvolucao({ evolucoes }: { evolucoes: EvolucaoImpressao[] }) {
+/** Uma evolução: a página da evolução e, com `incluirImagens`, uma página por imagem anexada. */
+function BlocoEvolucao({ item, incluirImagens }: { item: EvolucaoImpressao; incluirImagens: boolean }) {
+  const imagens = incluirImagens
+    ? item.anexos.filter(
+        (a): a is AnexoImpressao & { imagem: NonNullable<AnexoImpressao['imagem']> } => a.imagem !== null,
+      )
+    : []
+  return (
+    <>
+      <PaginaEvolucao item={item} />
+      {imagens.map((a) => (
+        <PaginaImagem key={a.id} item={item} anexo={a} />
+      ))}
+    </>
+  )
+}
+
+export function DocumentoEvolucao({
+  evolucoes,
+  incluirImagens = false,
+}: {
+  evolucoes: EvolucaoImpressao[]
+  incluirImagens?: boolean
+}) {
   return (
     <Document title="Evolução médica" author="Santa Casa de Dracena">
       {evolucoes.map((item) => (
-        <PaginaEvolucao key={item.evolucao.id} item={item} />
+        <BlocoEvolucao key={item.evolucao.id} item={item} incluirImagens={incluirImagens} />
       ))}
     </Document>
   )

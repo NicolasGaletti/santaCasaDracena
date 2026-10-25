@@ -304,6 +304,8 @@ test('filtro ECG mostra só ECG e PDF abre em nova aba', async ({ page }) => {
   ]);
   expect(nova).toBeTruthy();
   expect(pedidoAssinado.url()).toMatch(/\/storage\/v1\/object\/sign\/anexos\//);
+  // O acesso ao anexo fica registrado no log.
+  expect(Number(sqlLocal(`select count(*) from public.acessos where acao = 'ver_anexo' and internacao_id = '${id}'`))).toBeGreaterThan(0);
 });
 
 test('visualizador em tela cheia fecha com Esc e com o voltar do navegador', async ({ page }) => {

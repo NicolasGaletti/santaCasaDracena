@@ -1,14 +1,21 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { renderToBuffer } from '@react-pdf/renderer'
+import { PDFParse } from 'pdf-parse'
 import { describe, expect, it } from 'vitest'
 import { rascunhoMedicaVazio, type DadosMedica } from '@/features/evolucao/modelos/medica'
 import {
   DocumentoEvolucao,
   codigoCurto,
+  legendaAnexo,
   secoesVisiveis,
   sinaisVisiveis,
+  type AnexoImpressao,
   type EvolucaoImpressao,
 } from './documento-evolucao'
+
+const FOTO = readFileSync(path.join(process.cwd(), 'e2e/fixtures/exame.jpg'))
 
 function dadosSemExameFisico(): DadosMedica {
   return {
@@ -17,7 +24,7 @@ function dadosSemExameFisico(): DadosMedica {
   }
 }
 
-function impressao(dados: DadosMedica, via = 1): EvolucaoImpressao {
+function impressao(dados: DadosMedica, via = 1, anexos: AnexoImpressao[] = []): EvolucaoImpressao {
   return {
     evolucao: {
       id: 'd0000000-0000-0000-0000-000000000001',
@@ -26,6 +33,7 @@ function impressao(dados: DadosMedica, via = 1): EvolucaoImpressao {
       finalizada_em: '2026-10-25T16:05:00.000Z',
       validada_em: '2026-10-25T16:05:00.000Z',
       conteudo_hash: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+      hash_versao: 2,
       snapshot_autor: { nome: 'Dra. Marina Lopes (teste)', conselho: 'CRM', numero: '145892', uf: 'SP' },
       snapshot_validador: { nome: 'Dra. Marina Lopes (teste)', conselho: 'CRM', numero: '145892', uf: 'SP' },
     },
@@ -35,7 +43,33 @@ function impressao(dados: DadosMedica, via = 1): EvolucaoImpressao {
     },
     paciente: { nome: 'Paciente Teste', data_nascimento: '1970-03-10', convenio: 'SUS' },
     via,
+    anexos,
   }
+}
+
+const anexoPdf: AnexoImpressao = {
+  id: 'a0000000-0000-0000-0000-000000000001',
+  tipo: 'LABORATORIO',
+  descricao: 'Hemograma completo',
+  dataExame: '2026-10-24',
+  mime: 'application/pdf',
+  imagem: null,
+}
+
+const anexoFoto: AnexoImpressao = {
+  id: 'a0000000-0000-0000-0000-000000000002',
+  tipo: 'OUTRO',
+  descricao: 'Foto do exame',
+  dataExame: '2026-10-24',
+  mime: 'image/jpeg',
+  imagem: { data: new Uint8Array(FOTO), formato: 'jpg' },
+}
+
+async function textoDoPdf(buffer: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: buffer })
+  const resultado = await parser.getText()
+  await parser.destroy()
+  return resultado.text
 }
 
 describe('secoesVisiveis', () => {
@@ -99,11 +133,60 @@ describe('codigoCurto', () => {
   })
 })
 
+describe('legendaAnexo', () => {
+  it('monta tipo, data de dd/mm/aaaa e descrição', () => {
+    expect(legendaAnexo(anexoPdf)).toBe('Laboratório · 24/10/2026 · Hemograma completo')
+  })
+
+  it('omite a descrição quando vazia', () => {
+    expect(legendaAnexo({ ...anexoPdf, descricao: '' })).toBe('Laboratório · 24/10/2026')
+  })
+})
+
 describe('DocumentoEvolucao', () => {
   it('gera um PDF não vazio', async () => {
     const dados: DadosMedica = { ...dadosSemExameFisico(), conduta: 'Manter esquema', evolucao_clinica: 'Estável' }
     const buffer = await renderToBuffer(<DocumentoEvolucao evolucoes={[impressao(dados)]} />)
     expect(buffer.length).toBeGreaterThan(0)
     expect(buffer.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+
+  it('seção Anexos omitida sem anexos', async () => {
+    const buffer = await renderToBuffer(<DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico())]} />)
+    expect(await textoDoPdf(buffer)).not.toContain('Anexos')
+  })
+
+  it('lista anexos com rótulo do tipo', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico(), 1, [anexoPdf, anexoFoto])]} />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('Anexos')
+    expect(texto).toContain('Laboratório')
+    expect(texto).toContain('Hemograma completo')
+    expect(texto).toContain('PDF')
+    expect(texto).toContain('Imagem')
+  })
+
+  it('sem incluirImagens não ganha página extra para a imagem', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico(), 1, [anexoFoto])]} />,
+    )
+    expect(await textoDoPdf(buffer)).toContain('Página 1 de 1')
+  })
+
+  it('com incluirImagens cada imagem ganha página própria com legenda e rodapé', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico(), 1, [anexoPdf, anexoFoto])]} incluirImagens />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('Outro · 24/10/2026 · Foto do exame')
+    expect(texto).toContain('Evolução D0000000')
+    expect(texto).toContain('Página 2 de 2')
+  })
+
+  it('rodapé traz a versão do hash', async () => {
+    const buffer = await renderToBuffer(<DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico())]} />)
+    expect(await textoDoPdf(buffer)).toContain('Hash v2 a1b2c3d4e5f6')
   })
 })

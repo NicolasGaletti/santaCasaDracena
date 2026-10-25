@@ -5,9 +5,29 @@ import { createClient } from '@/lib/supabase/server'
 import {
   codigoCurto,
   DocumentoEvolucao,
+  type AnexoImpressao,
   type Assinante,
   type EvolucaoImpressao,
 } from './documento-evolucao'
+
+type Cliente = Awaited<ReturnType<typeof createClient>>
+
+export type OpcoesPdf = {
+  /** Chave idempotente (`k`): mesma chave não gera nova via. */
+  chave?: string | null
+  /** Acrescenta uma página por imagem anexada, após a evolução. */
+  incluirImagens?: boolean
+}
+
+type LinhaAnexo = {
+  id: string
+  evolucao_id: string
+  tipo: AnexoImpressao['tipo']
+  descricao: string
+  data_exame: string
+  mime: string
+  storage_path: string
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAXIMO_IDS = 50
@@ -44,12 +64,52 @@ async function juntarPdfs(buffers: Buffer[]): Promise<Uint8Array> {
   return final.save()
 }
 
+/** Formatos que o PDF embute sem conversão. WebP e outros não são impressos como imagem. */
+function formatoEmbutivel(mime: string): 'jpg' | 'png' | null {
+  if (mime === 'image/jpeg') return 'jpg'
+  if (mime === 'image/png') return 'png'
+  return null
+}
+
+/**
+ * Anexos confirmados, agrupados por evolução. Imagens embutíveis são baixadas com o cliente do
+ * usuário (RLS). Devolve `null` se algum download falhar: a impressão não deve sair sem a imagem.
+ */
+async function carregarAnexos(
+  supabase: Cliente,
+  linhas: LinhaAnexo[],
+): Promise<Map<string, AnexoImpressao[]> | null> {
+  try {
+    const anexos = await Promise.all(
+      linhas.map(async (l): Promise<AnexoImpressao> => {
+        const formato = formatoEmbutivel(l.mime)
+        let imagem: AnexoImpressao['imagem'] = null
+        if (formato) {
+          const { data, error } = await supabase.storage.from('anexos').download(l.storage_path)
+          if (error || !data) throw new Error('download de anexo falhou')
+          imagem = { data: new Uint8Array(await data.arrayBuffer()), formato }
+        }
+        return { id: l.id, tipo: l.tipo, descricao: l.descricao, dataExame: l.data_exame, mime: l.mime, imagem }
+      }),
+    )
+    const porEvolucao = new Map<string, AnexoImpressao[]>()
+    linhas.forEach((l, i) => {
+      porEvolucao.set(l.evolucao_id, [...(porEvolucao.get(l.evolucao_id) ?? []), anexos[i]])
+    })
+    return porEvolucao
+  } catch {
+    return null
+  }
+}
+
 /**
  * Gera um PDF A4 com as evoluções finalizadas pedidas, na ordem dos ids.
- * Ordem: valida e monta tudo; registra as vias de uma vez (atômico); só então renderiza.
- * Cada evolução é paginada à parte ("Página x de y" é da própria evolução).
+ * Ordem: valida e monta tudo (inclusive anexos); registra as vias de uma vez (atômico); só então renderiza.
+ * Cada evolução é paginada à parte ("Página x de y" é da própria evolução, com as páginas de imagem).
  */
-export async function gerarPdf(ids: string[], chave: string | null = null): Promise<Response> {
+export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<Response> {
+  const chave = opcoes.chave ?? null
+  const incluirImagens = opcoes.incluirImagens ?? false
   if (ids.length === 0 || ids.length > MAXIMO_IDS) return erro(400, 'Informe de 1 a 50 evoluções.')
   if (ids.some((id) => !UUID.test(id))) return erro(400, 'Identificador de evolução inválido.')
   if (new Set(ids).size !== ids.length) return erro(400, 'Evolução repetida na lista.')
@@ -73,7 +133,7 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
   const { data: evolucoes, error: erroEvolucoes } = await supabase
     .from('vw_evolucoes_timeline')
     .select(
-      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash',
+      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, hash_versao',
     )
     .in('id', ids)
   if (erroEvolucoes) return erro(500, 'Não foi possível gerar o PDF.')
@@ -107,6 +167,7 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
         snapshot_autor: assinante(evolucao.snapshot_autor),
         snapshot_validador: assinante(evolucao.snapshot_validador),
         conteudo_hash: evolucao.conteudo_hash,
+        hash_versao: evolucao.hash_versao,
       },
       internacao: {
         leito_ala: internacao.leito_ala ?? '',
@@ -117,8 +178,21 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
         data_nascimento: internacao.data_nascimento ?? '',
         convenio: internacao.convenio ?? '',
       },
+      anexos: [],
     })
   }
+
+  // Anexos: baixados aqui, antes de qualquer via ser registrada.
+  const { data: linhasAnexos, error: erroAnexos } = await supabase
+    .from('anexos')
+    .select('id, evolucao_id, tipo, descricao, data_exame, mime, storage_path')
+    .in('evolucao_id', ids)
+    .eq('confirmado', true)
+    .order('enviado_em', { ascending: true })
+  if (erroAnexos) return erro(500, 'Não foi possível gerar o PDF.')
+  const anexosPorEvolucao = await carregarAnexos(supabase, (linhasAnexos ?? []) as LinhaAnexo[])
+  if (!anexosPorEvolucao) return erro(500, 'Não foi possível obter os anexos para impressão.')
+  for (const item of itens) item.anexos = anexosPorEvolucao.get(item.evolucao.id) ?? []
 
   // Registro atômico: uma chamada, uma transação no banco.
   const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', {
@@ -138,7 +212,9 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
   const buffers: Buffer[] = []
   for (const item of itens) {
     const via = viaPorId.get(item.evolucao.id) ?? 1
-    buffers.push(await renderToBuffer(DocumentoEvolucao({ evolucoes: [{ ...item, via }] })))
+    buffers.push(
+      await renderToBuffer(DocumentoEvolucao({ evolucoes: [{ ...item, via }], incluirImagens })),
+    )
   }
   const pdf = buffers.length === 1 ? buffers[0] : await juntarPdfs(buffers)
   const nome = ids.length === 1 ? `evolucao-${codigoCurto(ids[0])}.pdf` : `evolucoes-${ids.length}.pdf`

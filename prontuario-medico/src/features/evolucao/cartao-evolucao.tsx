@@ -15,6 +15,7 @@ export type EvolucaoTimeline = {
   finalizada_em: string | null
   dados: unknown
   texto_livre: string
+  qtd_anexos?: number | null
 }
 
 const FUSO_SP = 'America/Sao_Paulo'
@@ -132,6 +133,9 @@ export function CartaoEvolucao({
             <>
               <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
               <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
+              {(evolucao.qtd_anexos ?? 0) > 0 && (
+                <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />
+              )}
             </>
           ) : (
             <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>
