@@ -1,0 +1,20 @@
+import { describe, expect, it } from 'vitest';
+import { formatarData, hojeSP, idade } from './datas';
+
+describe('datas', () => {
+  it('idade em fuso SP', () => {
+    expect(idade('2000-10-26', new Date('2026-10-26T01:30:00Z'))).toBe(25);
+  });
+
+  it('aniversário hoje conta', () => {
+    expect(idade('2000-10-25', new Date('2026-10-25T15:00:00Z'))).toBe(26);
+  });
+
+  it('hojeSP usa o calendário de São Paulo', () => {
+    expect(hojeSP(new Date('2026-10-26T01:30:00Z'))).toBe('2026-10-25');
+  });
+
+  it('formatarData(\'2000-01-05\') → \'05/01/2000\'', () => {
+    expect(formatarData('2000-01-05')).toBe('05/01/2000');
+  });
+});
