@@ -138,7 +138,10 @@ test('leito muda só ao sair do campo', async ({ page }) => {
   await page.waitForTimeout(500);
   expect(chamadas).toHaveLength(0);
 
+  // Espera a resposta, não só o envio: recarregar com a ação em voo pode perder a gravação.
+  const gravado = page.waitForResponse((r) => r.request().method() === 'POST' && !!r.request().headers()['next-action']);
   await campo.press('Tab');
+  await gravado;
   await expect.poll(() => chamadas.length).toBe(1);
 
   await page.reload();
