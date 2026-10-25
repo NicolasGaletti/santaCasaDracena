@@ -1,5 +1,5 @@
 begin;
-select plan(34);
+select plan(35);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
@@ -118,6 +118,14 @@ select throws_ok(
     values ('anexos', 'internacoes/33333333-3333-3333-3333-333333333333/' || gen_random_uuid(), current_setting('tst.medico_a')::uuid, '{}')$$,
   '42501', 'new row violates row-level security policy for table "objects"',
   'upload em caminho sem anexo reservado é negado'
+);
+
+-- 9b. autor não envia para caminho não reservado (internação real, id aleatório)
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('anexos', 'internacoes/33333333-3333-3333-3333-333333333333/' || gen_random_uuid(), current_setting('tst.medico_a')::uuid, '{}')$$,
+  '42501', 'new row violates row-level security policy for table "objects"',
+  'autor não envia para caminho não reservado'
 );
 
 -- 10. upload com anexo reservado + confirmar
