@@ -178,6 +178,15 @@ RASCUNHO ──finalizar (autor médico)──► FINALIZADA
 - MFA (TOTP) obrigatório para `medico`, `admin` e `auditoria`; opcional para os demais. **Decisão do Claude.**
 - Sessão expira após 30 min de inatividade no app; o refresh token tem vida limitada. O admin pode revogar as sessões de um usuário (aparelho perdido) e desativar a conta.
 
+### 6.6.1 Administração (perfil `admin`)
+
+- **Equipes:** criar, renomear, desativar (nunca apagar: as internações antigas apontam para elas).
+- **Profissionais:** convidar por e-mail (nome, perfil, categoria, conselho, número, UF), editar, desativar (bloqueia o login e derruba as sessões), reenviar convite. O profissional define a própria senha pelo link do convite.
+- **Vínculos:** adicionar e remover profissionais de cada equipe (N:N), com a tela por equipe e por profissional.
+- O convite e a desativação usam a Admin API do Supabase, que exige `service_role`. Essa chave fica só numa **Edge Function do Supabase** (`admin-usuarios`), que confere se quem chamou tem perfil `admin`. A chave nunca vai para o Netlify nem para o navegador.
+- Toda ação de admin entra em `auditoria`. O admin não lê nem edita conteúdo clínico.
+- Primeiro admin: criado uma vez por script/SQL no painel do Supabase.
+
 ### 6.7 Segurança e conformidade
 
 - RLS habilitado em **todas** as tabelas; nenhuma permissão `anon`. `service_role` só em migrations/scripts administrativos, nunca no host do front (Netlify).
