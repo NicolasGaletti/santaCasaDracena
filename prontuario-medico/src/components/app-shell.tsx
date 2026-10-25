@@ -60,7 +60,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
 
       <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <nav aria-label="Principal" className="flex gap-2">
+          <nav aria-label="Principal" className="flex min-w-0 flex-wrap gap-2">
             {navegacao.map((item) => {
               // Página de conteúdo (ex.: prontuário) pode marcar a aba pelo status da internação.
               const ativo = abaMarcada
