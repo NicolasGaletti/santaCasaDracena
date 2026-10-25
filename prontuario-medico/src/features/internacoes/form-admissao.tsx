@@ -15,13 +15,7 @@ const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/
 const classeSelect =
   'h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50'
 
-export function FormAdmissao({
-  equipes,
-  medicos,
-}: {
-  equipes: { id: string; nome: string }[]
-  medicos: { id: string; nome: string }[]
-}) {
+export function FormAdmissao({ equipes }: { equipes: { id: string; nome: string }[] }) {
   const [state, formAction, pending] = useActionState(admitir, ESTADO_INICIAL)
   const valores = state.valores ?? {}
 
@@ -80,7 +74,7 @@ export function FormAdmissao({
         <legend className="mb-2 text-lg font-bold">Internação</legend>
         <div className="grid gap-2">
           <Label htmlFor="equipe">
-            Equipe <span aria-hidden="true">*</span>
+            Equipe responsável <span aria-hidden="true">*</span>
           </Label>
           <select id="equipe" name="equipe" required className={classeSelect} defaultValue={valores.equipe ?? ''}>
             <option value="" disabled>
@@ -98,21 +92,6 @@ export function FormAdmissao({
             Leito / ala <span aria-hidden="true">*</span>
           </Label>
           <Input id="leito" name="leito" required defaultValue={valores.leito} />
-        </div>
-        <div className="grid gap-2 lg:col-span-2">
-          <Label htmlFor="medico">
-            Médico responsável <span aria-hidden="true">*</span>
-          </Label>
-          <select id="medico" name="medico" required className={classeSelect} defaultValue={valores.medico ?? ''}>
-            <option value="" disabled>
-              Escolha o médico
-            </option>
-            {medicos.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nome}
-              </option>
-            ))}
-          </select>
         </div>
       </fieldset>
 

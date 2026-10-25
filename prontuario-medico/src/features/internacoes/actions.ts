@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export type EstadoAdmissao = EstadoForm & { valores?: Record<string, string> }
 
-const CAMPOS_OBRIGATORIOS = ['nome', 'nascimento', 'convenio', 'equipe', 'leito', 'medico'] as const
+const CAMPOS_OBRIGATORIOS = ['nome', 'nascimento', 'convenio', 'equipe', 'leito'] as const
 
 export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<EstadoAdmissao> {
   const campos = [...CAMPOS_OBRIGATORIOS, 'diagnostico', 'comorbidades', 'muc'] as const

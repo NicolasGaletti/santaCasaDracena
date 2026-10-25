@@ -26,12 +26,8 @@ export function CabecalhoPaciente({ linha }: { linha: LinhaInternacao }) {
           <dd className="break-words font-semibold">{linha.convenio}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Equipe</dt>
+          <dt className="text-muted-foreground">Equipe responsável</dt>
           <dd className="break-words font-semibold">{linha.equipe_nome}</dd>
-        </div>
-        <div className="col-span-2">
-          <dt className="text-muted-foreground">Médico responsável</dt>
-          <dd className="font-semibold">{linha.medico_responsavel_nome ?? 'Não informado'}</dd>
         </div>
       </dl>
 

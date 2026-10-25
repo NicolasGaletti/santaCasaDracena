@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const SENHA = 'Teste@123';
 const EQUIPE_NEFROLOGIA = 'e0000000-0000-0000-0000-000000000003';
+const EQUIPE_CARDIOLOGIA = 'e0000000-0000-0000-0000-000000000001';
 
 async function entrar(page: Page, email: string) {
   await page.goto('/login');
@@ -25,13 +26,67 @@ test('medico1 admite paciente e cai no prontuário', async ({ page }) => {
   await page.getByLabel('Nome completo').fill(nome);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
   await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
   await page.getByLabel('Leito / ala').fill('E2E-01');
-  await page.getByLabel('Médico responsável').selectOption({ label: 'Dra. Marina Lopes (teste)' });
   await page.getByLabel('Diagnóstico inicial').fill('Dor torácica');
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
 
   await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  await expect(page.getByText('Equipe responsável', { exact: true })).toBeVisible();
+  await expect(page.getByText('Médico responsável')).toHaveCount(0);
+});
+
+test('admissão não pede médico responsável', async ({ page }) => {
+  await entrar(page, 'medico1@teste.local');
+  await page.getByRole('link', { name: 'Admitir paciente' }).click();
+  await expect(page).toHaveURL(/\/internacoes\/nova$/);
+
+  await expect(page.getByLabel('Equipe responsável')).toBeVisible();
+  await expect(page.getByLabel('Médico responsável')).toHaveCount(0);
+});
+
+test('seed antigo com médico vinculado abre sem exibir médico responsável', async ({ page }) => {
+  await entrar(page, 'medico1@teste.local');
+  await page.getByRole('heading', { name: 'Paciente Fictício 01' }).click();
+  await expect(page).toHaveURL(/\/internacoes\/c0000000-0000-0000-0000-000000000001$/);
+  await expect(page.getByRole('heading', { name: 'Paciente Fictício 01' })).toBeVisible();
+  await expect(page.getByText('Equipe responsável', { exact: true })).toBeVisible();
+  await expect(page.getByText('Médico responsável')).toHaveCount(0);
+});
+
+test('filtro por convênio com acento mostra só o convênio escolhido', async ({ page }) => {
+  await entrar(page, 'medico1@teste.local');
+  await page
+    .getByRole('navigation', { name: 'Filtrar por convênio' })
+    .getByRole('link', { name: 'Bradesco Saúde', exact: true })
+    .click();
+  await expect(page).toHaveURL(/convenio=Bradesco\+Sa%C3%BAde$/);
+
+  const cartoes = page.getByTestId('cartao-internacao');
+  await expect(cartoes.filter({ hasText: 'Paciente Fictício 04' })).toHaveCount(1);
+  await expect(page.getByText('Paciente Fictício 01')).toHaveCount(0);
+  await expect(page.getByText('Paciente Fictício 02')).toHaveCount(0);
+});
+
+test('equipe e convênio combinados filtram pelos dois', async ({ page }) => {
+  await entrar(page, 'medico1@teste.local');
+  await page
+    .getByRole('navigation', { name: 'Filtrar por equipe' })
+    .getByRole('link', { name: 'Cardiologia', exact: true })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`equipe=${EQUIPE_CARDIOLOGIA}$`));
+  await page
+    .getByRole('navigation', { name: 'Filtrar por convênio' })
+    .getByRole('link', { name: 'SUS', exact: true })
+    .click();
+
+  await expect(page).toHaveURL(new RegExp(`equipe=${EQUIPE_CARDIOLOGIA}&convenio=SUS$`));
+  await expect(page.getByRole('navigation', { name: 'Filtrar por equipe' }).getByRole('link', { name: 'Cardiologia', exact: true })).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByRole('navigation', { name: 'Filtrar por convênio' }).getByRole('link', { name: 'SUS', exact: true })).toHaveAttribute('aria-current', 'true');
+  // Paciente 01 é SUS e Cardiologia; 02 é Unimed e 05 é SUS mas Nefrologia.
+  await expect(page.getByText('Paciente Fictício 01')).toHaveCount(1);
+  await expect(page.getByText('Paciente Fictício 02')).toHaveCount(0);
+  await expect(page.getByText('Paciente Fictício 05')).toHaveCount(0);
 });
 
 test('admissão sem leito mostra erro e mantém campos', async ({ page }) => {
@@ -42,10 +97,9 @@ test('admissão sem leito mostra erro e mantém campos', async ({ page }) => {
   await page.getByLabel('Nome completo').fill(nome);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
   await page.getByLabel('Convênio').fill('Unimed');
-  await page.getByLabel('Equipe').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
   // Espaços passam na validação nativa de "required" mas o servidor recusa após trim.
   await page.getByLabel('Leito / ala').fill('   ');
-  await page.getByLabel('Médico responsável').selectOption({ label: 'Dra. Marina Lopes (teste)' });
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
 
   await expect(page.locator('p[role="alert"]')).toHaveText('Preencha os campos obrigatórios.');

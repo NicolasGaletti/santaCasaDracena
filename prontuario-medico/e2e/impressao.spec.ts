@@ -23,9 +23,8 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
   await page.getByLabel('Nome completo').fill(`Paciente Impressão ${leito}`)
   await page.getByLabel('Data de nascimento').fill('1970-03-10')
   await page.getByLabel('Convênio').fill('SUS')
-  await page.getByLabel('Equipe').selectOption({ label: 'Cardiologia' })
+  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' })
   await page.getByLabel('Leito / ala').fill(leito)
-  await page.getByLabel('Médico responsável').selectOption({ label: 'Dra. Marina Lopes (teste)' })
   await page.getByRole('button', { name: 'Confirmar admissão' }).click()
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 })
   return new URL(page.url()).pathname.split('/').pop() as string
@@ -70,6 +69,8 @@ test('PDF de finalizada responde 200 application/pdf', async ({ page }) => {
   const texto = await textoDoPdf(await resposta.body())
   expect(texto).toContain(`Paciente Impressão ${leito}`)
   expect(texto).toContain('Validado por Dra. Marina Lopes (teste) – CRM 145892/SP')
+  expect(texto).toContain('Equipe responsável')
+  expect(texto).not.toContain('Médico responsável')
 })
 
 test('PDF de rascunho responde 404', async ({ page }) => {

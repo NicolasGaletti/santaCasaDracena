@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation'
 import { FormAdmissao } from '@/features/internacoes/form-admissao'
-import { listarEquipes, listarMedicos } from '@/features/internacoes/consultas'
+import { listarEquipes } from '@/features/internacoes/consultas'
 import { exigirProfissional } from '@/lib/auth'
 
 export default async function PaginaAdmissao() {
   const profissional = await exigirProfissional()
   if (profissional.perfil !== 'medico' && profissional.perfil !== 'recepcao') redirect('/')
 
-  const [equipes, medicos] = await Promise.all([listarEquipes(), listarMedicos()])
+  const equipes = await listarEquipes()
 
   return (
     <>
@@ -17,7 +17,7 @@ export default async function PaginaAdmissao() {
           Campos com * são obrigatórios.
         </p>
       </div>
-      <FormAdmissao equipes={equipes} medicos={medicos} />
+      <FormAdmissao equipes={equipes} />
     </>
   )
 }

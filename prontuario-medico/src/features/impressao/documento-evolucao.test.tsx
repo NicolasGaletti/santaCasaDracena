@@ -32,7 +32,6 @@ function impressao(dados: DadosMedica, via = 1): EvolucaoImpressao {
     internacao: {
       leito_ala: 'A-01',
       equipe_nome: 'Cardiologia',
-      medico_responsavel_nome: 'Dra. Marina Lopes (teste)',
     },
     paciente: { nome: 'Paciente Teste', data_nascimento: '1970-03-10', convenio: 'SUS' },
     via,

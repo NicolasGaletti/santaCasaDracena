@@ -30,7 +30,6 @@ export type EvolucaoImpressao = {
   internacao: {
     leito_ala: string
     equipe_nome: string
-    medico_responsavel_nome: string | null
   }
   paciente: {
     nome: string
@@ -200,8 +199,7 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
     ['Data de nascimento', `${formatarData(paciente.data_nascimento)} (${idade(paciente.data_nascimento, new Date(evolucao.finalizada_em))} anos)`],
     ['Leito / ala', internacao.leito_ala],
     ['Convênio', paciente.convenio],
-    ['Equipe', internacao.equipe_nome],
-    ['Médico responsável', internacao.medico_responsavel_nome ?? 'Não informado'],
+    ['Equipe responsável', internacao.equipe_nome],
   ]
 
   return (

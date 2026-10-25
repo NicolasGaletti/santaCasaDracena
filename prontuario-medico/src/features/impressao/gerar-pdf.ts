@@ -82,7 +82,7 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
   const internacaoIds = [...new Set((evolucoes ?? []).map((e) => e.internacao_id))]
   const { data: internacoes, error: erroInternacoes } = await supabase
     .from('vw_internacoes_lista')
-    .select('internacao_id, nome, data_nascimento, convenio, leito_ala, equipe_nome, medico_responsavel_nome')
+    .select('internacao_id, nome, data_nascimento, convenio, leito_ala, equipe_nome')
     .in('internacao_id', internacaoIds)
   if (erroInternacoes) return erro(500, 'Não foi possível gerar o PDF.')
   const internacaoPorId = new Map((internacoes ?? []).map((i) => [i.internacao_id, i]))
@@ -111,7 +111,6 @@ export async function gerarPdf(ids: string[], chave: string | null = null): Prom
       internacao: {
         leito_ala: internacao.leito_ala ?? '',
         equipe_nome: internacao.equipe_nome ?? '',
-        medico_responsavel_nome: internacao.medico_responsavel_nome,
       },
       paciente: {
         nome: internacao.nome,

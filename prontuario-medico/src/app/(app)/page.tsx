@@ -1,15 +1,16 @@
 import { ListaInternacoes } from '@/features/internacoes/lista-internacoes'
-import { listarEquipes, listarInternacoes } from '@/features/internacoes/consultas'
+import { listarConvenios, listarEquipes, listarInternacoes } from '@/features/internacoes/consultas'
 
 export default async function PaginaInternados({
   searchParams,
 }: {
-  searchParams: Promise<{ equipe?: string }>
+  searchParams: Promise<{ equipe?: string; convenio?: string }>
 }) {
-  const { equipe } = await searchParams
-  const equipes = await listarEquipes()
+  const { equipe, convenio } = await searchParams
+  const [equipes, convenios] = await Promise.all([listarEquipes(), listarConvenios('INTERNADO')])
   const equipeId = equipes.some((e) => e.id === equipe) ? equipe : undefined
-  const internacoes = await listarInternacoes({ status: 'INTERNADO', equipeId })
+  const convenioAtual = convenios.includes(convenio ?? '') ? convenio : undefined
+  const internacoes = await listarInternacoes({ status: 'INTERNADO', equipeId, convenio: convenioAtual })
 
   return (
     <>
@@ -18,6 +19,8 @@ export default async function PaginaInternados({
         internacoes={internacoes}
         equipes={equipes}
         equipeAtual={equipeId}
+        convenios={convenios}
+        convenioAtual={convenioAtual}
         caminho="/"
         mostrarStatusHoje
       />
