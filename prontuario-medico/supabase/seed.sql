@@ -32,6 +32,18 @@ insert into auth.users (
    'residente@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new
+) values
+  ('a0000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'enfermeira@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+  ('a0000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'academico@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
+
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
 select
   gen_random_uuid(), u.id, u.id::text, 'email',
@@ -57,6 +69,10 @@ insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_
 insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho) values
   ('a0000000-0000-0000-0000-000000000006', 'Residente Teste (teste)', 'residente', 'medica', 'CRM', '310555', 'SP');
 
+insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho) values
+  ('a0000000-0000-0000-0000-000000000007', 'Enfermeira Teste (teste)', 'multiprofissional', 'enfermagem', 'COREN', '123456', 'SP'),
+  ('a0000000-0000-0000-0000-000000000008', 'Acadêmico Teste (teste)', 'academico', 'medica', null, null, null);
+
 insert into public.profissionais (id, nome, perfil, ativo) values
   ('a0000000-0000-0000-0000-000000000005', 'Dr. Inativo (teste)', 'medico', false);
 
@@ -64,7 +80,9 @@ insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001'),
   ('a0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000003'),
   ('a0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000002'),
-  ('a0000000-0000-0000-0000-000000000006', 'e0000000-0000-0000-0000-000000000002');
+  ('a0000000-0000-0000-0000-000000000006', 'e0000000-0000-0000-0000-000000000002'),
+  ('a0000000-0000-0000-0000-000000000007', 'e0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000008', 'e0000000-0000-0000-0000-000000000001');
 
 -- Pacientes fictícios
 insert into public.pacientes (id, nome, data_nascimento, convenio) values

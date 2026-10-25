@@ -6,14 +6,13 @@ import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
-import { podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
+import { exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirProfissional } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const PERFIS_CLINICOS_QUE_EVOLUEM = ['medico', 'residente'] as const
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
 
 export default async function PaginaProntuario({ params }: { params: Promise<{ id: string }> }) {
@@ -59,11 +58,11 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
 
   const podeEvoluir =
     linha.status === 'INTERNADO' &&
-    (PERFIS_CLINICOS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil) &&
+    (PERFIS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil) &&
     (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
-  const crmCompleto = Boolean(
-    profissional.conselho && profissional.numero_conselho && profissional.uf_conselho,
-  )
+  const conselhoCompleto =
+    !exigeConselho(profissional.perfil) ||
+    Boolean(profissional.conselho && profissional.numero_conselho && profissional.uf_conselho)
 
   return (
     <>
@@ -76,13 +75,13 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
             </Button>
-          ) : crmCompleto ? (
+          ) : conselhoCompleto ? (
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={`/internacoes/${id}/evolucao`}>Nova evolução</Link>
             </Button>
           ) : (
             <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-              Complete seu registro profissional (CRM, número e UF) para registrar evoluções.
+              Complete seu registro profissional (conselho, número e UF) para registrar evoluções.
             </p>
           )}
         </div>

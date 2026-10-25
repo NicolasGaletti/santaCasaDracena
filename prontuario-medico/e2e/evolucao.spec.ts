@@ -368,3 +368,43 @@ test('recepção vê o prontuário sem conteúdo clínico', async ({ page }) => 
   await expect(page.getByText('Conteúdo clínico disponível apenas para profissionais de saúde.')).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Evoluções' })).toHaveCount(0);
 });
+
+test('enfermeira abre formulário simples', async ({ page }) => {
+  await entrar(page, 'enfermeira@teste.local');
+  await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await page.getByRole('link', { name: 'Nova evolução' }).click();
+  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.getByRole('heading', { name: 'Evolução de Enfermagem' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enviar para validação' })).toBeDisabled();
+  await expect(page.getByText('Envio para validação chega na próxima atualização.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
+});
+
+test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
+  await entrar(page, 'enfermeira@teste.local');
+  await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await page.getByRole('link', { name: /Nova evolução|Continuar rascunho/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible({ timeout: 10_000 });
+
+  await page.getByRole('textbox', { name: 'Evolução', exact: true }).fill('Curativo limpo, sem sinais flogísticos');
+  await page.getByRole('textbox', { name: 'Plano', exact: true }).fill('Trocar curativo em 48 h');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
+
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toHaveValue('Curativo limpo, sem sinais flogísticos');
+  await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toHaveValue('Trocar curativo em 48 h');
+  await page.getByRole('button', { name: 'Descartar rascunho' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Descartar rascunho' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+});
+
+test('acadêmico abre o formulário médico sem CRM e não finaliza', async ({ page }) => {
+  await entrar(page, 'academico@teste.local');
+  await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await page.getByRole('link', { name: 'Nova evolução' }).click();
+  await expect(page.getByLabel('Evolução clínica')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
+});
