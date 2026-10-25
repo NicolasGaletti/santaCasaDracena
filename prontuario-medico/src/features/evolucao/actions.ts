@@ -1,0 +1,62 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { exigirProfissional } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
+
+const MENSAGEM_GENERICA = 'Não foi possível concluir a operação. Tente novamente.'
+
+// Só mensagens P0001 são pt-BR escritas para o usuário; o resto é erro técnico.
+function mensagemDeErro(error: { code?: string; message: string }): string {
+  return error.code === 'P0001' ? error.message : MENSAGEM_GENERICA
+}
+
+export async function finalizar(evolucaoId: string): Promise<{ erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: evolucao, error: erroBusca } = await supabase
+    .from('evolucoes')
+    .select('internacao_id')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+  if (erroBusca || !evolucao) return { erro: MENSAGEM_GENERICA }
+
+  const { error } = await supabase.rpc('finalizar_evolucao', { p_evolucao_id: evolucaoId })
+  if (error) return { erro: mensagemDeErro(error) }
+
+  revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+  redirect(`/internacoes/${evolucao.internacao_id}`)
+}
+
+export async function descartar(evolucaoId: string): Promise<void> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: evolucao } = await supabase
+    .from('evolucoes')
+    .select('internacao_id')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+
+  const { error } = await supabase.rpc('descartar_rascunho', { p_evolucao_id: evolucaoId })
+  if (error) throw new Error(mensagemDeErro(error))
+
+  if (evolucao) revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+}
+
+export async function trocarLeito(internacaoId: string, leito: string): Promise<{ erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { error } = await supabase.rpc('trocar_leito', {
+    p_internacao_id: internacaoId,
+    p_leito_ala: leito.trim(),
+  })
+  if (error) return { erro: mensagemDeErro(error) }
+
+  revalidatePath(`/internacoes/${internacaoId}`)
+  revalidatePath('/')
+  return {}
+}
