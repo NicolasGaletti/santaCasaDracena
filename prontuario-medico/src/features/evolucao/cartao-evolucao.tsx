@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { BotaoImprimirEvolucao } from './botao-imprimir'
 import type { DadosMedica } from './modelos/medica'
 import { rascunhoMedicaVazio } from './modelos/medica'
+import { lerDadosSimples } from './modelos/simples'
 import { ROTULO_CATEGORIA } from './rotulos'
 
 export type SecaoExame = 'ecg' | 'exames_imagem' | 'exames_laboratoriais'
@@ -108,10 +109,22 @@ export function CartaoEvolucao({
   const d = lerDadosMedica(evolucao.dados)
   const finalizada = evolucao.status === 'FINALIZADA'
   const data = evolucao.finalizada_em ?? evolucao.criado_em
-  const sinaisPreenchidos = ROTULO_SINAIS.filter(([k]) => d.sinais[k] !== null && d.sinais[k] !== '')
-  const secoesVisiveis = secao
-    ? SECOES.filter((s) => s.chave === secao)
-    : SECOES.filter((s) => d[s.chave as keyof DadosMedica] && String(d[s.chave as keyof DadosMedica]).trim() !== '')
+  // Categorias não médicas usam o modelo simples: evolução, sinais vitais e plano.
+  const simples = evolucao.categoria !== 'medica' ? lerDadosSimples(evolucao.dados) : null
+  const sinais = simples ? simples.sinais : d.sinais
+  const sinaisPreenchidos = ROTULO_SINAIS.filter(([k]) => sinais[k] !== null && sinais[k] !== '')
+  const blocos: { chave: string; rotulo: string; valor: string }[] = simples
+    ? [
+        { chave: 'texto', rotulo: 'Evolução', valor: simples.texto },
+        { chave: 'plano', rotulo: 'Plano', valor: simples.plano },
+      ].filter((b) => b.valor.trim() !== '')
+    : secao
+      ? SECOES.filter((s) => s.chave === secao).map((s) => ({ chave: s.chave, rotulo: s.rotulo, valor: String(d[s.chave as keyof DadosMedica]) }))
+      : SECOES.filter((s) => d[s.chave as keyof DadosMedica] && String(d[s.chave as keyof DadosMedica]).trim() !== '').map((s) => ({
+          chave: s.chave,
+          rotulo: s.rotulo,
+          valor: String(d[s.chave as keyof DadosMedica]),
+        }))
 
   return (
     <article
@@ -137,6 +150,8 @@ export function CartaoEvolucao({
                 <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />
               )}
             </>
+          ) : evolucao.status === 'AGUARDANDO_VALIDACAO' ? (
+            <Badge className="shrink-0 bg-status-nenhum-bg px-2 text-xs text-status-nenhum-fg">Aguardando validação</Badge>
           ) : (
             <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>
           )}
@@ -148,20 +163,20 @@ export function CartaoEvolucao({
           {sinaisPreenchidos.map(([k, rotulo]) => (
             <div key={k} className="flex gap-1">
               <dt className="text-muted-foreground">{rotulo}:</dt>
-              <dd className="font-semibold tabular-nums">{d.sinais[k]}</dd>
+              <dd className="font-semibold tabular-nums">{sinais[k]}</dd>
             </div>
           ))}
         </dl>
       )}
 
-      {secoesVisiveis.map((s) => (
-        <section key={s.chave} className="flex flex-col gap-1">
-          <h4 className="text-sm font-bold text-muted-foreground">{s.rotulo}</h4>
-          <p className="whitespace-pre-line break-words">{String(d[s.chave as keyof DadosMedica])}</p>
+      {blocos.map((b) => (
+        <section key={b.chave} className="flex flex-col gap-1">
+          <h4 className="text-sm font-bold text-muted-foreground">{b.rotulo}</h4>
+          <p className="whitespace-pre-line break-words">{b.valor}</p>
         </section>
       ))}
 
-      {!secao && secoesVisiveis.length === 0 && (
+      {!secao && blocos.length === 0 && (
         <p className="text-sm text-muted-foreground">
           {evolucao.texto_livre.trim() ? evolucao.texto_livre : 'Sem registros nesta evolução.'}
         </p>

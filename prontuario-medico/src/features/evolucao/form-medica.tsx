@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { BlocoAnexos, MENSAGEM_ANEXO_NAO_ENVIADO, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
-import { finalizar } from './actions'
+import { enviarParaValidacao, finalizar } from './actions'
 import { CampoTextual } from './campo-textual'
 import { aplicarSinal, brutosDeSinais, CamposSinais, errosDeSinais, type BrutosSinais, type CampoSinal } from './campos-sinais'
 import { rascunhoMedicaVazio, validarParaFinalizar, type DadosMedica } from './modelos/medica'
+import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO } from './envio'
 import { DialogoDescartar, RodapeEvolucao } from './rodape-evolucao'
 import { useRascunhoEvolucao } from './use-rascunho-evolucao'
 
@@ -21,7 +22,7 @@ type Props = {
   userId: string
   perfil: string
   paciente: { nome: string; leito: string }
-  rascunho: { id: string; dados: DadosMedica; textoLivre: string } | null
+  rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null } | null
   anterior: DadosMedica | null
   anexos: AnexoRascunho[]
 }
@@ -40,13 +41,6 @@ type CampoExame = keyof DadosMedica['exame_fisico']
 const MENSAGEM_SEM_CONEXAO =
   'Sem conexão: a evolução não foi finalizada. Ela continua salva neste aparelho; tente de novo quando a conexão voltar.'
 
-const MENSAGEM_RESIDENTE = 'Rascunho salvo. O envio para validação do médico chega em breve.'
-
-/** Redirecionamento do Next chega como erro com digest `NEXT_REDIRECT`: não é falha, não se trata. */
-function ehRedirecionamento(erro: unknown): boolean {
-  return typeof erro === 'object' && erro !== null && String((erro as { digest?: unknown }).digest ?? '').startsWith('NEXT_REDIRECT')
-}
-
 const CAMPOS_EXAME: { chave: CampoExame; rotulo: string }[] = [
   { chave: 'geral', rotulo: 'Geral' },
   { chave: 'ar', rotulo: 'Aparelho respiratório' },
@@ -61,11 +55,11 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
 
   const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? rascunhoMedicaVazio()).sinais))
   const [erros, setErros] = useState<string[]>([])
-  const [dialogo, setDialogo] = useState<null | 'finalizar'>(null)
+  const [dialogo, setDialogo] = useState(false)
   const [descartarAberto, setDescartarAberto] = useState(false)
   const [avisoAnexo, setAvisoAnexo] = useState(false)
   const [abertos, setAbertos] = useState<string[]>(['evolucao', 'conduta'])
-  const travaFinalizacao = useRef(false)
+  const travaConclusao = useRef(false)
 
   const {
     dados,
@@ -119,7 +113,8 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
     setAbertos((lista) => (lista.includes('exames') ? lista : [...lista, 'exames']))
   }
 
-  function pedirFinalizacao() {
+  /** Finalizar (médico) ou enviar para validação (demais perfis): mesma validação, mesma confirmação. */
+  function pedirConclusao() {
     const encontrados = [...validarParaFinalizar(dados), ...errosDeSinais(brutos)]
     setErros(encontrados)
     setErroAcao(null)
@@ -128,44 +123,26 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       return
     }
     setAvisoAnexo(false)
-    if (encontrados.length === 0) setDialogo('finalizar')
+    if (encontrados.length === 0) setDialogo(true)
   }
 
-  async function confirmarFinalizacao() {
-    // Trava síncrona: dois cliques no mesmo instante não disparam duas finalizações.
-    if (travaFinalizacao.current) return
+  async function confirmarConclusao() {
+    // Trava síncrona: dois cliques no mesmo instante não disparam duas ações.
+    if (travaConclusao.current) return
     if (anexosEvolucao.enviando || anexosEvolucao.temFalha) {
-      setDialogo(null)
+      setDialogo(false)
       bloquearPorAnexo()
       return
     }
-    travaFinalizacao.current = true
+    travaConclusao.current = true
     setEnviando(true)
     setErroAcao(null)
-    try {
-      // Espera o envio em andamento e garante que a versão mais nova foi salva antes de finalizar.
-      await fila.forcar()
-    } catch {
-      travaFinalizacao.current = false
-      setEnviando(false)
-      setDialogo(null)
-      // Erro de regra do servidor (P0001) tem mensagem própria; o resto é conexão.
-      setErroAcao(fila.estado === 'erro' ? (fila.mensagemErro ?? MENSAGEM_SEM_CONEXAO) : MENSAGEM_SEM_CONEXAO)
-      return
-    }
-    const evolucaoId = fila.evolucaoId
-    if (!evolucaoId) {
-      travaFinalizacao.current = false
-      setEnviando(false)
-      setDialogo(null)
-      setErroAcao('Não foi possível localizar o rascunho. Tente novamente.')
-      return
-    }
     let navegando = false
     try {
-      const resultado = await finalizar(evolucaoId)
-      // Em sucesso o servidor redireciona; aqui só chega o erro de negócio.
-      if (resultado?.erro) setErroAcao(resultado.erro)
+      // Espera o envio em andamento, garante a versão mais nova no servidor e só então age.
+      const resultado = await enviarEvolucao(fila, podeFinalizar ? finalizar : enviarParaValidacao)
+      // Em sucesso o servidor redireciona; aqui só chega o erro de negócio ou de salvamento.
+      if (resultado.erro) setErroAcao(resultado.erro)
     } catch (erro) {
       // Redirecionamento = sucesso: mantém a trava até a navegação terminar.
       if (ehRedirecionamento(erro)) {
@@ -173,12 +150,12 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         throw erro
       }
       // Falha de transporte ou do servidor: a evolução continua rascunho e o botão volta a funcionar.
-      setErroAcao(MENSAGEM_SEM_CONEXAO)
+      setErroAcao(podeFinalizar ? MENSAGEM_SEM_CONEXAO : MENSAGEM_SEM_CONEXAO_ENVIO)
     } finally {
       if (!navegando) {
-        travaFinalizacao.current = false
+        travaConclusao.current = false
         setEnviando(false)
-        setDialogo(null)
+        setDialogo(false)
       }
     }
   }
@@ -218,15 +195,15 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         </p>
       </header>
 
-      {!podeFinalizar && (
-        <p role="status" className="rounded-lg bg-muted p-3 font-semibold text-muted-foreground">
-          {MENSAGEM_RESIDENTE}
+      {rascunho?.devolvidaMotivo && (
+        <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+          {`Devolvida pelo médico: ${rascunho.devolvidaMotivo}`}
         </p>
       )}
 
       {erros.length > 0 && (
         <div role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-          <p>Antes de finalizar, corrija:</p>
+          <p>{podeFinalizar ? 'Antes de finalizar, corrija:' : 'Antes de enviar, corrija:'}</p>
           <ul className="list-disc pl-5">
             {erros.map((e) => (
               <li key={e}>{e}</li>
@@ -311,11 +288,9 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
           </Button>
         }
         acaoPrincipal={
-          podeFinalizar && (
-            <Button type="button" disabled={!hidratado || enviando} onClick={pedirFinalizacao} className="h-11 px-4">
-              Finalizar
-            </Button>
-          )
+          <Button type="button" disabled={!hidratado || enviando} onClick={pedirConclusao} className="h-11 px-4">
+            {podeFinalizar ? 'Finalizar' : 'Enviar para validação'}
+          </Button>
         }
       />
 
@@ -325,22 +300,24 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         </p>
       )}
 
-      <Dialog open={dialogo !== null} onOpenChange={(aberto) => !aberto && !enviando && setDialogo(null)}>
+      <Dialog open={dialogo} onOpenChange={(aberto) => !aberto && !enviando && setDialogo(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Finalizar evolução?</DialogTitle>
+            <DialogTitle>{podeFinalizar ? 'Finalizar evolução?' : 'Enviar para validação?'}</DialogTitle>
             <DialogDescription>
-              Depois de finalizada a evolução não pode ser alterada.
+              {podeFinalizar
+                ? 'Depois de finalizada a evolução não pode ser alterada.'
+                : 'Depois de enviada, a evolução só pode ser alterada se o médico devolver.'}
               <br />
               {`${anexosEvolucao.anexos.length} anexo(s) será(ão) incluído(s).`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" size="lg" disabled={enviando} onClick={() => setDialogo(null)}>
+            <Button type="button" variant="outline" size="lg" disabled={enviando} onClick={() => setDialogo(false)}>
               Voltar
             </Button>
-            <Button type="button" size="lg" disabled={enviando} onClick={confirmarFinalizacao}>
-              Confirmar finalização
+            <Button type="button" size="lg" disabled={enviando} onClick={confirmarConclusao}>
+              {podeFinalizar ? 'Confirmar finalização' : 'Confirmar envio'}
             </Button>
           </DialogFooter>
         </DialogContent>

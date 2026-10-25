@@ -358,7 +358,7 @@ test('residente da equipe evolui sem botão Finalizar', async ({ page }) => {
   await page.goto('/internacoes/c0000000-0000-0000-0000-000000000003');
   await page.getByRole('link', { name: /Nova evolução|Continuar rascunho/ }).click();
   await expect(page).toHaveURL(/\/evolucao$/);
-  await expect(page.getByText('O envio para validação do médico chega em breve.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enviar para validação', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });
 
@@ -377,8 +377,7 @@ test('enfermeira abre formulário simples', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Evolução de Enfermagem' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Enviar para validação' })).toBeDisabled();
-  await expect(page.getByText('Envio para validação chega na próxima atualização.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Enviar para validação' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });
 

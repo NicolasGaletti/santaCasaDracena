@@ -31,6 +31,25 @@ export async function finalizar(evolucaoId: string): Promise<{ erro?: string }> 
   redirect(`/internacoes/${evolucao.internacao_id}`)
 }
 
+/** Envio do autor (residente, acadêmico, multiprofissional) para validação do médico da equipe. */
+export async function enviarParaValidacao(evolucaoId: string): Promise<{ erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: evolucao, error: erroBusca } = await supabase
+    .from('evolucoes')
+    .select('internacao_id')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+  if (erroBusca || !evolucao) return { erro: MENSAGEM_GENERICA }
+
+  const { error } = await supabase.rpc('enviar_evolucao', { p_evolucao_id: evolucaoId })
+  if (error) return { erro: mensagemDeErro(error) }
+
+  revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+  redirect(`/internacoes/${evolucao.internacao_id}`)
+}
+
 export async function descartar(evolucaoId: string): Promise<void> {
   await exigirProfissional()
   const supabase = await createClient()

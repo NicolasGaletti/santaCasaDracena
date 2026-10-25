@@ -55,6 +55,10 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   const rascunhoProprio = (evolucoes ?? []).find(
     (e) => e.status === 'RASCUNHO' && e.autor_id === profissional.id,
   )
+  // Enquanto a evolução própria aguarda validação, não há nova evolução (o banco também recusa).
+  const aguardandoProprio = (evolucoes ?? []).some(
+    (e) => e.status === 'AGUARDANDO_VALIDACAO' && e.autor_id === profissional.id,
+  )
 
   const podeEvoluir =
     linha.status === 'INTERNADO' &&
@@ -79,6 +83,15 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
             </Button>
+          ) : aguardandoProprio ? (
+            <>
+              <Button type="button" size="lg" disabled className="w-full sm:w-auto">
+                Nova evolução
+              </Button>
+              <p role="status" className="rounded-lg bg-muted p-3 font-semibold text-muted-foreground">
+                Você tem uma evolução aguardando validação.
+              </p>
+            </>
           ) : conselhoCompleto ? (
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={`/internacoes/${id}/evolucao`}>Nova evolução</Link>

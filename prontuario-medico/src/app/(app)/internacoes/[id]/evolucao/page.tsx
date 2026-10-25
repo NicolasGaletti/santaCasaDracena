@@ -40,13 +40,20 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
     redirect(`/internacoes/${id}`)
   }
 
-  const [{ data: rascunho }, { data: anterior }] = await Promise.all([
+  const [{ data: rascunho }, { data: aguardando }, { data: anterior }] = await Promise.all([
     supabase
       .from('evolucoes')
-      .select('id, dados, texto_livre')
+      .select('id, dados, texto_livre, devolvida_motivo')
       .eq('internacao_id', id)
       .eq('autor_id', profissional.id)
       .eq('status', 'RASCUNHO')
+      .maybeSingle(),
+    supabase
+      .from('evolucoes')
+      .select('id')
+      .eq('internacao_id', id)
+      .eq('autor_id', profissional.id)
+      .eq('status', 'AGUARDANDO_VALIDACAO')
       .maybeSingle(),
     formularioMedico
       ? supabase
@@ -60,6 +67,9 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ])
+
+  // Com evolução aguardando validação não há o que editar: volta ao prontuário.
+  if (aguardando) redirect(`/internacoes/${id}`)
 
   const anexosRascunho = rascunho ? await anexosConfirmados(supabase, rascunho.id) : []
   const paciente = { nome: linha.nome, leito: linha.leito_ala }
@@ -78,6 +88,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
                 id: rascunho.id,
                 dados: lerDadosSimples(rascunho.dados),
                 textoLivre: rascunho.texto_livre,
+                devolvidaMotivo: rascunho.devolvida_motivo,
               }
             : null
         }
@@ -99,6 +110,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
               id: rascunho.id,
               dados: lerDadosMedica(rascunho.dados),
               textoLivre: rascunho.texto_livre,
+              devolvidaMotivo: rascunho.devolvida_motivo,
             }
           : null
       }
