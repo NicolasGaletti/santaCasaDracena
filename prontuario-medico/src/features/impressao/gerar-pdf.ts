@@ -1,4 +1,5 @@
 import { renderToBuffer } from '@react-pdf/renderer'
+import { PDFDocument } from 'pdf-lib'
 import { lerDadosMedica } from '@/features/evolucao/cartao-evolucao'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -11,6 +12,8 @@ import {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAXIMO_IDS = 50
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin']
+const MENSAGEM_ACESSO_NEGADO = 'Acesso negado.'
+const MENSAGEM_NAO_ENCONTRADA = 'Evolução não encontrada ou ainda não finalizada.'
 
 const cabecalhos = (extra: Record<string, string> = {}) => ({
   'Cache-Control': 'no-store',
@@ -30,10 +33,21 @@ function assinante(json: unknown): Assinante | null {
   return { nome, conselho: texto(obj.conselho), numero: texto(obj.numero), uf: texto(obj.uf) }
 }
 
+/** Junta os PDFs de cada evolução numa página única sequencial. */
+async function juntarPdfs(buffers: Buffer[]): Promise<Uint8Array> {
+  const final = await PDFDocument.create()
+  for (const buffer of buffers) {
+    const origem = await PDFDocument.load(buffer)
+    const paginas = await final.copyPages(origem, origem.getPageIndices())
+    paginas.forEach((pagina) => final.addPage(pagina))
+  }
+  return final.save()
+}
+
 /**
  * Gera um PDF A4 com as evoluções finalizadas pedidas, na ordem dos ids.
- * Cada evolução ganha um número de via: registrar_impressao roda uma vez por evolução e o
- * valor devolvido é o que aparece no documento.
+ * Ordem: valida e monta tudo; registra as vias de uma vez (atômico); só então renderiza.
+ * Cada evolução é paginada à parte ("Página x de y" é da própria evolução).
  */
 export async function gerarPdf(ids: string[]): Promise<Response> {
   if (ids.length === 0 || ids.length > MAXIMO_IDS) return erro(400, 'Informe de 1 a 50 evoluções.')
@@ -64,9 +78,6 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
   if (erroEvolucoes) return erro(500, 'Não foi possível gerar o PDF.')
 
   const porId = new Map((evolucoes ?? []).map((e) => [e.id, e]))
-  const naoEncontrada = 'Evolução não encontrada ou ainda não finalizada.'
-  if (ids.some((id) => porId.get(id)?.status !== 'FINALIZADA')) return erro(404, naoEncontrada)
-
   const internacaoIds = [...new Set((evolucoes ?? []).map((e) => e.internacao_id))]
   const { data: internacoes, error: erroInternacoes } = await supabase
     .from('vw_internacoes_lista')
@@ -75,20 +86,15 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
   if (erroInternacoes) return erro(500, 'Não foi possível gerar o PDF.')
   const internacaoPorId = new Map((internacoes ?? []).map((i) => [i.internacao_id, i]))
 
-  const vias: number[] = []
+  // Monta tudo antes de gravar qualquer via: qualquer dado faltante é 404, sem impressão registrada.
+  const itens: Omit<EvolucaoImpressao, 'via'>[] = []
   for (const id of ids) {
-    const { data: via, error } = await supabase.rpc('registrar_impressao', { p_evolucao_id: id })
-    if (error) return error.code === 'P0001' ? erro(404, naoEncontrada) : erro(500, 'Não foi possível registrar a impressão.')
-    vias.push(via)
-  }
-
-  const itens: EvolucaoImpressao[] = []
-  for (const [indice, id] of ids.entries()) {
     const evolucao = porId.get(id)
-    const internacao = evolucao && internacaoPorId.get(evolucao.internacao_id)
-    if (!evolucao || !evolucao.finalizada_em || !internacao || !internacao.nome) {
-      return erro(404, naoEncontrada)
+    if (!evolucao || evolucao.status !== 'FINALIZADA' || !evolucao.finalizada_em) {
+      return erro(404, MENSAGEM_NAO_ENCONTRADA)
     }
+    const internacao = internacaoPorId.get(evolucao.internacao_id)
+    if (!internacao || !internacao.nome) return erro(404, MENSAGEM_NAO_ENCONTRADA)
     itens.push({
       evolucao: {
         id,
@@ -110,14 +116,30 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
         data_nascimento: internacao.data_nascimento ?? '',
         convenio: internacao.convenio ?? '',
       },
-      via: vias[indice],
     })
   }
 
-  const buffer = await renderToBuffer(DocumentoEvolucao({ evolucoes: itens }))
+  // Registro atômico: uma chamada, uma transação no banco.
+  const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', { p_ids: ids })
+  if (erroVias) {
+    if (erroVias.code === 'P0001' && erroVias.message === MENSAGEM_ACESSO_NEGADO) {
+      return erro(403, 'Acesso restrito a profissionais clínicos.')
+    }
+    if (erroVias.code === 'P0001') return erro(404, MENSAGEM_NAO_ENCONTRADA)
+    return erro(500, 'Não foi possível registrar a impressão.')
+  }
+  const viaPorId = new Map((registros ?? []).map((r) => [r.evolucao_id, r.via]))
+  if (ids.some((id) => !viaPorId.has(id))) return erro(500, 'Não foi possível registrar a impressão.')
+
+  const buffers: Buffer[] = []
+  for (const item of itens) {
+    const via = viaPorId.get(item.evolucao.id) ?? 1
+    buffers.push(await renderToBuffer(DocumentoEvolucao({ evolucoes: [{ ...item, via }] })))
+  }
+  const pdf = buffers.length === 1 ? buffers[0] : await juntarPdfs(buffers)
   const nome = ids.length === 1 ? `evolucao-${codigoCurto(ids[0])}.pdf` : `evolucoes-${ids.length}.pdf`
 
-  return new Response(new Uint8Array(buffer), {
+  return new Response(new Uint8Array(pdf), {
     status: 200,
     headers: cabecalhos({
       'Content-Type': 'application/pdf',

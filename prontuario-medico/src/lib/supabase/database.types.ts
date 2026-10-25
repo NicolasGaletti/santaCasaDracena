@@ -771,6 +771,10 @@ export type Database = {
       finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
       registrar_impressao: { Args: { p_evolucao_id: string }; Returns: number };
+      registrar_impressoes: {
+        Args: { p_ids: string[] };
+        Returns: { evolucao_id: string; via: number }[];
+      };
       salvar_rascunho: {
         Args: { p_dados: Json; p_internacao_id: string; p_texto_livre: string };
         Returns: {

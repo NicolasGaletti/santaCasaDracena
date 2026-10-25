@@ -56,7 +56,8 @@ async function textoDoPdf(buffer: Buffer): Promise<string> {
 }
 
 test('PDF de finalizada responde 200 application/pdf', async ({ page }) => {
-  const internacao = await admitirPaciente(page, leitoUnico())
+  const leito = leitoUnico()
+  const internacao = await admitirPaciente(page, leito)
   const id = await finalizarEvolucao(page, internacao, 'Evolução para PDF')
 
   const resposta = await page.request.get(`/evolucoes/${id}/pdf`)
@@ -66,6 +67,9 @@ test('PDF de finalizada responde 200 application/pdf', async ({ page }) => {
   expect(resposta.headers()['content-disposition']).toBe(
     `inline; filename="evolucao-${id.slice(0, 8).toUpperCase()}.pdf"`,
   )
+  const texto = await textoDoPdf(await resposta.body())
+  expect(texto).toContain(`Paciente Impressão ${leito}`)
+  expect(texto).toContain('Validado por Dra. Marina Lopes (teste) – CRM 145892/SP')
 })
 
 test('PDF de rascunho responde 404', async ({ page }) => {
@@ -102,6 +106,23 @@ test('PDF sem autenticação responde 401', async ({ request }) => {
   expect(resposta.status()).toBe(401)
 })
 
+test('lote de 2 evoluções: cada uma tem sua própria paginação', async ({ page }) => {
+  const internacao = await admitirPaciente(page, leitoUnico())
+  const primeira = await finalizarEvolucao(page, internacao, 'Primeira evolução do lote')
+  const segunda = await finalizarEvolucao(page, internacao, 'Segunda evolução do lote')
+
+  const resposta = await page.request.get(`/evolucoes/lote/pdf?ids=${primeira},${segunda}`)
+  expect(resposta.status()).toBe(200)
+  const paginacao = (await textoDoPdf(await resposta.body())).match(/Página \d+ de \d+/g)
+  expect(paginacao).toEqual(['Página 1 de 1', 'Página 1 de 1'])
+})
+
+test('recepção não gera PDF: 403', async ({ page }) => {
+  await entrar(page, 'recepcao@teste.local')
+  const resposta = await page.request.get('/evolucoes/d0000000-0000-0000-0000-000000000001/pdf')
+  expect(resposta.status()).toBe(403)
+})
+
 test('/imprimir lista a finalizada e ela some depois de impressa', async ({ page }) => {
   const leito = leitoUnico()
   const internacao = await admitirPaciente(page, leito)
@@ -113,9 +134,11 @@ test('/imprimir lista a finalizada e ela some depois de impressa', async ({ page
 
   await linha.getByRole('checkbox').check()
   // Popup com noopener não expõe a URL de imediato: a requisição do PDF é o que importa.
-  const pedidoPdf = page.context().waitForEvent('request', (r) => r.url().includes('/evolucoes/lote/pdf?ids='))
+  const respostaPdf = page.context().waitForEvent('response', (r) => r.url().includes('/evolucoes/lote/pdf?ids='))
   await page.getByRole('button', { name: 'Imprimir selecionadas' }).click()
-  expect((await pedidoPdf).url()).toContain('/evolucoes/lote/pdf?ids=')
+  const resposta = await respostaPdf
+  expect(resposta.status()).toBe(200)
+  expect(resposta.headers()['content-type']).toContain('application/pdf')
 
   await expect(async () => {
     await page.reload()
