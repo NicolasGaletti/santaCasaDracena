@@ -325,7 +325,7 @@ export type Database = {
           equipe_id: string;
           id: string;
           leito_ala: string;
-          medico_responsavel_id: string;
+          medico_responsavel_id: string | null;
           motivo_alta: string | null;
           paciente_id: string;
           status: Database["public"]["Enums"]["status_internacao"];
@@ -338,7 +338,7 @@ export type Database = {
           equipe_id: string;
           id?: string;
           leito_ala: string;
-          medico_responsavel_id: string;
+          medico_responsavel_id?: string | null;
           motivo_alta?: string | null;
           paciente_id: string;
           status?: Database["public"]["Enums"]["status_internacao"];
@@ -350,7 +350,7 @@ export type Database = {
           equipe_id?: string;
           id?: string;
           leito_ala?: string;
-          medico_responsavel_id?: string;
+          medico_responsavel_id?: string | null;
           motivo_alta?: string | null;
           paciente_id?: string;
           status?: Database["public"]["Enums"]["status_internacao"];
@@ -764,7 +764,6 @@ export type Database = {
           p_diagnostico_inicial: string;
           p_equipe_id: string;
           p_leito_ala: string;
-          p_medico_responsavel_id: string;
           p_muc: string;
           p_nome: string;
         };

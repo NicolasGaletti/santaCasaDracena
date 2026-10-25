@@ -29,7 +29,6 @@ export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<Es
     p_diagnostico_inicial: valores.diagnostico,
     p_comorbidades: valores.comorbidades,
     p_muc: valores.muc,
-    p_medico_responsavel_id: valores.medico,
   })
 
   if (error || !data) {

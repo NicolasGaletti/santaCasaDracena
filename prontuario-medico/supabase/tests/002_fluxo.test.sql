@@ -57,7 +57,7 @@ reset role;
 select tests.autenticar(current_setting('tst.recepcao')::uuid);
 select set_config('tst.admitido', public.admitir_paciente(
   'Paciente Novo', '1980-05-10', 'Unimed', '11111111-1111-1111-1111-111111111111', 'B-01',
-  'Pneumonia', '   ', 'MUC-9', current_setting('tst.medico_a')::uuid
+  'Pneumonia', '   ', 'MUC-9'
 )::text, true);
 reset role;
 select ok(
@@ -79,7 +79,7 @@ select ok(
 reset role;
 select tests.autenticar(current_setting('tst.recepcao')::uuid);
 select throws_ok(
-  $$select public.admitir_paciente('Paciente Futuro', '2999-01-01', 'SUS', '11111111-1111-1111-1111-111111111111', 'B-02', null, null, null, current_setting('tst.medico_a')::uuid)$$,
+  $$select public.admitir_paciente('Paciente Futuro', '2999-01-01', 'SUS', '11111111-1111-1111-1111-111111111111', 'B-02', null, null, null)$$,
   'P0001', 'Data de nascimento não pode ser futura.',
   'admitir com nascimento futuro falha'
 );
@@ -88,7 +88,7 @@ select throws_ok(
 reset role;
 select tests.autenticar(current_setting('tst.multi')::uuid);
 select throws_ok(
-  $$select public.admitir_paciente('Paciente Multi', '1980-01-01', 'SUS', '11111111-1111-1111-1111-111111111111', 'B-03', null, null, null, current_setting('tst.medico_a')::uuid)$$,
+  $$select public.admitir_paciente('Paciente Multi', '1980-01-01', 'SUS', '11111111-1111-1111-1111-111111111111', 'B-03', null, null, null)$$,
   'P0001', 'Acesso negado.',
   'multiprofissional não admite'
 );

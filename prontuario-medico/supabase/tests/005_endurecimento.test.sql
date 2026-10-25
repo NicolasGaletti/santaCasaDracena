@@ -116,14 +116,10 @@ create function public.tst_fn_005() returns integer language sql as $$ select 1 
 select ok(not has_table_privilege('authenticated', 'public.tst_acl_005', 'TRUNCATE'), 'tabela nova: authenticated sem TRUNCATE');
 select ok(not has_table_privilege('authenticated', 'public.tst_acl_005', 'REFERENCES'), 'tabela nova: authenticated sem REFERENCES');
 select ok(not has_table_privilege('authenticated', 'public.tst_acl_005', 'TRIGGER'), 'tabela nova: authenticated sem TRIGGER');
+create function public.tst_fn_acl_005() returns integer language sql as $$ select 1 $$;
 select ok(
-  not exists (
-    select 1 from pg_default_acl d
-    join pg_namespace n on n.oid = d.defaclnamespace
-    cross join lateral unnest(d.defaclacl) a
-    where n.nspname = 'public' and d.defaclobjtype = 'f' and d.defaclrole = 'postgres'::regrole and a::text like '=%'
-  ),
-  'ACL padrão de funções em public: sem PUBLIC'
+  not has_function_privilege('anon', 'public.tst_fn_acl_005()', 'execute'),
+  'função nova em public: anon sem EXECUTE'
 );
 select ok(
   not has_table_privilege('authenticated', 'public.vw_internacoes_lista', 'TRUNCATE')
