@@ -883,6 +883,8 @@ export type Database = {
         }[];
       };
       descartar_rascunho: { Args: { p_evolucao_id: string }; Returns: undefined };
+      devolver_evolucao: { Args: { p_evolucao_id: string; p_motivo: string }; Returns: undefined };
+      enviar_evolucao: { Args: { p_evolucao_id: string }; Returns: undefined };
       finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
       registrar_impressao: { Args: { p_evolucao_id: string }; Returns: number };
@@ -902,6 +904,7 @@ export type Database = {
         }[];
       };
       trocar_leito: { Args: { p_internacao_id: string; p_leito_ala: string }; Returns: undefined };
+      validar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
     };
     Enums: {
       categoria_evolucao:
@@ -918,7 +921,8 @@ export type Database = {
         | "multiprofissional"
         | "recepcao"
         | "auditoria"
-        | "admin";
+        | "admin"
+        | "academico";
       status_evolucao: "RASCUNHO" | "AGUARDANDO_VALIDACAO" | "FINALIZADA";
       status_internacao: "INTERNADO" | "ALTA";
       tipo_anexo: "LABORATORIO" | "IMAGEM" | "ECG" | "OUTRO";
@@ -1056,6 +1060,7 @@ export const Constants = {
         "recepcao",
         "auditoria",
         "admin",
+        "academico",
       ],
       status_evolucao: ["RASCUNHO", "AGUARDANDO_VALIDACAO", "FINALIZADA"],
       status_internacao: ["INTERNADO", "ALTA"],
