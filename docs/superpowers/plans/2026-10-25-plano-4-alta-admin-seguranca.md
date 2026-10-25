@@ -41,7 +41,7 @@
 
 **Interfaces:**
 - enum `tipo_alta`; `internacoes` ganha `tipo_alta tipo_alta`, `resumo_alta text` (os campos `alta_em`, `motivo_alta`, `alta_por` já existem — `motivo_alta` passa a guardar o resumo; não duplicar: usar `motivo_alta` como resumo e só adicionar `tipo_alta`).
-- `dar_alta(p_internacao_id uuid, p_tipo tipo_alta, p_resumo text, p_alta_em timestamptz default now()) returns void` — médico ativo da equipe; internação `INTERNADO` (lock); data entre `admitido_em` e `now()`; seta `status='ALTA'`, `alta_em`, `alta_por`, `tipo_alta`, `motivo_alta`; fecha `leitos_historico` aberto.
+- `dar_alta(p_internacao_id uuid, p_tipo tipo_alta, p_resumo text, p_alta_em timestamptz default now()) returns void` — médico ativo da equipe; internação `INTERNADO` (lock); data entre `admitido_em` e `now()`; recusa se houver evolução `AGUARDANDO_VALIDACAO` na internação (`Há evoluções aguardando validação nesta internação.`); seta `status='ALTA'`, `alta_em`, `alta_por`, `tipo_alta`, `motivo_alta`; fecha `leitos_historico` aberto.
 - `vw_internacoes_lista`: recriar incluindo `tipo_alta` e `alta_em` (manter colunas existentes, grants e `security_invoker`).
 
 - [ ] Steps: pgTAP que falha (`médico da equipe dá alta`; `médico de outra equipe não dá alta`; `residente não dá alta`; `alta futura falha`; `alta antes da admissão falha`; `após alta não salva rascunho`; `após alta adendo continua permitido`) → FAIL → migration → PASS + `db:types` → commit `feat(db): alta médica`.
