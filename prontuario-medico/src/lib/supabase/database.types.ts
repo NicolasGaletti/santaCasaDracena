@@ -83,6 +83,98 @@ export type Database = {
           },
         ];
       };
+      anexos: {
+        Row: {
+          confirmado: boolean;
+          data_exame: string;
+          descricao: string;
+          enviado_em: string;
+          enviado_por: string;
+          evolucao_id: string;
+          id: string;
+          internacao_id: string;
+          mime: string;
+          sha256: string;
+          storage_path: string;
+          tamanho_bytes: number;
+          tipo: Database["public"]["Enums"]["tipo_anexo"];
+        };
+        ComputedFields: never;
+        Insert: {
+          confirmado?: boolean;
+          data_exame: string;
+          descricao?: string;
+          enviado_em?: string;
+          enviado_por: string;
+          evolucao_id: string;
+          id?: string;
+          internacao_id: string;
+          mime: string;
+          sha256: string;
+          storage_path: string;
+          tamanho_bytes: number;
+          tipo: Database["public"]["Enums"]["tipo_anexo"];
+        };
+        Update: {
+          confirmado?: boolean;
+          data_exame?: string;
+          descricao?: string;
+          enviado_em?: string;
+          enviado_por?: string;
+          evolucao_id?: string;
+          id?: string;
+          internacao_id?: string;
+          mime?: string;
+          sha256?: string;
+          storage_path?: string;
+          tamanho_bytes?: number;
+          tipo?: Database["public"]["Enums"]["tipo_anexo"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "anexos_enviado_por_fkey";
+            columns: ["enviado_por"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anexos_enviado_por_fkey";
+            columns: ["enviado_por"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anexos_evolucao_id_fkey";
+            columns: ["evolucao_id"];
+            isOneToOne: false;
+            referencedRelation: "evolucoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anexos_evolucao_id_fkey";
+            columns: ["evolucao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_evolucoes_timeline";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anexos_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "internacoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "anexos_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
+          },
+        ];
+      };
       auditoria: {
         Row: {
           antes: Json | null;
@@ -769,6 +861,22 @@ export type Database = {
         };
         Returns: string;
       };
+      confirmar_anexo: { Args: { p_anexo_id: string }; Returns: undefined };
+      criar_anexo: {
+        Args: {
+          p_data_exame: string;
+          p_descricao: string;
+          p_evolucao_id: string;
+          p_mime: string;
+          p_sha256: string;
+          p_tamanho_bytes: number;
+          p_tipo: Database["public"]["Enums"]["tipo_anexo"];
+        };
+        Returns: {
+          id: string;
+          storage_path: string;
+        }[];
+      };
       descartar_rascunho: { Args: { p_evolucao_id: string }; Returns: undefined };
       finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
@@ -780,6 +888,7 @@ export type Database = {
           via: number;
         }[];
       };
+      remover_anexo: { Args: { p_anexo_id: string }; Returns: undefined };
       salvar_rascunho: {
         Args: { p_dados: Json; p_internacao_id: string; p_texto_livre: string };
         Returns: {
@@ -807,6 +916,7 @@ export type Database = {
         | "admin";
       status_evolucao: "RASCUNHO" | "AGUARDANDO_VALIDACAO" | "FINALIZADA";
       status_internacao: "INTERNADO" | "ALTA";
+      tipo_anexo: "LABORATORIO" | "IMAGEM" | "ECG" | "OUTRO";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -944,6 +1054,7 @@ export const Constants = {
       ],
       status_evolucao: ["RASCUNHO", "AGUARDANDO_VALIDACAO", "FINALIZADA"],
       status_internacao: ["INTERNADO", "ALTA"],
+      tipo_anexo: ["LABORATORIO", "IMAGEM", "ECG", "OUTRO"],
     },
   },
 } as const;
