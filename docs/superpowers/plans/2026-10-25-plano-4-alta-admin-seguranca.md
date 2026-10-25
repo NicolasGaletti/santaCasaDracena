@@ -162,6 +162,7 @@
 **Interfaces:**
 - `ci.yml` (push/PR em `develop`, `staging`, `main`): Node 22, `npm ci`, lint, typecheck, `vitest`, `supabase start` + `supabase test db`, `next build`. (E2E fica opcional/manual por custo de minutos.)
 - `backup.yml` (cron diário 06:00 UTC + manual): `pg_dump` do banco do ambiente (`secrets.SUPABASE_DB_URL_STAGING` / `_PROD`), comprime, criptografa com `age -r ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}`, envia ao R2 (`aws s3 cp --endpoint-url ${{ secrets.R2_ENDPOINT }}`) com retenção (lifecycle no bucket: 30 dias diários). Nada de dado em artefato do GitHub.
+- **Anexos também:** o backup do Supabase NÃO inclui arquivos do Storage. `backup.yml` sincroniza o bucket `anexos` para o R2 (`rclone sync` via API S3 do Supabase Storage, com credenciais S3 do projeto em secrets), criptografado (rclone `crypt` com senha em secret), sem apagar no destino o que sumir na origem (retenção legal). Restauração documentada.
 - `docs/backup.md`: como criar o bucket R2, a chave `age` (privada guardada fora do GitHub), os secrets, e **como restaurar** (testar restauração em projeto descartável antes do go-live).
 
 - [ ] Steps: `actionlint` local (via `npx`/docker) sem erros; CI roda verde no push de `develop` (controller confere no GitHub); commit `ci: pipeline e backup diário criptografado`.
