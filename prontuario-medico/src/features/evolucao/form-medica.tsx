@@ -7,13 +7,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MarcarAba } from '@/components/navegacao-ativa'
-import { BlocoAnexos, MENSAGEM_ANEXO_NAO_ENVIADO, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { enviarParaValidacao, finalizar } from './actions'
 import { CampoTextual } from './campo-textual'
 import { aplicarSinal, brutosDeSinais, CamposSinais, errosDeSinais, type BrutosSinais, type CampoSinal } from './campos-sinais'
 import { rascunhoMedicaVazio, validarParaFinalizar, type DadosMedica } from './modelos/medica'
-import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO } from './envio'
+import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO, mensagemAnexoNaoEnviado } from './envio'
 import { DialogoDescartar, RodapeEvolucao } from './rodape-evolucao'
 import { useRascunhoEvolucao } from './use-rascunho-evolucao'
 
@@ -239,7 +239,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
                 <CampoTextual id="ev-lab" rotulo="Exames laboratoriais" valor={dados.exames_laboratoriais} onChange={(v) => alterarCampo('exames_laboratoriais', v)} linhas={2} />
                 <BlocoAnexos
                   estado={anexosEvolucao}
-                  avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? MENSAGEM_ANEXO_NAO_ENVIADO : null}
+                  avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? mensagemAnexoNaoEnviado(podeFinalizar ? 'finalizar' : 'enviar') : null}
                 />
               </AccordionContent>
             </AccordionItem>

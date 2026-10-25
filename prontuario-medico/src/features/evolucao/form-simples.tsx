@@ -6,12 +6,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MarcarAba } from '@/components/navegacao-ativa'
-import { BlocoAnexos, MENSAGEM_ANEXO_NAO_ENVIADO, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { enviarParaValidacao } from './actions'
 import { CampoTextual } from './campo-textual'
 import { aplicarSinal, brutosDeSinais, CamposSinais, errosDeSinais, type BrutosSinais, type CampoSinal } from './campos-sinais'
-import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO } from './envio'
+import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO, mensagemAnexoNaoEnviado } from './envio'
 import { rascunhoSimplesVazio, validarParaEnviarSimples, type DadosSimples } from './modelos/simples'
 import { RodapeEvolucao, DialogoDescartar } from './rodape-evolucao'
 import { tituloEvolucao } from './rotulos'
@@ -210,7 +210,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
               <AccordionContent className="pb-4">
                 <BlocoAnexos
                   estado={anexosEvolucao}
-                  avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? MENSAGEM_ANEXO_NAO_ENVIADO : null}
+                  avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? mensagemAnexoNaoEnviado('enviar') : null}
                 />
               </AccordionContent>
             </AccordionItem>

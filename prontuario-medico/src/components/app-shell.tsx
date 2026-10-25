@@ -7,15 +7,15 @@ import { sair } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
 import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
+import { rotuloIdentificacao } from '@/lib/rotulos-perfil'
 
 type Props = {
-  profissional: Pick<Profissional, 'nome' | 'perfil' | 'conselho' | 'numero_conselho' | 'uf_conselho'>
+  profissional: Pick<Profissional, 'nome' | 'perfil' | 'categoria' | 'conselho' | 'numero_conselho' | 'uf_conselho'>
   children: ReactNode
 }
 
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
-const ROTULO_PERFIL: Record<string, string> = { medico: 'Médico(a)', recepcao: 'Recepção' }
 
 const NAVEGACAO = [
   { href: '/', chave: 'internados', rotulo: 'Internados', rotuloCurto: 'Internados' },
@@ -33,10 +33,7 @@ export function AppShell({ profissional, children }: Props) {
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
   const navegacao = clinico ? NAVEGACAO_CLINICA : NAVEGACAO
-  const identificacao =
-    profissional.conselho && profissional.numero_conselho
-      ? `${profissional.conselho} ${profissional.numero_conselho}${profissional.uf_conselho ? `/${profissional.uf_conselho}` : ''}`
-      : (ROTULO_PERFIL[profissional.perfil] ?? profissional.perfil)
+  const identificacao = rotuloIdentificacao(profissional)
 
   return (
     <div className="flex min-h-full flex-1 flex-col">

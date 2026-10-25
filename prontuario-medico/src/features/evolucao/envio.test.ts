@@ -1,10 +1,17 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { FilaAutosave } from './autosave'
-import { enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO } from './envio'
+import { enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO, mensagemAnexoNaoEnviado } from './envio'
 
 function filaFake(over: Partial<FilaAutosave<unknown>> & { forcar: () => Promise<void> }): FilaAutosave<unknown> {
   return { estado: 'salvo', mensagemErro: undefined, evolucaoId: 'ev-1', ...over } as unknown as FilaAutosave<unknown>
 }
+
+describe('mensagemAnexoNaoEnviado', () => {
+  it('nomeia a ação bloqueada', () => {
+    expect(mensagemAnexoNaoEnviado('finalizar')).toBe('Há anexo não enviado. Envie de novo ou cancele antes de finalizar.')
+    expect(mensagemAnexoNaoEnviado('enviar')).toBe('Há anexo não enviado. Envie de novo ou cancele antes de enviar.')
+  })
+})
 
 describe('enviarEvolucao', () => {
   it('chama a ação com o id depois de salvar a versão mais nova', async () => {

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -7,6 +8,7 @@ const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_CHAVE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
 const CONTAINER_DB = 'supabase_db_prontuario-medico';
+const FOTO = path.join(__dirname, 'fixtures', 'exame.jpg');
 
 async function entrar(page: Page, email: string) {
   await page.goto('/login');
@@ -108,4 +110,36 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
   await expect(page).toHaveURL(/\/evolucao$/);
   await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Evolução para devolver');
+
+  // Corrige, reenvia: o motivo some do rascunho e a evolução volta a aguardar validação.
+  await page.getByLabel('Evolução clínica').fill('Evolução corrigida com a dose do diurético');
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+  await expect(page.getByText('Aguardando validação', { exact: true })).toBeVisible();
+  expect(
+    sqlLocal(`select devolvida_motivo is null from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`),
+  ).toBe('t');
+});
+
+test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.context().clearCookies();
+  await entrar(page, 'academico@teste.local');
+  await page.goto(`/internacoes/${id}`);
+  await page.getByRole('link', { name: 'Nova evolução' }).click();
+  await page.getByRole('button', { name: 'Exames', exact: true }).click();
+
+  await page.route('**/storage/v1/object/**', (r) => r.abort());
+  await page.getByTestId('entrada-foto').setInputFiles(FOTO);
+  await expect(page.getByText('Sem conexão. Tente enviar o anexo novamente.')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole('button', { name: 'Exames', exact: true }).click();
+  await page.getByLabel('Evolução clínica').fill('Evolução com anexo pendente');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta de teste');
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+
+  await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de enviar.')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/evolucao$/);
 });

@@ -1,5 +1,10 @@
 import type { FilaAutosave } from './autosave'
 
+/** Aviso de anexo não enviado: a mensagem nomeia a ação que foi bloqueada. */
+export function mensagemAnexoNaoEnviado(acao: 'finalizar' | 'enviar'): string {
+  return `Há anexo não enviado. Envie de novo ou cancele antes de ${acao}.`
+}
+
 export const MENSAGEM_SEM_CONEXAO_ENVIO =
   'Sem conexão: a evolução não foi enviada. Ela continua salva neste aparelho; tente de novo quando a conexão voltar.'
 
