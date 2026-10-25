@@ -143,3 +143,114 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveURL(/\/evolucao$/);
 });
+
+test.describe.serial('tela de validação do médico', () => {
+  /** Contador da aba "Validar": ausente quando não há pendentes. */
+  async function contadorValidacao(page: Page): Promise<number> {
+    const badge = page.getByTestId('contador-validacao');
+    if ((await badge.count()) === 0) return 0;
+    return Number(await badge.innerText());
+  }
+
+  test('médico da equipe vê pendente e valida', async ({ page }) => {
+    const leito = leitoUnico();
+    const id = await admitirPaciente(page, leito);
+    await page.context().clearCookies();
+    await academicoEnvia(page, id, 'Evolução para validar', 'Conduta para validar');
+    const evolucaoId = sqlLocal(
+      `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+    );
+
+    await page.context().clearCookies();
+    await entrar(page, 'medico1@teste.local');
+    await page.getByRole('link', { name: /^Validar/ }).click();
+    await expect(page).toHaveURL(/\/validacao$/);
+    await page.getByRole('link', { name: new RegExp(`Paciente validação ${leito}`) }).click();
+
+    await expect(page).toHaveURL(/\/validacao\?evolucao=/);
+    await expect(page.getByRole('heading', { name: `Paciente validação ${leito}` })).toBeVisible();
+    await expect(page.getByText('Evolução para validar')).toBeVisible();
+    await expect(page.getByText(/Registrado por Acadêmico Teste \(teste\) – Acadêmico\(a\) de Medicina/)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Validar', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Ao validar, a evolução é finalizada e não pode mais ser alterada.');
+    await page.getByRole('button', { name: 'Confirmar validação' }).click();
+
+    await expect(page).toHaveURL(/\/validacao$/);
+    await expect(page.getByRole('link', { name: new RegExp(`Paciente validação ${leito}`) })).toHaveCount(0);
+    expect(sqlLocal(`select status from public.evolucoes where id = '${evolucaoId}'`)).toBe('FINALIZADA');
+  });
+
+  test('médico de outra equipe não vê pendente', async ({ page }) => {
+    const leito = leitoUnico();
+    const id = await admitirPaciente(page, leito);
+    await page.context().clearCookies();
+    await academicoEnvia(page, id, 'Evolução de outra equipe', 'Conduta de outra equipe');
+    const evolucaoId = sqlLocal(
+      `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+    );
+
+    await page.context().clearCookies();
+    await entrar(page, 'medico2@teste.local');
+    await page.goto('/validacao');
+    await expect(page.getByRole('heading', { name: 'Validação' })).toBeVisible();
+    await expect(page.getByText(`Paciente validação ${leito}`)).toHaveCount(0);
+    await expect(page.getByText('Nenhuma evolução aguardando validação.')).toBeVisible();
+
+    await page.goto(`/validacao?evolucao=${evolucaoId}`);
+    await expect(page.getByRole('button', { name: 'Validar', exact: true })).toHaveCount(0);
+  });
+
+  test('devolver exige motivo e volta ao autor', async ({ page }) => {
+    const leito = leitoUnico();
+    const id = await admitirPaciente(page, leito);
+    await page.context().clearCookies();
+    await academicoEnvia(page, id, 'Evolução a devolver', 'Conduta a devolver');
+    const evolucaoId = sqlLocal(
+      `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+    );
+
+    await page.context().clearCookies();
+    await entrar(page, 'medico1@teste.local');
+    await page.goto(`/validacao?evolucao=${evolucaoId}`);
+    await page.getByRole('button', { name: 'Devolver', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmar devolução' }).click();
+    await expect(page.getByRole('dialog')).toContainText('Informe o motivo da devolução.');
+    await expect(page.getByRole('dialog').getByText('0/500')).toBeVisible();
+
+    await page.getByLabel('Motivo da devolução').fill('Falta a dose do diurético na conduta');
+    await expect(page.getByRole('dialog').getByText('36/500')).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmar devolução' }).click();
+    await expect(page).toHaveURL(/\/validacao$/);
+    expect(
+      sqlLocal(`select status || '|' || devolvida_motivo from public.evolucoes where id = '${evolucaoId}'`),
+    ).toBe('RASCUNHO|Falta a dose do diurético na conduta');
+
+    await page.context().clearCookies();
+    await entrar(page, 'academico@teste.local');
+    await page.goto(`/internacoes/${id}`);
+    await page.getByRole('link', { name: 'Continuar rascunho' }).click();
+    await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
+  });
+
+  test('contador some após validar', async ({ page }) => {
+    const leito = leitoUnico();
+    const id = await admitirPaciente(page, leito);
+    await page.context().clearCookies();
+    await academicoEnvia(page, id, 'Evolução do contador', 'Conduta do contador');
+
+    await page.context().clearCookies();
+    await entrar(page, 'medico1@teste.local');
+    await page.goto('/validacao');
+    const antes = await contadorValidacao(page);
+    expect(antes).toBeGreaterThanOrEqual(1);
+
+    await page.getByRole('link', { name: new RegExp(`Paciente validação ${leito}`) }).click();
+    await page.getByRole('button', { name: 'Validar', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar validação' }).click();
+    await expect(page).toHaveURL(/\/validacao$/);
+
+    expect(await contadorValidacao(page)).toBe(antes - 1);
+  });
+});

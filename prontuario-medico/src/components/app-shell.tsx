@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { sair } from '@/app/login/actions'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
@@ -11,28 +12,34 @@ import { rotuloIdentificacao } from '@/lib/rotulos-perfil'
 
 type Props = {
   profissional: Pick<Profissional, 'nome' | 'perfil' | 'categoria' | 'conselho' | 'numero_conselho' | 'uf_conselho'>
+  /** Evoluções aguardando a validação deste médico (zero para os demais perfis). */
+  pendentesValidacao?: number
   children: ReactNode
 }
 
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
 
-const NAVEGACAO = [
+type ItemNavegacao = { href: string; chave: string; rotulo: string; rotuloCurto: string }
+
+const NAVEGACAO: ItemNavegacao[] = [
   { href: '/', chave: 'internados', rotulo: 'Internados', rotuloCurto: 'Internados' },
   { href: '/anteriores', chave: 'anteriores', rotulo: 'Internações anteriores', rotuloCurto: 'Anteriores' },
-] as const
+]
 
-const NAVEGACAO_CLINICA = [
-  ...NAVEGACAO,
-  { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' },
-] as const
+const ITEM_VALIDACAO: ItemNavegacao = { href: '/validacao', chave: 'validacao', rotulo: 'Validar', rotuloCurto: 'Validar' }
 
-export function AppShell({ profissional, children }: Props) {
+const ITEM_IMPRIMIR: ItemNavegacao = { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' }
+
+export function AppShell({ profissional, pendentesValidacao = 0, children }: Props) {
   const pathname = usePathname()
   const abaMarcada = useAbaAtiva()
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
-  const navegacao = clinico ? NAVEGACAO_CLINICA : NAVEGACAO
+  const medico = profissional.perfil === 'medico'
+  const navegacao: ItemNavegacao[] = !clinico
+    ? NAVEGACAO
+    : [...NAVEGACAO, ...(medico ? [ITEM_VALIDACAO] : []), ITEM_IMPRIMIR]
   const identificacao = rotuloIdentificacao(profissional)
 
   return (
@@ -74,6 +81,11 @@ export function AppShell({ profissional, children }: Props) {
                 >
                   <span className="sm:hidden">{item.rotuloCurto}</span>
                   <span className="hidden sm:inline">{item.rotulo}</span>
+                  {item.chave === 'validacao' && pendentesValidacao > 0 && (
+                    <Badge data-testid="contador-validacao" className="ml-2 min-w-6 justify-center px-1.5 text-xs tabular-nums">
+                      {pendentesValidacao}
+                    </Badge>
+                  )}
                 </Link>
               )
             })}
