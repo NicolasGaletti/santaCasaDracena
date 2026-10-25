@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { dimensoesAlvo, sha256Hex, validarArquivo } from './processar-arquivo';
+import { dimensoesAlvo, sha256Hex, validarArquivo, validarTamanhoFinal } from './processar-arquivo';
+
+const MB = 1024 * 1024;
 
 describe('dimensoesAlvo', () => {
   it('reduz mantendo proporção quando o lado maior passa de 2000', () => {
@@ -10,17 +12,27 @@ describe('dimensoesAlvo', () => {
   it('não amplia imagem menor que o limite', () => {
     expect(dimensoesAlvo(1200, 800)).toEqual({ largura: 1200, altura: 800 });
   });
+
+  it('nunca zera um lado: faixa de 1 × 5000 vira 1 × 2000', () => {
+    expect(dimensoesAlvo(1, 5000)).toEqual({ largura: 1, altura: 2000 });
+  });
 });
 
 describe('validarArquivo', () => {
-  it('recusa acima de 20 MB', () => {
-    expect(validarArquivo({ type: 'application/pdf', size: 20 * 1024 * 1024 + 1 })).toBe(
-      'Arquivo maior que 20 MB.',
-    );
+  it('recusa PDF acima de 20 MB antes de qualquer processamento', () => {
+    expect(validarArquivo({ type: 'application/pdf', size: 20 * MB + 1 })).toBe('Arquivo maior que 20 MB.');
   });
 
-  it('aceita exatamente 20 MB', () => {
-    expect(validarArquivo({ type: 'application/pdf', size: 20 * 1024 * 1024 })).toBeNull();
+  it('aceita PDF com exatamente 20 MB', () => {
+    expect(validarArquivo({ type: 'application/pdf', size: 20 * MB })).toBeNull();
+  });
+
+  it('aceita imagem acima de 20 MB: o limite de 20 MB vale depois da compressão', () => {
+    expect(validarArquivo({ type: 'image/jpeg', size: 30 * MB })).toBeNull();
+  });
+
+  it('recusa imagem acima de 60 MB antes de decodificar', () => {
+    expect(validarArquivo({ type: 'image/jpeg', size: 60 * MB + 1 })).toBe('Arquivo muito grande para processar.');
   });
 
   it('recusa formato não suportado', () => {
@@ -31,6 +43,16 @@ describe('validarArquivo', () => {
     for (const type of ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']) {
       expect(validarArquivo({ type, size: 1000 })).toBeNull();
     }
+  });
+});
+
+describe('validarTamanhoFinal', () => {
+  it('recusa acima de 20 MB depois da compressão', () => {
+    expect(validarTamanhoFinal(20 * MB + 1)).toBe('Arquivo maior que 20 MB.');
+  });
+
+  it('aceita exatamente 20 MB', () => {
+    expect(validarTamanhoFinal(20 * MB)).toBeNull();
   });
 });
 

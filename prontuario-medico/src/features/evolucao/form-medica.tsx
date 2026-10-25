@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/database.types'
+import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { ErroAnexo, MENSAGEM_SEM_CONEXAO_ANEXO, type AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { descartar, finalizar } from './actions'
 import { armazenamentoIdb, criarFilaAutosave, resolverRascunho, type FilaAutosave, type PayloadRascunho } from './autosave'
 import { modeloMedicaV1, rascunhoMedicaVazio, validarParaFinalizar, type DadosMedica } from './modelos/medica'
@@ -25,6 +27,7 @@ type Props = {
   paciente: { nome: string; leito: string }
   rascunho: { id: string; dados: DadosMedica; textoLivre: string } | null
   anterior: DadosMedica | null
+  anexos: AnexoRascunho[]
 }
 
 type Sinal = keyof DadosMedica['sinais']
@@ -149,7 +152,7 @@ function CampoTextual({
   )
 }
 
-export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior }: Props) {
+export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior, anexos }: Props) {
   const podeFinalizar = perfil !== 'residente'
   const router = useRouter()
   const chave = `rascunho:${internacaoId}:${userId}`
@@ -253,6 +256,21 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       setSalvando(false)
     }
   }
+
+  /** Anexo precisa do rascunho no servidor: salva agora se ainda não existe. */
+  async function garantirRascunho(): Promise<string> {
+    if (fila.evolucaoId) return fila.evolucaoId
+    alterar(dados)
+    try {
+      await fila.forcar()
+    } catch {
+      throw new ErroAnexo(fila.estado === 'erro' ? (fila.mensagemErro ?? MENSAGEM_SEM_CONEXAO_ANEXO) : MENSAGEM_SEM_CONEXAO_ANEXO)
+    }
+    if (!fila.evolucaoId) throw new ErroAnexo(MENSAGEM_SEM_CONEXAO_ANEXO)
+    return fila.evolucaoId
+  }
+
+  const anexosEvolucao = useAnexosEvolucao({ iniciais: anexos, garantirRascunho })
 
   function copiarAnterior() {
     if (!anterior) return
@@ -424,6 +442,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
               <CampoTextual id="ev-ecg" rotulo="ECG" valor={dados.ecg} onChange={(v) => alterarCampo('ecg', v)} linhas={2} />
               <CampoTextual id="ev-imagem" rotulo="Exames de imagem" valor={dados.exames_imagem} onChange={(v) => alterarCampo('exames_imagem', v)} linhas={2} />
               <CampoTextual id="ev-lab" rotulo="Exames laboratoriais" valor={dados.exames_laboratoriais} onChange={(v) => alterarCampo('exames_laboratoriais', v)} linhas={2} />
+              <BlocoAnexos estado={anexosEvolucao} />
             </AccordionContent>
           </AccordionItem>
 
@@ -499,7 +518,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             Salvar
           </Button>
           {podeFinalizar && (
-            <Button type="button" disabled={!hidratado || enviando} onClick={pedirFinalizacao} className="h-11 px-4">
+            <Button type="button" disabled={!hidratado || enviando || anexosEvolucao.enviando} onClick={pedirFinalizacao} className="h-11 px-4">
               Finalizar
             </Button>
           )}
