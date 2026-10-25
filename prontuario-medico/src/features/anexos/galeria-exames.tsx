@@ -38,6 +38,7 @@ function MiniaturaFoto({
   const [falhou, setFalhou] = useState(false)
 
   const pedirUrl = useCallback(async () => {
+    // Miniatura: não é visualização, não registra acesso.
     const resposta = await urlAssinada(anexo.id)
     if (!vivo.current) return
     if (resposta.url) setUrl(resposta.url)
@@ -135,7 +136,7 @@ export function GaleriaExames({ anexos }: { anexos: AnexoGaleria[] }) {
     setVisualizando(anexo)
     setUrlVisualizacao(undefined)
     setFalhaVisualizacao(false)
-    const resposta = await urlAssinada(anexo.id)
+    const resposta = await urlAssinada(anexo.id, { registrarAcesso: true })
     if (visualizandoRef.current?.id !== anexo.id) return
     if (resposta.url) setUrlVisualizacao(resposta.url)
     else setFalhaVisualizacao(true)

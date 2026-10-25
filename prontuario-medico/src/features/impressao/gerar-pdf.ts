@@ -34,6 +34,9 @@ const LIMITE_BYTES_IMAGENS = 80 * 1024 * 1024
 const CONCORRENCIA_DOWNLOADS = 4
 const MENSAGEM_ANEXOS = 'Não foi possível obter os anexos para impressão.'
 const MENSAGEM_MUITAS_IMAGENS = 'Muitas imagens para imprimir de uma vez. Imprima menos evoluções por vez.'
+const MENSAGEM_LIMITE_COM_IMAGENS = 'Imprima no máximo 10 evoluções com imagens por vez.'
+/** Com imagens, o PDF é montado de uma vez: acima disso o pedido é recusado antes de qualquer download. */
+const MAXIMO_IDS_COM_IMAGENS = 10
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAXIMO_IDS = 50
@@ -129,9 +132,33 @@ async function carregarAnexos(supabase: Cliente, linhas: LinhaAnexo[], comImagen
 }
 
 /**
+ * Via que cada evolução receberá: a já registrada para a chave (se houver), senão a próxima.
+ * Só previsão: quem decide é `registrar_impressoes`, e o chamador confere depois.
+ */
+async function preverVias(
+  supabase: Cliente,
+  ids: string[],
+  chave: string | null,
+  viasImpressas: Map<string, number>,
+): Promise<Map<string, number> | null> {
+  const existentes = new Map<string, number>()
+  if (chave !== null) {
+    const { data, error } = await supabase
+      .from('impressoes')
+      .select('evolucao_id, via')
+      .in('evolucao_id', ids)
+      .eq('chave', chave)
+    if (error) return null
+    for (const linha of data ?? []) existentes.set(linha.evolucao_id, linha.via)
+  }
+  return new Map(ids.map((id) => [id, existentes.get(id) ?? (viasImpressas.get(id) ?? 0) + 1]))
+}
+
+/**
  * Gera um PDF A4 com as evoluções finalizadas pedidas, na ordem dos ids.
- * Ordem: valida e monta tudo (inclusive anexos); registra as vias de uma vez (atômico); só então renderiza.
- * Cada evolução é paginada à parte ("Página x de y" é da própria evolução, com as páginas de imagem).
+ * Ordem: valida e monta tudo (inclusive anexos); renderiza com as vias previstas; registra as vias
+ * (uma chamada, atômica); só então responde. Se o banco deu via diferente da prevista, a evolução
+ * é renderizada de novo com a via real. Cada evolução é paginada à parte.
  */
 export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<Response> {
   const chave = opcoes.chave ?? null
@@ -140,6 +167,7 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   if (ids.some((id) => !UUID.test(id))) return erro(400, 'Identificador de evolução inválido.')
   if (new Set(ids).size !== ids.length) return erro(400, 'Evolução repetida na lista.')
   if (chave !== null && !UUID.test(chave)) return erro(400, 'Chave de impressão inválida.')
+  if (incluirImagens && ids.length > MAXIMO_IDS_COM_IMAGENS) return erro(413, MENSAGEM_LIMITE_COM_IMAGENS)
 
   const supabase = await createClient()
   const { data: claims } = await supabase.auth.getClaims()
@@ -159,7 +187,7 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   const { data: evolucoes, error: erroEvolucoes } = await supabase
     .from('vw_evolucoes_timeline')
     .select(
-      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, hash_versao',
+      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, hash_versao, vias_impressas',
     )
     .in('id', ids)
   if (erroEvolucoes) return erro(500, 'Não foi possível gerar o PDF.')
@@ -220,7 +248,23 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   if ('resposta' in carga) return carga.resposta
   for (const item of itens) item.anexos = carga.porEvolucao.get(item.evolucao.id) ?? []
 
-  // Registro atômico: uma chamada, uma transação no banco.
+  // Vias previstas antes de renderizar: o PDF já sai com a via que o banco deve gravar.
+  const previstas = await preverVias(
+    supabase,
+    ids,
+    chave,
+    new Map((evolucoes ?? []).map((e) => [e.id, e.vias_impressas ?? 0])),
+  )
+  if (!previstas) return erro(500, 'Não foi possível gerar o PDF.')
+
+  const renderizar = (item: Omit<EvolucaoImpressao, 'via'>, via: number) =>
+    renderToBuffer(DocumentoEvolucao({ evolucoes: [{ ...item, via }], incluirImagens }))
+  const buffers = new Map<string, Buffer>()
+  for (const item of itens) {
+    buffers.set(item.evolucao.id, await renderizar(item, previstas.get(item.evolucao.id) ?? 1))
+  }
+
+  // Registro atômico: uma chamada, uma transação no banco. Só depois a resposta sai.
   const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', {
     p_ids: ids,
     p_chave: chave ?? undefined,
@@ -235,14 +279,14 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   const viaPorId = new Map((registros ?? []).map((r) => [r.evolucao_id, r.via]))
   if (ids.some((id) => !viaPorId.has(id))) return erro(500, 'Não foi possível registrar a impressão.')
 
-  const buffers: Buffer[] = []
+  // Via real diferente da prevista (outra impressão concorrente): refaz só essas evoluções.
   for (const item of itens) {
-    const via = viaPorId.get(item.evolucao.id) ?? 1
-    buffers.push(
-      await renderToBuffer(DocumentoEvolucao({ evolucoes: [{ ...item, via }], incluirImagens })),
-    )
+    const id = item.evolucao.id
+    const real = viaPorId.get(id) ?? 1
+    if (real !== previstas.get(id)) buffers.set(id, await renderizar(item, real))
   }
-  const pdf = buffers.length === 1 ? buffers[0] : await juntarPdfs(buffers)
+  const ordenados = ids.map((id) => buffers.get(id) as Buffer)
+  const pdf = ordenados.length === 1 ? ordenados[0] : await juntarPdfs(ordenados)
   const nome = ids.length === 1 ? `evolucao-${codigoCurto(ids[0])}.pdf` : `evolucoes-${ids.length}.pdf`
 
   return new Response(new Uint8Array(pdf), {

@@ -46,13 +46,24 @@ describe('urlAssinada', () => {
     expect(resultado).toEqual({ url: 'https://x/assinada' });
   });
 
-  it('registra acesso ver_anexo quando a linha é visível', async () => {
+  it('registra acesso ver_anexo quando a visualização é real (registrarAcesso: true)', async () => {
     maybeSingle.mockResolvedValue({ data: { storage_path: 'internacoes/i/a', internacao_id: INTERNACAO }, error: null });
     createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/assinada' }, error: null });
 
-    await urlAssinada(ANEXO);
+    await urlAssinada(ANEXO, { registrarAcesso: true });
 
     expect(rpc).toHaveBeenCalledWith('registrar_acesso', { p_internacao_id: INTERNACAO, p_acao: 'ver_anexo' });
+  });
+
+  it('não registra acesso por padrão (miniaturas e prévias)', async () => {
+    maybeSingle.mockResolvedValue({ data: { storage_path: 'internacoes/i/a', internacao_id: INTERNACAO }, error: null });
+    createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/assinada' }, error: null });
+
+    const resultado = await urlAssinada(ANEXO);
+    await urlAssinada(ANEXO, { registrarAcesso: false });
+
+    expect(resultado).toEqual({ url: 'https://x/assinada' });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('falha ao registrar acesso não impede a URL assinada', async () => {
@@ -60,7 +71,7 @@ describe('urlAssinada', () => {
     createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://x/assinada' }, error: null });
     rpc.mockRejectedValue(new Error('rede'));
 
-    const resultado = await urlAssinada(ANEXO);
+    const resultado = await urlAssinada(ANEXO, { registrarAcesso: true });
 
     expect(resultado).toEqual({ url: 'https://x/assinada' });
   });

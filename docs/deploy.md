@@ -35,6 +35,8 @@ Aplicar migrations:
 npx supabase db push
 ```
 
+Ordem: 1) `npx supabase db push` no staging; 2) logo em seguida o push da branch `staging`. Entre os dois passos, a admissão no app antigo pode falhar por alguns minutos.
+
 Seed (dados fictícios) só em staging:
 
 ```bash

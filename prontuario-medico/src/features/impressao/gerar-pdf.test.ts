@@ -1,8 +1,15 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { renderToBuffer } from '@react-pdf/renderer'
 import { PDFParse } from 'pdf-parse'
 import { describe, expect, it, vi } from 'vitest'
+
+// Espiona a renderização (sem trocar o resultado) para checar a ordem em relação ao registro de vias.
+vi.mock('@react-pdf/renderer', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@react-pdf/renderer')>()
+  return { ...real, renderToBuffer: vi.fn(real.renderToBuffer) }
+})
 
 type Profissional = { id: string; perfil: string; ativo: boolean } | null
 
@@ -97,9 +104,11 @@ function prepararFinalizada(anexos: unknown[]) {
     error: null,
   }
   tabelas.anexos = { data: anexos, error: null }
+  tabelas.impressoes = { data: [], error: null }
   rpc.mockReset()
   rpc.mockResolvedValue({ data: [{ evolucao_id: ID, via: 1 }], error: null })
   download.mockReset()
+  vi.mocked(renderToBuffer).mockClear()
 }
 
 describe('gerarPdf: autorização', () => {
@@ -136,7 +145,68 @@ describe('gerarPdf: autorização', () => {
   })
 })
 
+describe('gerarPdf: vias', () => {
+  it('renderiza antes de registrar as vias e só então responde', async () => {
+    prepararFinalizada([])
+
+    const resposta = await gerarPdf([ID])
+
+    expect(resposta.status).toBe(200)
+    const renderizou = vi.mocked(renderToBuffer).mock.invocationCallOrder[0]
+    const registrou = rpc.mock.invocationCallOrder[0]
+    expect(renderizou).toBeLessThan(registrou)
+  })
+
+  it('via real diferente da prevista refaz a evolução com a via devolvida pelo banco', async () => {
+    prepararFinalizada([])
+    rpc.mockResolvedValue({ data: [{ evolucao_id: ID, via: 2 }], error: null })
+
+    const resposta = await gerarPdf([ID])
+
+    expect(resposta.status).toBe(200)
+    expect(vi.mocked(renderToBuffer)).toHaveBeenCalledTimes(2)
+    expect(await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))).toContain('2ª via')
+  })
+
+  it('com chave já registrada, prevê a via existente e não refaz a renderização', async () => {
+    prepararFinalizada([])
+    tabelas.impressoes = { data: [{ evolucao_id: ID, via: 3 }], error: null }
+    rpc.mockResolvedValue({ data: [{ evolucao_id: ID, via: 3 }], error: null })
+    const chave = 'c0000000-0000-0000-0000-000000000001'
+
+    const resposta = await gerarPdf([ID], { chave })
+
+    expect(resposta.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('registrar_impressoes', { p_ids: [ID], p_chave: chave })
+    expect(vi.mocked(renderToBuffer)).toHaveBeenCalledTimes(1)
+    expect(await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))).toContain('3ª via')
+  })
+
+  it('com mais de 10 evoluções e imagens responde 413 antes de qualquer download', async () => {
+    prepararFinalizada([IMAGEM])
+    download.mockClear()
+    const ids = Array.from({ length: 11 }, (_, i) => `d0000000-0000-0000-0000-${String(i + 1).padStart(12, '0')}`)
+
+    const resposta = await gerarPdf(ids, { incluirImagens: true })
+
+    expect(resposta.status).toBe(413)
+    expect(await resposta.json()).toEqual({ erro: 'Imprima no máximo 10 evoluções com imagens por vez.' })
+    expect(download).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+})
+
 describe('gerarPdf: anexos', () => {
+  it('página de imagem repete nome, D.N. e leito no cabeçalho fixo', async () => {
+    prepararFinalizada([IMAGEM])
+    download.mockResolvedValue({ data: new Blob([FOTO]), error: null })
+
+    const resposta = await gerarPdf([ID], { incluirImagens: true })
+
+    const texto = await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))
+    expect(texto.split('Paciente: Paciente Teste · D.N. 10/03/1970 · Leito A-01').length - 1).toBe(2)
+  })
+
   it('falha ao baixar imagem com anexos=1 responde 500 com mensagem e não registra via', async () => {
     prepararFinalizada([IMAGEM])
     download.mockResolvedValue({ data: null, error: { message: 'objeto ausente' } })

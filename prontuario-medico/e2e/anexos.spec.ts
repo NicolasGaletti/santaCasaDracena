@@ -207,6 +207,27 @@ test('sem conexão mostra mensagem e permite tentar de novo', async ({ page }) =
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
 
+test('finalizar com anexo não enviado é bloqueado e abre a seção Exames', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await abrirExamesDeRascunho(page, id);
+
+  await page.route('**/storage/v1/object/**', (r) => r.abort());
+  await anexarFoto(page);
+  await expect(page.getByText('Sem conexão. Tente enviar o anexo novamente.')).toBeVisible({ timeout: 20_000 });
+
+  // Recolhe a seção Exames: a finalização precisa reabri-la para mostrar o anexo com falha.
+  await page.getByRole('button', { name: 'Exames', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeHidden();
+  await page.getByLabel('Evolução clínica').fill('Evolução com anexo pendente');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta de teste');
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+
+  await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de finalizar.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`/internacoes/${id}/evolucao$`));
+});
+
 test('descarta rascunho mesmo se o objeto já sumiu do Storage', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await abrirExamesDeRascunho(page, id);

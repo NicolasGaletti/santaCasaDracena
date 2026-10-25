@@ -33,8 +33,13 @@ const VALIDADE_URL_SEGUNDOS = 300;
 /**
  * URL assinada de 300 s para ver um anexo. Confere a linha com o cliente do usuário (RLS): anexo
  * invisível (recepção, outro autor, rascunho alheio) não recebe URL.
+ * `registrarAcesso` (padrão: não) grava `ver_anexo` no log: só para visualização real (galeria ampliada,
+ * "Abrir PDF"). Miniaturas e prévias não registram.
  */
-export async function urlAssinada(anexoId: string): Promise<{ url?: string; erro?: string }> {
+export async function urlAssinada(
+  anexoId: string,
+  opcoes: { registrarAcesso?: boolean } = {},
+): Promise<{ url?: string; erro?: string }> {
   await exigirProfissional()
   const supabase = await createClient()
 
@@ -52,10 +57,12 @@ export async function urlAssinada(anexoId: string): Promise<{ url?: string; erro
   if (error || !data?.signedUrl) return { erro: 'Não foi possível abrir o anexo. Tente novamente.' }
 
   // Registro de acesso: falha aqui não impede a visualização.
-  try {
-    await supabase.rpc('registrar_acesso', { p_internacao_id: anexo.internacao_id, p_acao: 'ver_anexo' })
-  } catch {
-    // Melhor esforço.
+  if (opcoes.registrarAcesso) {
+    try {
+      await supabase.rpc('registrar_acesso', { p_internacao_id: anexo.internacao_id, p_acao: 'ver_anexo' })
+    } catch {
+      // Melhor esforço.
+    }
   }
 
   return { url: data.signedUrl }

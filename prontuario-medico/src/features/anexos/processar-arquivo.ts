@@ -10,6 +10,8 @@ const MSG_FORMATO = 'Formato não suportado. Envie foto ou PDF.';
 const MSG_TAMANHO = 'Arquivo maior que 20 MB.';
 const MSG_MUITO_GRANDE = 'Arquivo muito grande para processar.';
 const MSG_LEITURA = 'Não foi possível ler esta imagem. Tente outra foto ou envie em PDF.';
+const MSG_FORMATO_FOTO = 'Formato de foto não suportado neste aparelho. Use a câmera do app (JPEG) ou envie em PDF.';
+const TIPOS_HEIC = ['image/heic', 'image/heif'];
 
 export type ArquivoPreparado = {
   blob: Blob;
@@ -39,13 +41,25 @@ export function dimensoesAlvo(
 }
 
 /**
+ * Tipo real do arquivo. Alguns seletores de arquivo entregam PDF sem MIME (`type` vazio):
+ * nesse caso, a extensão `.pdf` (sem diferenciar maiúsculas) decide.
+ */
+export function tipoEfetivo(f: { type: string; name?: string }): string {
+  if (f.type === '' && /\.pdf$/i.test(f.name ?? '')) return 'application/pdf';
+  return f.type;
+}
+
+/**
  * Validação de entrada. PDF tem o limite de 20 MB já aqui; imagem só é recusada acima de 60 MB
  * (antes de decodificar) e o limite de 20 MB vale depois da compressão, em `validarTamanhoFinal`.
+ * HEIC/HEIF é recusado com mensagem própria (o aparelho não o decodifica para a compressão).
  * Retorna a mensagem de erro em pt-BR, ou `null` se o arquivo for aceito.
  */
-export function validarArquivo(f: { type: string; size: number }): string | null {
-  if (!(MIMES_PERMITIDOS as readonly string[]).includes(f.type)) return MSG_FORMATO;
-  if (f.type === 'application/pdf') return f.size > TAMANHO_MAXIMO_BYTES ? MSG_TAMANHO : null;
+export function validarArquivo(f: { type: string; size: number; name?: string }): string | null {
+  const tipo = tipoEfetivo(f);
+  if (TIPOS_HEIC.includes(tipo)) return MSG_FORMATO_FOTO;
+  if (!(MIMES_PERMITIDOS as readonly string[]).includes(tipo)) return MSG_FORMATO;
+  if (tipo === 'application/pdf') return f.size > TAMANHO_MAXIMO_BYTES ? MSG_TAMANHO : null;
   return f.size > TAMANHO_MAXIMO_ENTRADA_IMAGEM_BYTES ? MSG_MUITO_GRANDE : null;
 }
 
@@ -64,7 +78,8 @@ async function comprimirImagem(file: File): Promise<Blob> {
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    throw new Error(MSG_LEITURA);
+    // Decodificação falhou: formato que o navegador do aparelho não lê.
+    throw new Error(MSG_FORMATO_FOTO);
   }
 
   const canvas = document.createElement('canvas');
@@ -101,7 +116,7 @@ export async function prepararArquivo(file: File): Promise<ArquivoPreparado> {
   const erroInicial = validarArquivo(file);
   if (erroInicial) throw new Error(erroInicial);
 
-  const ehPdf = file.type === 'application/pdf';
+  const ehPdf = tipoEfetivo(file) === 'application/pdf';
   const blob = ehPdf ? file : await comprimirImagem(file);
   const mime = ehPdf ? 'application/pdf' : 'image/jpeg';
 

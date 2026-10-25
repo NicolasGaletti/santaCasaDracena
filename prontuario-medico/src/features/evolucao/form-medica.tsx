@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/database.types'
-import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { BlocoAnexos, MENSAGEM_ANEXO_NAO_ENVIADO, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import { ErroAnexo, MENSAGEM_SEM_CONEXAO_ANEXO, type AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { descartar, finalizar } from './actions'
 import { armazenamentoIdb, criarFilaAutosave, resolverRascunho, type FilaAutosave, type PayloadRascunho } from './autosave'
@@ -167,6 +167,8 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
   const [enviando, setEnviando] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
+  const [avisoAnexo, setAvisoAnexo] = useState(false)
+  const [abertos, setAbertos] = useState<string[]>(['evolucao', 'conduta'])
   const travaFinalizacao = useRef(false)
 
   // Uma fila por rascunho. O ouvinte de `online` e o encerramento ficam no efeito abaixo.
@@ -283,16 +285,32 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
     return e ? [`${c.rotulo}: ${e}`] : []
   })
 
+  /** Envio em andamento ou falho bloqueia a finalização: mostra o aviso na seção Exames, aberta. */
+  function bloquearPorAnexo() {
+    setAvisoAnexo(true)
+    setAbertos((lista) => (lista.includes('exames') ? lista : [...lista, 'exames']))
+  }
+
   function pedirFinalizacao() {
     const encontrados = [...validarParaFinalizar(dados), ...errosSinais]
     setErros(encontrados)
     setErroAcao(null)
+    if (anexosEvolucao.enviando || anexosEvolucao.temFalha) {
+      bloquearPorAnexo()
+      return
+    }
+    setAvisoAnexo(false)
     if (encontrados.length === 0) setDialogo('finalizar')
   }
 
   async function confirmarFinalizacao() {
     // Trava síncrona: dois cliques no mesmo instante não disparam duas finalizações.
     if (travaFinalizacao.current) return
+    if (anexosEvolucao.enviando || anexosEvolucao.temFalha) {
+      setDialogo(null)
+      bloquearPorAnexo()
+      return
+    }
     travaFinalizacao.current = true
     setEnviando(true)
     setErroAcao(null)
@@ -419,7 +437,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
 
       <form onSubmit={(e) => e.preventDefault()} aria-label="Evolução médica" className="flex flex-col gap-4 pb-28">
       <fieldset disabled={!hidratado} className="contents">
-        <Accordion type="multiple" defaultValue={['evolucao', 'conduta']} className="rounded-lg border border-border bg-card px-4">
+        <Accordion type="multiple" value={abertos} onValueChange={setAbertos} className="rounded-lg border border-border bg-card px-4">
           <AccordionItem value="diagnosticos">
             <AccordionTrigger className="min-h-11 text-base font-bold">Diagnósticos</AccordionTrigger>
             <AccordionContent className="flex flex-col gap-4 pb-4">
@@ -442,7 +460,10 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
               <CampoTextual id="ev-ecg" rotulo="ECG" valor={dados.ecg} onChange={(v) => alterarCampo('ecg', v)} linhas={2} />
               <CampoTextual id="ev-imagem" rotulo="Exames de imagem" valor={dados.exames_imagem} onChange={(v) => alterarCampo('exames_imagem', v)} linhas={2} />
               <CampoTextual id="ev-lab" rotulo="Exames laboratoriais" valor={dados.exames_laboratoriais} onChange={(v) => alterarCampo('exames_laboratoriais', v)} linhas={2} />
-              <BlocoAnexos estado={anexosEvolucao} />
+              <BlocoAnexos
+                estado={anexosEvolucao}
+                avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? MENSAGEM_ANEXO_NAO_ENVIADO : null}
+              />
             </AccordionContent>
           </AccordionItem>
 
@@ -518,7 +539,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             Salvar
           </Button>
           {podeFinalizar && (
-            <Button type="button" disabled={!hidratado || enviando || anexosEvolucao.enviando} onClick={pedirFinalizacao} className="h-11 px-4">
+            <Button type="button" disabled={!hidratado || enviando} onClick={pedirFinalizacao} className="h-11 px-4">
               Finalizar
             </Button>
           )}
@@ -537,7 +558,11 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             <>
               <DialogHeader>
                 <DialogTitle>Finalizar evolução?</DialogTitle>
-                <DialogDescription>Depois de finalizada a evolução não pode ser alterada.</DialogDescription>
+                <DialogDescription>
+                  Depois de finalizada a evolução não pode ser alterada.
+                  <br />
+                  {`${anexosEvolucao.anexos.length} anexo(s) será(ão) incluído(s).`}
+                </DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button type="button" variant="outline" size="lg" disabled={enviando} onClick={() => setDialogo(null)}>

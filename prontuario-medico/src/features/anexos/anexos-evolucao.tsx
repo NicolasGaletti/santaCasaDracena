@@ -14,6 +14,8 @@ import { formatarDataAnexo, ROTULO_TIPO_ANEXO, TIPOS_ANEXO, type TipoAnexo } fro
 const ACEITOS = 'image/jpeg,image/png,image/webp,application/pdf'
 const MENSAGEM_DATA = 'Informe a data do exame.'
 const MENSAGEM_REMOCAO = 'Não foi possível remover o anexo. Tente novamente.'
+/** Mostrada ao tentar finalizar com envio em andamento ou falho (não confirmado). */
+export const MENSAGEM_ANEXO_NAO_ENVIADO = 'Há anexo não enviado. Envie de novo ou cancele antes de finalizar.'
 
 type Metadados = { tipo: TipoAnexo; descricao: string; dataExame: string }
 type Envio = Metadados & { chave: string; arquivo: File; estado: 'enviando' | 'erro'; mensagem?: string }
@@ -57,6 +59,20 @@ export function useAnexosEvolucao({
       anexosRef.current.forEach((a) => revogarPrevia(a.previewUrl))
     }
   }, [])
+
+  const enviando = envios.some((e) => e.estado === 'enviando')
+  const temFalha = envios.some((e) => e.estado === 'erro')
+
+  // Sem este aviso, fechar ou recarregar com um upload em voo perde o anexo.
+  useEffect(() => {
+    if (!enviando) return
+    function aoSair(e: BeforeUnloadEvent) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', aoSair)
+    return () => window.removeEventListener('beforeunload', aoSair)
+  }, [enviando])
 
   async function executar(chave: string, arquivo: File, meta: Metadados) {
     try {
@@ -107,6 +123,7 @@ export function useAnexosEvolucao({
   async function renovarPrevia(anexo: AnexoRascunho) {
     if (!anexo.previewUrl || anexo.previewUrl.startsWith('blob:') || renovadas.current.has(anexo.id)) return
     renovadas.current.add(anexo.id)
+    // Prévia (não é visualização): não registra acesso.
     const { url } = await urlAssinada(anexo.id)
     if (!vivo.current || !url) return
     setAnexos((lista) => lista.map((a) => (a.id === anexo.id ? { ...a, previewUrl: url } : a)))
@@ -141,7 +158,9 @@ export function useAnexosEvolucao({
     anexos,
     envios,
     erro,
-    enviando: envios.some((e) => e.estado === 'enviando'),
+    enviando,
+    /** Envio que falhou e não foi refeito nem cancelado: impede a finalização. */
+    temFalha,
     enviar,
     renovarPrevia,
     abrirPdf,
@@ -156,7 +175,7 @@ export type EstadoAnexos = ReturnType<typeof useAnexosEvolucao>
 const CLASSE_CHIP =
   'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
 
-export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
+export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: EstadoAnexos; avisoFinalizacao?: string | null }) {
   const [tipo, setTipo] = useState<TipoAnexo>('OUTRO')
   const [descricao, setDescricao] = useState('')
   const [dataExame, setDataExame] = useState(hojeEmSaoPaulo)
@@ -184,6 +203,12 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
   return (
     <section className="grid gap-4" aria-label="Anexos de exames">
       <h3 className="text-base font-bold">Anexos</h3>
+
+      {avisoFinalizacao && (
+        <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+          {avisoFinalizacao}
+        </p>
+      )}
 
       <div role="radiogroup" aria-label="Tipo do anexo" className="-mx-4 flex flex-nowrap gap-2 overflow-x-auto px-4 pb-1">
         {TIPOS_ANEXO.map((t) => {

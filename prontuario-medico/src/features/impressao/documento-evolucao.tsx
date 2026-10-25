@@ -172,6 +172,7 @@ const estilos = StyleSheet.create({
   hospital: { fontSize: 13, fontWeight: 'bold' },
   via: { fontSize: 12, fontWeight: 'bold' },
   titulo: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
+  identificacao: { fontSize: 10, marginTop: 2 },
   rodape: {
     position: 'absolute',
     bottom: 24,
@@ -236,14 +237,23 @@ function RodapeEvolucao({ evolucao }: { evolucao: EvolucaoImpressao['evolucao'] 
   )
 }
 
-function CabecalhoDocumento({ categoria, via }: { categoria: string; via: number }) {
+/** Identificação do paciente, repetida no cabeçalho fixo de toda página (inclusive as de imagem). */
+export function identificacaoPaciente(item: Pick<EvolucaoImpressao, 'paciente' | 'internacao'>): string {
+  const nascimento = item.paciente.data_nascimento ? formatarData(item.paciente.data_nascimento) : '—'
+  const leito = item.internacao.leito_ala.trim() || '—'
+  return `Paciente: ${item.paciente.nome} · D.N. ${nascimento} · Leito ${leito}`
+}
+
+function CabecalhoDocumento({ item }: { item: EvolucaoImpressao }) {
+  const { evolucao, via } = item
   return (
     <View fixed style={estilos.cabecalho}>
       <View style={estilos.cabecalhoLinha}>
         <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
         {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
       </View>
-      <Text style={estilos.titulo}>{tituloDocumento(categoria)}</Text>
+      <Text style={estilos.titulo}>{tituloDocumento(evolucao.categoria)}</Text>
+      <Text style={estilos.identificacao}>{identificacaoPaciente(item)}</Text>
     </View>
   )
 }
@@ -286,7 +296,7 @@ function TabelaAnexos({ anexos }: { anexos: AnexoImpressao[] }) {
 function PaginaImagem({ item, anexo }: { item: EvolucaoImpressao; anexo: AnexoImpressao & { imagem: NonNullable<AnexoImpressao['imagem']> } }) {
   return (
     <Page size="A4" style={estilos.pagina} wrap={false}>
-      <CabecalhoDocumento categoria={item.evolucao.categoria} via={item.via} />
+      <CabecalhoDocumento item={item} />
       <Text style={estilos.legendaImagem}>{legendaAnexo(anexo)}</Text>
       <Text style={estilos.valor}>{`Evolução ${codigoCurto(item.evolucao.id)}`}</Text>
       <View style={{ marginTop: 8 }}>
@@ -299,7 +309,7 @@ function PaginaImagem({ item, anexo }: { item: EvolucaoImpressao; anexo: AnexoIm
 }
 
 function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
-  const { evolucao, internacao, paciente, via } = item
+  const { evolucao, internacao, paciente } = item
   const dados = evolucao.dados
   const sinais = sinaisVisiveis(dados)
   const secoes = secoesVisiveis(dados, evolucao.texto_livre ?? '')
@@ -314,13 +324,7 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
 
   return (
     <Page size="A4" style={estilos.pagina} wrap>
-      <View fixed style={estilos.cabecalho}>
-        <View style={estilos.cabecalhoLinha}>
-          <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
-          {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
-        </View>
-        <Text style={estilos.titulo}>{tituloDocumento(evolucao.categoria)}</Text>
-      </View>
+      <CabecalhoDocumento item={item} />
 
       <View style={estilos.grade}>
         {campos.map(([rotulo, valor]) => (

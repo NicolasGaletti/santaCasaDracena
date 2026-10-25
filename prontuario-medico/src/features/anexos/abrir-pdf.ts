@@ -6,7 +6,7 @@ import { urlAssinada } from './actions'
  */
 export async function abrirPdfEmNovaAba(anexoId: string): Promise<string | undefined> {
   const janela = window.open('', '_blank')
-  const { url, erro } = await urlAssinada(anexoId)
+  const { url, erro } = await urlAssinada(anexoId, { registrarAcesso: true })
   if (!url) {
     janela?.close()
     return erro ?? 'Não foi possível abrir o PDF. Tente novamente.'

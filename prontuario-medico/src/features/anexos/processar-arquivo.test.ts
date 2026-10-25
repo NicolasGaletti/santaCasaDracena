@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { dimensoesAlvo, sha256Hex, validarArquivo, validarTamanhoFinal } from './processar-arquivo';
+import { dimensoesAlvo, prepararArquivo, sha256Hex, tipoEfetivo, validarArquivo, validarTamanhoFinal } from './processar-arquivo';
+
+const MSG_FOTO = 'Formato de foto não suportado neste aparelho. Use a câmera do app (JPEG) ou envie em PDF.';
 
 const MB = 1024 * 1024;
 
@@ -43,6 +45,35 @@ describe('validarArquivo', () => {
     for (const type of ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']) {
       expect(validarArquivo({ type, size: 1000 })).toBeNull();
     }
+  });
+});
+
+describe('PDF sem MIME', () => {
+  it('trata arquivo sem tipo com extensão .pdf (qualquer caixa) como PDF', () => {
+    expect(tipoEfetivo({ type: '', name: 'laudo.pdf' })).toBe('application/pdf');
+    expect(tipoEfetivo({ type: '', name: 'LAUDO.PDF' })).toBe('application/pdf');
+    expect(validarArquivo({ type: '', name: 'laudo.Pdf', size: 1000 })).toBeNull();
+  });
+
+  it('não adivinha tipo sem extensão .pdf', () => {
+    expect(tipoEfetivo({ type: '', name: 'foto' })).toBe('');
+    expect(validarArquivo({ type: '', name: 'foto', size: 1000 })).toBe('Formato não suportado. Envie foto ou PDF.');
+  });
+
+  it('PDF sem MIME continua limitado a 20 MB', () => {
+    expect(validarArquivo({ type: '', name: 'grande.pdf', size: 20 * MB + 1 })).toBe('Arquivo maior que 20 MB.');
+  });
+});
+
+describe('HEIC e HEIF', () => {
+  it('recusa image/heic e image/heif com mensagem de formato de foto', () => {
+    expect(validarArquivo({ type: 'image/heic', size: 1000 })).toBe(MSG_FOTO);
+    expect(validarArquivo({ type: 'image/heif', size: 1000 })).toBe(MSG_FOTO);
+  });
+
+  it('prepararArquivo rejeita HEIC antes de decodificar', async () => {
+    const arquivo = new File(['x'], 'foto.heic', { type: 'image/heic' });
+    await expect(prepararArquivo(arquivo)).rejects.toThrow(MSG_FOTO);
   });
 });
 
