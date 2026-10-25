@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Todos os dos planos anteriores. Migrations existentes imutáveis. Novas a partir de `20261025000012_*`.
+- Todos os dos planos anteriores. Migrations existentes imutáveis. Novas a partir de `20261025000013_*`.
 - **Só o médico dá alta** (decisão 9): perfil `medico`, ativo, membro da equipe da internação.
 - Tipos de alta: `MELHORADA`, `CURADA`, `A_PEDIDO`, `TRANSFERENCIA`, `EVASAO`, `OBITO` (rótulos: Melhorada, Curada, A pedido, Transferência, Evasão, Óbito). Campos: tipo (obrigatório), resumo/motivo (obrigatório, 1–2000), data/hora da alta (padrão agora; não pode ser futura nem anterior à admissão).
 - Após a alta: internação `ALTA` somente leitura (trava já existe; adendo é a única exceção — Plano 3). Rascunhos pendentes ficam congelados (sem valor de registro; não aparecem na timeline).
@@ -38,7 +38,7 @@
 
 ### Task 1: Alta médica no banco
 
-**Files:** Create `supabase/migrations/20261025000012_alta.sql`, `supabase/tests/012_alta.test.sql`
+**Files:** Create `supabase/migrations/20261025000013_alta.sql`, `supabase/tests/013_alta.test.sql`
 
 **Interfaces:**
 - enum `tipo_alta`; `internacoes` ganha `tipo_alta tipo_alta`, `resumo_alta text` (os campos `alta_em`, `motivo_alta`, `alta_por` já existem — `motivo_alta` passa a guardar o resumo; não duplicar: usar `motivo_alta` como resumo e só adicionar `tipo_alta`).
@@ -61,7 +61,7 @@
 
 ### Task 3: Funções de administração no banco
 
-**Files:** Create `supabase/migrations/20261025000013_admin.sql`, `supabase/tests/013_admin.test.sql`
+**Files:** Create `supabase/migrations/20261025000014_admin.sql`, `supabase/tests/014_admin.test.sql`
 
 **Interfaces (todas exigem perfil `admin` ativo + `app.exige_aal2()` após a Task 7 — nesta task, só perfil):**
 - `admin_salvar_equipe(p_id uuid, p_nome text, p_ativo boolean) returns uuid` (cria se `p_id` null; nome único, sem apagar).
@@ -110,7 +110,7 @@
 
 ### Task 7: MFA obrigatório para admin
 
-**Files:** Create `supabase/migrations/20261025000014_aal2.sql`, `supabase/tests/014_aal2.test.sql`, `src/app/mfa/cadastrar/page.tsx`, `src/app/mfa/verificar/page.tsx`, `src/features/mfa/*`, `e2e/mfa.spec.ts`; Modify `src/lib/auth.ts` (`exigirProfissional` checa `aal` para perfis sensíveis), `supabase/config.toml` (`[auth.mfa.totp] enroll_enabled = true, verify_enabled = true`)
+**Files:** Create `supabase/migrations/20261025000015_aal2.sql`, `supabase/tests/015_aal2.test.sql`, `src/app/mfa/cadastrar/page.tsx`, `src/app/mfa/verificar/page.tsx`, `src/features/mfa/*`, `e2e/mfa.spec.ts`; Modify `src/lib/auth.ts` (`exigirProfissional` checa `aal` para perfis sensíveis), `supabase/config.toml` (`[auth.mfa.totp] enroll_enabled = true, verify_enabled = true`)
 
 **Interfaces:** `app.exige_aal2()` (raise P0001 `Confirme o código do autenticador para continuar.` quando perfil = `admin` e `aal` ≠ `aal2`), chamado no início das funções `admin_*` (recriar com `create or replace` mantendo as regras atuais). Página opcional `/conta/seguranca` para qualquer perfil cadastrar MFA. Telas: cadastro com QR code (`mfa.enroll` → `qr_code`), confirmação do primeiro código, verificação a cada login (`mfa.challengeAndVerify`). Seed/testes: helper para gerar TOTP no e2e (`otplib` como devDependency) a partir do secret do enroll.
 
@@ -120,7 +120,7 @@
 
 ### Task 7b: Notificações — banco e envio
 
-**Files:** Create `supabase/migrations/20261025000015_notificacoes.sql`, `supabase/tests/015_notificacoes.test.sql`, `supabase/functions/enviar-push/index.ts`; Modify `supabase/config.toml`
+**Files:** Create `supabase/migrations/20261025000016_notificacoes.sql`, `supabase/tests/016_notificacoes.test.sql`, `supabase/functions/enviar-push/index.ts`; Modify `supabase/config.toml`
 
 **Interfaces:**
 - `notificacoes (id, destinatario_id, tipo text check in ('validacao_pendente','evolucao_devolvida','evolucao_validada','evolucao_equipe','admissao_equipe'), internacao_id, evolucao_id, texto text, lida_em timestamptz, criada_em)`; RLS: destinatário lê/atualiza `lida_em` das próprias (função `marcar_lida(p_id)` / `marcar_todas_lidas()`); nenhum outro acesso.
@@ -193,4 +193,4 @@
 
 **Files:** Create `docs/lgpd.md` (finalidade, base legal, quem acessa, retenção 20 anos, operadores Supabase/Netlify/Cloudflare, região, incidentes), `docs/go-live.md` (checklist: projeto Supabase de produção em São Paulo plano Pro + PITR, SMTP, usuários reais convidados pelo admin, primeiro admin por SQL, remover usuários de teste, proteção do site, backup testado, piloto com uma equipe e papel em paralelo); Modify READMEs.
 
-- [ ] Steps: suíte completa verde; commit `docs: LGPD e checklist de go-live`; controller: `db push` pelo usuário (0012+), merge `develop` → `staging`, push, smoke completo no staging (convite → definir senha → MFA → evoluir → validar → imprimir → alta → folha de alta → auditoria).
+- [ ] Steps: suíte completa verde; commit `docs: LGPD e checklist de go-live`; controller: `db push` pelo usuário (0013+), merge `develop` → `staging`, push, smoke completo no staging (convite → definir senha → MFA → evoluir → validar → imprimir → alta → folha de alta → auditoria).
