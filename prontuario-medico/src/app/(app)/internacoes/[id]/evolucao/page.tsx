@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { FormMedica } from '@/features/evolucao/form-medica'
 import { FormSimples } from '@/features/evolucao/form-simples'
-import { lerDadosMedica } from '@/features/evolucao/cartao-evolucao'
+import { lerDadosMedica, type EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { categoriaAusente, exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { lerDadosSimples } from '@/features/evolucao/modelos/simples'
 import { exigirProfissional } from '@/lib/auth'
@@ -35,7 +35,8 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
     .eq('internacao_id', id)
     .maybeSingle()
   if (!linha) notFound()
-  if (linha.status !== 'INTERNADO') redirect(`/internacoes/${id}`)
+  // Internação com alta só abre para o rascunho de adendo (checado abaixo).
+  if (linha.status !== 'INTERNADO' && linha.status !== 'ALTA') redirect(`/internacoes/${id}`)
   if (!(await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))) {
     redirect(`/internacoes/${id}`)
   }
@@ -43,7 +44,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   const [{ data: rascunho }, { data: aguardando }, { data: anterior }] = await Promise.all([
     supabase
       .from('evolucoes')
-      .select('id, dados, texto_livre, devolvida_motivo')
+      .select('id, dados, texto_livre, devolvida_motivo, adendo_de')
       .eq('internacao_id', id)
       .eq('autor_id', profissional.id)
       .eq('status', 'RASCUNHO')
@@ -70,9 +71,11 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
 
   // Com evolução aguardando validação não há o que editar: volta ao prontuário.
   if (aguardando) redirect(`/internacoes/${id}`)
+  if (linha.status === 'ALTA' && !rascunho?.adendo_de) redirect(`/internacoes/${id}`)
 
   const anexosRascunho = rascunho ? await anexosConfirmados(supabase, rascunho.id) : []
   const paciente = { nome: linha.nome, leito: linha.leito_ala }
+  const adendo = rascunho?.adendo_de ? await original(supabase, rascunho.adendo_de) : null
 
   if (!formularioMedico) {
     return (
@@ -93,6 +96,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
             : null
         }
         anexos={anexosRascunho}
+        adendo={adendo}
       />
     )
   }
@@ -116,8 +120,19 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
       }
       anterior={anterior ? lerDadosMedica(anterior.dados) : null}
       anexos={anexosRascunho}
+      adendo={adendo}
     />
   )
+}
+
+/** Evolução original do adendo, para o cabeçalho do formulário. Só visível a quem o banco deixa ler. */
+async function original(supabase: Supabase, evolucaoId: string): Promise<EvolucaoTimeline | null> {
+  const { data } = await supabase
+    .from('vw_evolucoes_timeline')
+    .select('id, status, categoria, autor_nome, criado_em, finalizada_em, dados, texto_livre, qtd_anexos, adendo_de')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+  return data ?? null
 }
 
 /** Anexos confirmados do rascunho, com URL assinada de 300 s para a prévia (gerada no servidor). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoriaAusente, exigeConselho } from './permissoes';
+import { categoriaAusente, exigeConselho, podeCriarAdendo } from './permissoes';
 
 describe('permissoes de evolução', () => {
   it('multiprofissional sem categoria está bloqueado', () => {
@@ -16,5 +16,30 @@ describe('permissoes de evolução', () => {
   it('acadêmico não exige conselho', () => {
     expect(exigeConselho('academico')).toBe(false);
     expect(exigeConselho('multiprofissional')).toBe(true);
+  });
+});
+
+describe('podeCriarAdendo', () => {
+  it('autor da original pode criar adendo, em qualquer perfil que evolui', () => {
+    expect(podeCriarAdendo('residente', true, false)).toBe(true);
+    expect(podeCriarAdendo('multiprofissional', true, false)).toBe(true);
+    expect(podeCriarAdendo('academico', true, false)).toBe(true);
+  });
+
+  it('médico membro da equipe pode criar adendo de evolução de outro', () => {
+    expect(podeCriarAdendo('medico', false, true)).toBe(true);
+  });
+
+  it('médico fora da equipe não cria adendo de evolução de outro', () => {
+    expect(podeCriarAdendo('medico', false, false)).toBe(false);
+  });
+
+  it('residente que não é autor não cria adendo, mesmo na equipe', () => {
+    expect(podeCriarAdendo('residente', false, true)).toBe(false);
+  });
+
+  it('recepção e admin nunca criam adendo', () => {
+    expect(podeCriarAdendo('recepcao', false, true)).toBe(false);
+    expect(podeCriarAdendo('admin', true, true)).toBe(false);
   });
 });

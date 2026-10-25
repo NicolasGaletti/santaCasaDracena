@@ -50,6 +50,25 @@ export async function enviarParaValidacao(evolucaoId: string): Promise<{ erro?: 
   redirect(`/internacoes/${evolucao.internacao_id}`)
 }
 
+/** Adendo de evolução finalizada: abre rascunho ligado à original e leva ao formulário. */
+export async function criarAdendo(evolucaoId: string): Promise<{ erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: evolucao, error: erroBusca } = await supabase
+    .from('evolucoes')
+    .select('internacao_id')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+  if (erroBusca || !evolucao) return { erro: MENSAGEM_GENERICA }
+
+  const { error } = await supabase.rpc('criar_adendo', { p_evolucao_id: evolucaoId })
+  if (error) return { erro: mensagemDeErro(error) }
+
+  revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+  redirect(`/internacoes/${evolucao.internacao_id}/evolucao`)
+}
+
 export async function descartar(evolucaoId: string): Promise<void> {
   await exigirProfissional()
   const supabase = await createClient()

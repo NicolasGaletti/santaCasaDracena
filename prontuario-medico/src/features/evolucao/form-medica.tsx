@@ -15,6 +15,9 @@ import { aplicarSinal, brutosDeSinais, CamposSinais, errosDeSinais, type BrutosS
 import { rascunhoMedicaVazio, validarParaFinalizar, type DadosMedica } from './modelos/medica'
 import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO, mensagemAnexoNaoEnviado } from './envio'
 import { DialogoDescartar, RodapeEvolucao } from './rodape-evolucao'
+import { tituloAdendo } from './adendo'
+import { OriginalAdendo } from './original-adendo'
+import type { EvolucaoTimeline } from './cartao-evolucao'
 import { useRascunhoEvolucao } from './use-rascunho-evolucao'
 
 type Props = {
@@ -25,6 +28,8 @@ type Props = {
   rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null } | null
   anterior: DadosMedica | null
   anexos: AnexoRascunho[]
+  /** Evolução original quando o rascunho é um adendo. */
+  adendo: EvolucaoTimeline | null
 }
 
 type CampoTexto =
@@ -50,8 +55,9 @@ const CAMPOS_EXAME: { chave: CampoExame; rotulo: string }[] = [
   { chave: 'neuro', rotulo: 'Neurológico' },
 ]
 
-export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior, anexos }: Props) {
+export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior, anexos, adendo }: Props) {
   const podeFinalizar = perfil === 'medico'
+  const titulo = adendo ? tituloAdendo(adendo.finalizada_em ?? adendo.criado_em) : 'Evolução médica'
 
   const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? rascunhoMedicaVazio()).sinais))
   const [erros, setErros] = useState<string[]>([])
@@ -189,11 +195,15 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             </Button>
           )}
         </div>
-        <h1 className="text-2xl font-bold leading-snug">Evolução médica</h1>
+        <h1 className="text-2xl font-bold leading-snug">
+          {titulo}
+        </h1>
         <p className="text-muted-foreground">
           {paciente.nome} · Leito {paciente.leito}
         </p>
       </header>
+
+      {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
         <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
@@ -212,7 +222,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         </div>
       )}
 
-      <form onSubmit={(e) => e.preventDefault()} aria-label="Evolução médica" className="flex flex-col gap-4 pb-28">
+      <form onSubmit={(e) => e.preventDefault()} aria-label={titulo} className="flex flex-col gap-4 pb-28">
         <fieldset disabled={!hidratado} className="contents">
           <Accordion type="multiple" value={abertos} onValueChange={setAbertos} className="rounded-lg border border-border bg-card px-4">
             <AccordionItem value="diagnosticos">

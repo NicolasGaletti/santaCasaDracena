@@ -131,9 +131,10 @@ test('anteriores mostra só ALTA, sem ações de admissão ou evolução', async
     .click();
   await expect(page).toHaveURL(/\/anteriores$/);
 
-  // Seed: exatamente duas internações ALTA (07 e 08); nenhuma INTERNADO (01-06).
+  // Seed: internações ALTA 07 e 08; nenhuma INTERNADO (01-06). Outros testes também encerram internações,
+  // então não se fixa a contagem total.
   const cartoes = page.getByTestId('cartao-internacao');
-  await expect(cartoes).toHaveCount(2);
+  await expect(cartoes.first()).toBeVisible();
   await expect(cartoes.filter({ hasText: 'Paciente Fictício 07' })).toHaveCount(1);
   await expect(cartoes.filter({ hasText: 'Paciente Fictício 08' })).toHaveCount(1);
   for (const n of ['01', '02', '03', '04', '05', '06']) {

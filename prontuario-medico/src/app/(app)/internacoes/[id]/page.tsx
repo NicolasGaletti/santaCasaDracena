@@ -6,7 +6,14 @@ import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
-import { categoriaAusente, exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
+import {
+  categoriaAusente,
+  ehMembroDaEquipe,
+  exigeConselho,
+  PERFIS_QUE_EVOLUEM,
+  podeCriarAdendo,
+  podeEvoluirNaInternacao,
+} from '@/features/evolucao/permissoes'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirProfissional } from '@/lib/auth'
@@ -43,15 +50,29 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     clinico
       ? supabase
           .from('vw_evolucoes_timeline')
-          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre, qtd_anexos')
+          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre, qtd_anexos, adendo_de')
           .eq('internacao_id', id)
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),
     clinico ? listarAnexosInternacao(id) : Promise.resolve([]),
   ])
 
+  const perfilEvolui = (PERFIS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil)
+  const conselhoCompleto =
+    !exigeConselho(profissional.perfil) ||
+    Boolean(profissional.conselho && profissional.numero_conselho && profissional.uf_conselho)
+  const categoriaOk = !categoriaAusente(profissional.perfil, profissional.categoria)
+  const membroEquipe = clinico && perfilEvolui ? await ehMembroDaEquipe(supabase, profissional.id, linha.equipe_id) : false
+  const podeAbrirAdendo = clinico && perfilEvolui && conselhoCompleto && categoriaOk
+
   // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
-  const linhasTimeline: EvolucaoTimeline[] = evolucoes ?? []
+  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map((e) => ({
+    ...e,
+    podeAdendo:
+      podeAbrirAdendo &&
+      e.status === 'FINALIZADA' &&
+      podeCriarAdendo(profissional.perfil, e.autor_id === profissional.id, membroEquipe),
+  }))
   const rascunhoProprio = (evolucoes ?? []).find(
     (e) => e.status === 'RASCUNHO' && e.autor_id === profissional.id,
   )
@@ -60,18 +81,21 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     (e) => e.status === 'AGUARDANDO_VALIDACAO' && e.autor_id === profissional.id,
   )
 
-  const podeEvoluir =
-    linha.status === 'INTERNADO' &&
-    (PERFIS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil) &&
-    (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
-  const conselhoCompleto =
-    !exigeConselho(profissional.perfil) ||
-    Boolean(profissional.conselho && profissional.numero_conselho && profissional.uf_conselho)
+  const podeEvoluirEquipe =
+    perfilEvolui && (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
+  const podeEvoluir = linha.status === 'INTERNADO' && perfilEvolui && podeEvoluirEquipe
 
   return (
     <>
       <MarcarAba status={linha.status} />
       <CabecalhoPaciente linha={linha} />
+
+      {/* Em internação com alta só o adendo continua aberto: o rascunho de adendo é retomado daqui. */}
+      {linha.status === 'ALTA' && rascunhoProprio?.adendo_de && podeEvoluirEquipe && (
+        <Button asChild size="lg" className="w-full sm:w-auto">
+          <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
+        </Button>
+      )}
 
       {podeEvoluir && (
         <div className="flex flex-col gap-2">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { agruparAdendos } from './agrupar-adendos'
 import { CartaoEvolucao, lerDadosMedica, temSecao, type EvolucaoTimeline, type SecaoExame } from './cartao-evolucao'
 
 type Filtro = 'todas' | SecaoExame
@@ -16,12 +17,10 @@ const FILTROS: { valor: Filtro; rotulo: string }[] = [
 export function Timeline({ evolucoes }: { evolucoes: EvolucaoTimeline[] }) {
   const [filtro, setFiltro] = useState<Filtro>('todas')
 
-  const visiveis =
-    filtro === 'todas'
-      ? evolucoes.map((e) => ({ evolucao: e, secao: undefined }))
-      : evolucoes
-          .filter((e) => temSecao(lerDadosMedica(e.dados), filtro))
-          .map((e) => ({ evolucao: e, secao: filtro }))
+  // Adendos ficam logo abaixo da original, recuados; com filtro, cada item passa pelo próprio conteúdo.
+  const visiveis = agruparAdendos(evolucoes, (e) => filtro === 'todas' || temSecao(lerDadosMedica(e.dados), filtro)).map(
+    ({ item, recuo }) => ({ evolucao: item, secao: filtro === 'todas' ? undefined : filtro, recuo }),
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,8 +55,8 @@ export function Timeline({ evolucoes }: { evolucoes: EvolucaoTimeline[] }) {
         </p>
       ) : (
         <ol className="flex flex-col gap-3">
-          {visiveis.map(({ evolucao, secao }) => (
-            <li key={evolucao.id}>
+          {visiveis.map(({ evolucao, secao, recuo }) => (
+            <li key={evolucao.id} className={recuo ? 'ml-4 border-l-2 border-border pl-3 sm:ml-8' : undefined}>
               <CartaoEvolucao evolucao={evolucao} secao={secao} />
             </li>
           ))}

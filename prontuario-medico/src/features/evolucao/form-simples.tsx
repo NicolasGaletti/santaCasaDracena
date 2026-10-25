@@ -15,6 +15,9 @@ import { ehRedirecionamento, enviarEvolucao, MENSAGEM_SEM_CONEXAO_ENVIO, mensage
 import { rascunhoSimplesVazio, validarParaEnviarSimples, type DadosSimples } from './modelos/simples'
 import { RodapeEvolucao, DialogoDescartar } from './rodape-evolucao'
 import { tituloEvolucao } from './rotulos'
+import { tituloAdendo } from './adendo'
+import { OriginalAdendo } from './original-adendo'
+import type { EvolucaoTimeline } from './cartao-evolucao'
 import { useRascunhoEvolucao } from './use-rascunho-evolucao'
 
 type Props = {
@@ -24,11 +27,13 @@ type Props = {
   paciente: { nome: string; leito: string }
   rascunho: { id: string; dados: DadosSimples; textoLivre: string; devolvidaMotivo: string | null } | null
   anexos: AnexoRascunho[]
+  /** Evolução original quando o rascunho é um adendo. */
+  adendo: EvolucaoTimeline | null
 }
 
 /** Formulário das categorias não médicas (enfermagem, fisioterapia, nutrição, psicologia, fonoaudiologia, serviço social). */
-export function FormSimples({ internacaoId, userId, categoria, paciente, rascunho, anexos }: Props) {
-  const titulo = tituloEvolucao(categoria)
+export function FormSimples({ internacaoId, userId, categoria, paciente, rascunho, anexos, adendo }: Props) {
+  const titulo = adendo ? tituloAdendo(adendo.finalizada_em ?? adendo.criado_em) : tituloEvolucao(categoria)
   const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? rascunhoSimplesVazio()).sinais))
   const [erros, setErros] = useState<string[]>([])
   const [dialogo, setDialogo] = useState(false)
@@ -157,6 +162,8 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
           {paciente.nome} · Leito {paciente.leito}
         </p>
       </header>
+
+      {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
         <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">

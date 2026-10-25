@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import { BotaoAdendo } from './botao-adendo'
 import { BotaoImprimirEvolucao } from './botao-imprimir'
 import type { DadosMedica } from './modelos/medica'
 import { rascunhoMedicaVazio } from './modelos/medica'
@@ -17,6 +18,9 @@ export type EvolucaoTimeline = {
   dados: unknown
   texto_livre: string
   qtd_anexos?: number | null
+  adendo_de?: string | null
+  /** Calculado no servidor: quem pode abrir um adendo desta evolução finalizada. */
+  podeAdendo?: boolean
 }
 
 const FUSO_SP = 'America/Sao_Paulo'
@@ -102,9 +106,11 @@ export function temSecao(d: DadosMedica, secao: SecaoExame): boolean {
 export function CartaoEvolucao({
   evolucao,
   secao,
+  ocultarAcoes = false,
 }: {
   evolucao: EvolucaoTimeline
   secao?: SecaoExame
+  ocultarAcoes?: boolean
 }) {
   const d = lerDadosMedica(evolucao.dados)
   const finalizada = evolucao.status === 'FINALIZADA'
@@ -141,13 +147,23 @@ export function CartaoEvolucao({
             {formatarDataHora(data)} · {ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+          {evolucao.adendo_de && (
+            <Badge data-testid="rotulo-adendo" variant="outline" className="shrink-0 px-2 text-xs">
+              Adendo
+            </Badge>
+          )}
           {finalizada ? (
             <>
               <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
-              <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
-              {(evolucao.qtd_anexos ?? 0) > 0 && (
-                <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />
+              {!ocultarAcoes && (
+                <>
+                  <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
+                  {(evolucao.qtd_anexos ?? 0) > 0 && (
+                    <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />
+                  )}
+                  {evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
+                </>
               )}
             </>
           ) : evolucao.status === 'AGUARDANDO_VALIDACAO' ? (

@@ -24,6 +24,15 @@ export async function podeEvoluirNaInternacao(
 ): Promise<boolean> {
   if (perfil === 'medico') return true
   if (!PERFIS_POR_EQUIPE.includes(perfil) || !equipeId) return false
+  return ehMembroDaEquipe(supabase, profissionalId, equipeId)
+}
+
+export async function ehMembroDaEquipe(
+  supabase: SupabaseClient<Database>,
+  profissionalId: string,
+  equipeId: string | null,
+): Promise<boolean> {
+  if (!equipeId) return false
   const { data } = await supabase
     .from('membros_equipe')
     .select('equipe_id')
@@ -31,6 +40,15 @@ export async function podeEvoluirNaInternacao(
     .eq('profissional_id', profissionalId)
     .maybeSingle()
   return Boolean(data)
+}
+
+/**
+ * Adendo: o autor da evolução original, ou médico membro da equipe da internação.
+ * Só perfis que evoluem; a regra de internação em alta e a de rascunho aberto ficam no banco.
+ */
+export function podeCriarAdendo(perfil: string, ehAutor: boolean, ehMembroEquipe: boolean): boolean {
+  if (!(PERFIS_QUE_EVOLUEM as readonly string[]).includes(perfil)) return false
+  return ehAutor || (perfil === 'medico' && ehMembroEquipe)
 }
 
 /** Multiprofissional sem categoria não consegue registrar evolução (o banco recusa). */
