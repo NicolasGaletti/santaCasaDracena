@@ -160,7 +160,7 @@ begin
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
 
-  select i.* into v_int from public.internacoes i where i.id = p_internacao_id;
+  select i.* into v_int from public.internacoes i where i.id = p_internacao_id for share;
   if not found then
     raise exception 'Internação não encontrada.' using errcode = 'P0001';
   end if;
@@ -236,17 +236,18 @@ begin
   if not found then
     raise exception 'Evolução não encontrada.' using errcode = 'P0001';
   end if;
-  if v_ev.status = 'FINALIZADA' then
-    raise exception 'Evolução finalizada não pode ser alterada.' using errcode = 'P0001';
-  end if;
-  if v_ev.status <> 'RASCUNHO' then
-    raise exception 'Somente rascunhos podem ser finalizados.' using errcode = 'P0001';
-  end if;
+  -- autor e perfil antes do status: não-autor não descobre o estado da evolução
   if v_ev.autor_id <> auth.uid() then
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
   if app.perfil_atual() <> 'medico' then
     raise exception 'Apenas médicos podem finalizar evoluções.' using errcode = 'P0001';
+  end if;
+  if v_ev.status = 'FINALIZADA' then
+    raise exception 'Evolução finalizada não pode ser alterada.' using errcode = 'P0001';
+  end if;
+  if v_ev.status <> 'RASCUNHO' then
+    raise exception 'Somente rascunhos podem ser finalizados.' using errcode = 'P0001';
   end if;
 
   select p.* into v_prof from public.profissionais p where p.id = auth.uid();
@@ -268,7 +269,7 @@ begin
       'texto', v_ev.texto_livre,
       'internacao', v_ev.internacao_id,
       'autor', v_ev.autor_id,
-      'finalizada_em', v_agora
+      'finalizada_em', to_char(v_agora at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
     )::text,
     'sha256'
   ), 'hex');
