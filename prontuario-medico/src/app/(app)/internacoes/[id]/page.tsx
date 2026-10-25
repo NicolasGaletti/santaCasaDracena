@@ -7,6 +7,8 @@ import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
+import { listarAnexosInternacao } from '@/features/anexos/consultas'
+import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirProfissional } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -31,7 +33,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   await supabase.rpc('registrar_acesso', { p_internacao_id: id, p_acao: 'abrir_prontuario' })
 
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
-  const [{ data: dadosClinicos }, { data: evolucoes }] = await Promise.all([
+  const [{ data: dadosClinicos }, { data: evolucoes }, anexosGaleria] = await Promise.all([
     clinico
       ? supabase
           .from('internacoes_clinico')
@@ -46,6 +48,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
           .eq('internacao_id', id)
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),
+    clinico ? listarAnexosInternacao(id) : Promise.resolve([]),
   ])
 
   // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
@@ -100,9 +103,15 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             <TabsTrigger value="dados" className="min-h-11 flex-1 sm:flex-none">
               Dados
             </TabsTrigger>
+            <TabsTrigger value="exames" className="min-h-11 flex-1 sm:flex-none">
+              Exames
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="evolucoes">
             <Timeline evolucoes={linhasTimeline} />
+          </TabsContent>
+          <TabsContent value="exames">
+            <GaleriaExames anexos={anexosGaleria} />
           </TabsContent>
           <TabsContent value="dados">
             <dl className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">

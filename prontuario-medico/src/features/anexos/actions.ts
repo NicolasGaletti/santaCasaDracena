@@ -26,3 +26,30 @@ export async function removerAnexo(anexoId: string): Promise<{ erro?: string }> 
 
   return {}
 }
+
+/** Validade da URL assinada da prévia, em segundos. */
+const VALIDADE_URL_SEGUNDOS = 300;
+
+/**
+ * URL assinada de 300 s para ver um anexo. Confere a linha com o cliente do usuário (RLS): anexo
+ * invisível (recepção, outro autor, rascunho alheio) não recebe URL.
+ */
+export async function urlAssinada(anexoId: string): Promise<{ url?: string; erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: anexo, error: erroBusca } = await supabase
+    .from('anexos')
+    .select('storage_path')
+    .eq('id', anexoId)
+    .maybeSingle()
+  if (erroBusca) return { erro: 'Não foi possível abrir o anexo. Tente novamente.' }
+  if (!anexo) return { erro: 'Anexo não encontrado.' }
+
+  const { data, error } = await supabase.storage
+    .from('anexos')
+    .createSignedUrl(anexo.storage_path, VALIDADE_URL_SEGUNDOS)
+  if (error || !data?.signedUrl) return { erro: 'Não foi possível abrir o anexo. Tente novamente.' }
+
+  return { url: data.signedUrl }
+}

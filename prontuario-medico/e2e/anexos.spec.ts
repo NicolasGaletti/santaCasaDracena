@@ -248,3 +248,87 @@ test('descarta rascunho com foto anexada e limpa linha e objeto', async ({ page 
   expect(linhaExiste(anexo.id)).toBe(false);
   expect(objetoExiste(anexo.storage_path)).toBe(false);
 });
+
+/** Admite, anexa foto (Outro) e PDF (ECG) no rascunho e finaliza. Devolve o id da internação. */
+async function criarExamesFinalizados(page: Page): Promise<string> {
+  const id = await admitirPaciente(page, leitoUnico());
+  await abrirExamesDeRascunho(page, id);
+  await anexarFoto(page);
+  await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
+  await page.getByRole('radio', { name: 'ECG' }).click();
+  await page.getByTestId('entrada-arquivo').setInputFiles(PDF);
+  await expect(page.getByTestId('anexo-item')).toHaveCount(2, { timeout: 20_000 });
+  await finalizarEvolucao(page, 'Evolução com exames', 'Conduta com exames');
+  return id;
+}
+
+async function abrirAbaExames(page: Page, id: string) {
+  await page.goto(`/internacoes/${id}`);
+  await page.getByRole('tab', { name: 'Exames' }).click();
+  await expect(page.getByTestId('galeria-item').first()).toBeVisible({ timeout: 20_000 });
+}
+
+test('galeria mostra anexo da evolução finalizada', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await abrirExamesDeRascunho(page, id);
+  await anexarFoto(page);
+  await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
+  await finalizarEvolucao(page, 'Evolução com foto', 'Conduta com foto');
+
+  await abrirAbaExames(page, id);
+  await expect(page.getByTestId('galeria-item')).toHaveCount(1);
+  await expect(page.getByTestId('galeria-item')).toContainText('Outro');
+  await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
+});
+
+test('filtro ECG mostra só ECG e PDF abre em nova aba', async ({ page }) => {
+  const id = await criarExamesFinalizados(page);
+  await abrirAbaExames(page, id);
+
+  const itens = page.getByTestId('galeria-item');
+  await expect(itens).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'ECG', exact: true }).click();
+  await expect(itens).toHaveCount(1);
+  await expect(itens).toContainText('ECG');
+
+  await page.getByRole('button', { name: 'Todos', exact: true }).click();
+  await expect(itens).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'ECG', exact: true }).click();
+  // O navegador headless não renderiza PDF em nova aba: confere a abertura e a URL assinada pedida.
+  const [nova, pedidoAssinado] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.context().waitForEvent('request', (r) => r.url().includes('/storage/v1/object/sign/anexos/')),
+    itens.getByRole('button', { name: /Abrir PDF/ }).click(),
+  ]);
+  expect(nova).toBeTruthy();
+  expect(pedidoAssinado.url()).toMatch(/\/storage\/v1\/object\/sign\/anexos\//);
+});
+
+test('visualizador em tela cheia fecha com Esc e com o voltar do navegador', async ({ page }) => {
+  const id = await criarExamesFinalizados(page);
+  await abrirAbaExames(page, id);
+  await page.getByTestId('galeria-item').getByRole('button', { name: /Ampliar anexo/ }).click();
+  const visualizador = page.getByRole('dialog');
+  await expect(visualizador).toBeVisible();
+  await expect(visualizador.getByRole('img')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(visualizador).toBeHidden();
+
+  await page.getByTestId('galeria-item').getByRole('button', { name: /Ampliar anexo/ }).click();
+  await expect(visualizador).toBeVisible();
+  await page.goBack();
+  await expect(visualizador).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`/internacoes/${id}$`));
+});
+
+test('recepção não vê a aba Exames', async ({ page }) => {
+  const id = await criarExamesFinalizados(page);
+  await page.context().clearCookies();
+  await entrar(page, 'recepcao@teste.local');
+  await page.goto(`/internacoes/${id}`);
+  await expect(page.getByText('Conteúdo clínico disponível apenas para profissionais de saúde.')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Exames' })).toHaveCount(0);
+});

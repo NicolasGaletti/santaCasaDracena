@@ -18,3 +18,9 @@ export const TIPOS_ANEXO_CONFEREM_COM_BANCO: Igual<
   TipoAnexo,
   Database['public']['Enums']['tipo_anexo']
 > = true;
+
+/** Data do exame como DD/MM/AAAA, a partir de AAAA-MM-DD. */
+export function formatarDataAnexo(iso: string): string {
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}

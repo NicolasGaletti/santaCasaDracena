@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { removerAnexo } from './actions'
+import { removerAnexo, urlAssinada } from './actions'
+import { abrirPdfEmNovaAba } from './abrir-pdf'
 import { enviarAnexo, ehFalhaDeRede, mensagemDeEnvio, MENSAGEM_SEM_CONEXAO_ANEXO, type AnexoRascunho } from './enviar-anexo'
-import { ROTULO_TIPO_ANEXO, TIPOS_ANEXO, type TipoAnexo } from './rotulos'
+import { formatarDataAnexo, ROTULO_TIPO_ANEXO, TIPOS_ANEXO, type TipoAnexo } from './rotulos'
 
 const ACEITOS = 'image/jpeg,image/png,image/webp,application/pdf'
 const MENSAGEM_DATA = 'Informe a data do exame.'
@@ -20,11 +21,6 @@ type Envio = Metadados & { chave: string; arquivo: File; estado: 'enviando' | 'e
 /** Hoje no fuso de São Paulo, como AAAA-MM-DD (en-CA já formata assim). */
 export function hojeEmSaoPaulo(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
-}
-
-function formatarData(iso: string): string {
-  const [ano, mes, dia] = iso.split('-')
-  return `${dia}/${mes}/${ano}`
 }
 
 function revogarPrevia(url: string | undefined) {
@@ -48,6 +44,7 @@ export function useAnexosEvolucao({
   const contador = useRef(0)
   const vivo = useRef(true)
   const anexosRef = useRef(anexos)
+  const renovadas = useRef(new Set<string>())
 
   useEffect(() => {
     anexosRef.current = anexos
@@ -106,6 +103,22 @@ export function useAnexosEvolucao({
     setEnvios((lista) => lista.filter((e) => e.chave !== chave))
   }
 
+  /** Prévia de servidor expirou (5 min): pede URL nova uma vez por anexo. Prévia `blob:` não expira. */
+  async function renovarPrevia(anexo: AnexoRascunho) {
+    if (!anexo.previewUrl || anexo.previewUrl.startsWith('blob:') || renovadas.current.has(anexo.id)) return
+    renovadas.current.add(anexo.id)
+    const { url } = await urlAssinada(anexo.id)
+    if (!vivo.current || !url) return
+    setAnexos((lista) => lista.map((a) => (a.id === anexo.id ? { ...a, previewUrl: url } : a)))
+  }
+
+  /** PDF em nova aba com URL assinada gerada na hora (a prévia guardada pode ter expirado). */
+  async function abrirPdf(anexo: AnexoRascunho) {
+    setErro(null)
+    const mensagem = await abrirPdfEmNovaAba(anexo.id)
+    if (mensagem) setErro(mensagem)
+  }
+
   /** Apaga o objeto e a linha. Se o objeto não pôde ser apagado, a linha continua na lista. */
   async function remover(anexo: AnexoRascunho): Promise<boolean> {
     setErro(null)
@@ -130,6 +143,8 @@ export function useAnexosEvolucao({
     erro,
     enviando: envios.some((e) => e.estado === 'enviando'),
     enviar,
+    renovarPrevia,
+    abrirPdf,
     tentarNovamente,
     cancelarEnvio,
     remover,
@@ -287,14 +302,20 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
                   </div>
                 ) : a.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- URL de objeto ou assinada: fora do otimizador
-                  <img src={a.previewUrl} alt="Foto do anexo" loading="lazy" className="size-16 shrink-0 rounded-md object-cover" />
+                  <img
+                    src={a.previewUrl}
+                    alt="Foto do anexo"
+                    loading="lazy"
+                    onError={() => void estado.renovarPrevia(a)}
+                    className="size-16 shrink-0 rounded-md object-cover"
+                  />
                 ) : (
                   <div aria-hidden="true" className="size-16 shrink-0 rounded-md bg-muted" />
                 )}
                 <div className="grid min-w-0 flex-1 gap-0.5">
                   <p className="font-semibold">{ROTULO_TIPO_ANEXO[a.tipo]}</p>
                   <p className="truncate text-sm text-muted-foreground">
-                    {formatarData(a.dataExame)}
+                    {formatarDataAnexo(a.dataExame)}
                     {a.descricao ? ` · ${a.descricao}` : ''}
                   </p>
                   {ehPdf && a.previewUrl && (
@@ -302,6 +323,10 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
                       href={a.previewUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(evento) => {
+                        evento.preventDefault()
+                        void estado.abrirPdf(a)
+                      }}
                       className="inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline"
                     >
                       Abrir PDF
