@@ -262,6 +262,7 @@ export type Database = {
       };
       impressoes: {
         Row: {
+          chave: string | null;
           evolucao_id: string;
           id: string;
           impresso_em: string;
@@ -270,6 +271,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          chave?: string | null;
           evolucao_id: string;
           id?: string;
           impresso_em?: string;
@@ -277,6 +279,7 @@ export type Database = {
           via: number;
         };
         Update: {
+          chave?: string | null;
           evolucao_id?: string;
           id?: string;
           impresso_em?: string;
@@ -772,8 +775,11 @@ export type Database = {
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
       registrar_impressao: { Args: { p_evolucao_id: string }; Returns: number };
       registrar_impressoes: {
-        Args: { p_ids: string[] };
-        Returns: { evolucao_id: string; via: number }[];
+        Args: { p_chave?: string; p_ids: string[] };
+        Returns: {
+          evolucao_id: string;
+          via: number;
+        }[];
       };
       salvar_rascunho: {
         Args: { p_dados: Json; p_internacao_id: string; p_texto_livre: string };

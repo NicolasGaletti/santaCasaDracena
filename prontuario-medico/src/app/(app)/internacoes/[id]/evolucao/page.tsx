@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { FormMedica } from '@/features/evolucao/form-medica'
 import { lerDadosMedica } from '@/features/evolucao/cartao-evolucao'
+import { podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { exigirProfissional } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -22,11 +23,14 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   const supabase = await createClient()
   const { data: linha } = await supabase
     .from('vw_internacoes_lista')
-    .select('nome, leito_ala, status')
+    .select('nome, leito_ala, status, equipe_id')
     .eq('internacao_id', id)
     .maybeSingle()
   if (!linha) notFound()
   if (linha.status !== 'INTERNADO') redirect(`/internacoes/${id}`)
+  if (!(await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))) {
+    redirect(`/internacoes/${id}`)
+  }
 
   const [{ data: rascunho }, { data: anterior }] = await Promise.all([
     supabase
@@ -52,6 +56,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
       key={id}
       internacaoId={id}
       userId={profissional.id}
+      perfil={profissional.perfil}
       paciente={{ nome: linha.nome, leito: linha.leito_ala }}
       rascunho={
         rascunho

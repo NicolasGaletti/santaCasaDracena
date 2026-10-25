@@ -23,6 +23,14 @@ insert into auth.users (
   ('a0000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'inativo@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
+insert into auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change, email_change_token_new
+) values
+  ('a0000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'residente@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
 select
@@ -46,13 +54,17 @@ insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_
   ('a0000000-0000-0000-0000-000000000003', 'Dr. Sem Registro (teste)', 'medico', null, null, null, null),
   ('a0000000-0000-0000-0000-000000000004', 'Recepção Teste', 'recepcao', null, null, null, null);
 
+insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho) values
+  ('a0000000-0000-0000-0000-000000000006', 'Residente Teste (teste)', 'residente', 'medica', 'CRM', '310555', 'SP');
+
 insert into public.profissionais (id, nome, perfil, ativo) values
   ('a0000000-0000-0000-0000-000000000005', 'Dr. Inativo (teste)', 'medico', false);
 
 insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001'),
   ('a0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000003'),
-  ('a0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000002');
+  ('a0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000002'),
+  ('a0000000-0000-0000-0000-000000000006', 'e0000000-0000-0000-0000-000000000002');
 
 -- Pacientes fictícios
 insert into public.pacientes (id, nome, data_nascimento, convenio) values
@@ -113,18 +125,18 @@ select
   ), 'hex')
 from (values
   ('d0000000-0000-0000-0000-000000000001'::uuid, 'c0000000-0000-0000-0000-000000000001'::uuid, 'a0000000-0000-0000-0000-000000000001'::uuid,
-   '{"pa":"130/85","fc":88,"spo2":96,"conduta":"Ajuste de diurético e controle de peso diário"}'::jsonb,
-   'Paciente em recuperação, dispneia em melhora, sem edema de membros inferiores.',
+   '{"modelo_versao":"medica@1","diagnosticos":"Insuficiência cardíaca descompensada","comorbidades":"HAS, DM2","muc":"MUC-0101","evolucao_clinica":"Paciente em recuperação, dispneia em melhora, sem edema de membros inferiores.","ecg":"","exames_imagem":"","exames_laboratoriais":"","sinais":{"pa":"130/85","fc":88,"fr":null,"temp":null,"sato2":96,"dextro":null,"diurese":null},"exame_fisico":{"geral":"","ar":"","acv":"","abdome":"","membros":"","neuro":""},"conduta":"Ajuste de diurético e controle de peso diário"}'::jsonb,
+   '',
    '2026-10-22 18:00:00-03'::timestamptz,
    '{"nome":"Dra. Marina Lopes (teste)","conselho":"CRM","numero":"145892","uf":"SP"}'::jsonb),
   ('d0000000-0000-0000-0000-000000000002'::uuid, 'c0000000-0000-0000-0000-000000000002'::uuid, 'a0000000-0000-0000-0000-000000000001'::uuid,
-   '{"pa":"120/78","fc":74,"dor_toracica":false,"conduta":"Manter antiagregação e estatina"}'::jsonb,
-   'Dor torácica ausente desde a admissão. Troponina em queda.',
+   '{"modelo_versao":"medica@1","diagnosticos":"Infarto agudo do miocárdio","comorbidades":"Dislipidemia","muc":"MUC-0102","evolucao_clinica":"Dor torácica ausente desde a admissão. Troponina em queda.","ecg":"","exames_imagem":"","exames_laboratoriais":"Troponina em queda","sinais":{"pa":"120/78","fc":74,"fr":null,"temp":null,"sato2":null,"dextro":null,"diurese":null},"exame_fisico":{"geral":"","ar":"","acv":"","abdome":"","membros":"","neuro":""},"conduta":"Manter antiagregação e estatina"}'::jsonb,
+   '',
    '2026-10-23 08:30:00-03'::timestamptz,
    '{"nome":"Dra. Marina Lopes (teste)","conselho":"CRM","numero":"145892","uf":"SP"}'::jsonb),
   ('d0000000-0000-0000-0000-000000000003'::uuid, 'c0000000-0000-0000-0000-000000000005'::uuid, 'a0000000-0000-0000-0000-000000000002'::uuid,
-   '{"creatinina":2.1,"diurese_ml_24h":1450,"conduta":"Reavaliar função renal em 48 horas"}'::jsonb,
-   'Creatinina em queda discreta. Diurese adequada.',
+   '{"modelo_versao":"medica@1","diagnosticos":"Injúria renal aguda","comorbidades":"DRC estágio 3","muc":"MUC-0105","evolucao_clinica":"Creatinina em queda discreta. Diurese adequada.","ecg":"","exames_imagem":"","exames_laboratoriais":"Creatinina 2,1 mg/dL","sinais":{"pa":"","fc":null,"fr":null,"temp":null,"sato2":null,"dextro":null,"diurese":1450},"exame_fisico":{"geral":"","ar":"","acv":"","abdome":"","membros":"","neuro":""},"conduta":"Reavaliar função renal em 48 horas"}'::jsonb,
+   '',
    '2026-10-24 07:45:00-03'::timestamptz,
    '{"nome":"Dr. Felipe Ramos (teste)","conselho":"CRM","numero":"208117","uf":"SP"}'::jsonb)
 ) as v(id, internacao_id, autor_id, dados, texto, fin, snap);

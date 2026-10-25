@@ -5,5 +5,5 @@ export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   const bruto = request.nextUrl.searchParams.get('ids')
-  return gerarPdf(bruto ? bruto.split(',') : [])
+  return gerarPdf(bruto ? bruto.split(',') : [], request.nextUrl.searchParams.get('k'))
 }

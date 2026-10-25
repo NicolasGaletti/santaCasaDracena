@@ -35,7 +35,7 @@ Não commitar `.env*` com chaves reais.
 
 ## Usuários de teste
 
-Dados fictícios, criados pelo `supabase/seed.sql`. Senha de todos: `Teste@123`.
+Dados fictícios, criados pelo `supabase/seed.sql`. Senha `Teste@123` vale só para o Supabase local. Em staging, trocar as senhas (ou apagar os usuários) no painel do Supabase antes de compartilhar o link, e não cadastrar paciente real.
 
 | E-mail | Perfil |
 |---|---|

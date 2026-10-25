@@ -49,6 +49,9 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, te
   ('88888888-8888-8888-8888-888888888888', '33333333-3333-3333-3333-333333333333', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', 'Rascunho residente', null, null, null, null, null),
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '33333333-3333-3333-3333-333333333333', 'medica', current_setting('tst.medico_sem_conselho')::uuid, 'RASCUNHO', 'Rascunho sem conselho', null, null, null, null, null);
 
+-- dados mínimos para finalizar (campos obrigatórios no servidor)
+update public.evolucoes set dados = '{"evolucao_clinica":"Evolução A","conduta":"Conduta A"}'::jsonb where id = '44444444-4444-4444-4444-444444444444';
+
 -- 1. admitir cria paciente e internação INTERNADO
 reset role;
 select tests.autenticar(current_setting('tst.recepcao')::uuid);

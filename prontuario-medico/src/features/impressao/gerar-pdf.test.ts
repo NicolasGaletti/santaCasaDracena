@@ -42,6 +42,12 @@ describe('gerarPdf: autorização', () => {
     expect(resposta.status).toBe(403)
   })
 
+  it('chave de impressão malformada responde 400 antes de consultar', async () => {
+    estado.sub = null
+    const resposta = await gerarPdf([ID], 'nao-e-uuid')
+    expect(resposta.status).toBe(400)
+  })
+
   it('id com formato inválido responde 400 antes de consultar', async () => {
     estado.sub = null
     const resposta = await gerarPdf(['nao-e-uuid'])

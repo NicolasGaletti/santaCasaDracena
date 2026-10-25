@@ -20,6 +20,7 @@ export type EvolucaoImpressao = {
     id: string
     categoria: string
     dados: DadosMedica
+    texto_livre?: string
     finalizada_em: string
     validada_em: string | null
     snapshot_autor: Assinante | null
@@ -54,7 +55,7 @@ const ROTULOS_EXAME_FISICO: [keyof DadosMedica['exame_fisico'], string][] = [
 ]
 
 /** Seções do documento, na ordem impressa. Seção sem texto some. */
-export function secoesVisiveis(dados: DadosMedica): { titulo: string; texto: string }[] {
+export function secoesVisiveis(dados: DadosMedica, textoLivre = ''): { titulo: string; texto: string }[] {
   const exameFisico = ROTULOS_EXAME_FISICO.filter(([k]) => dados.exame_fisico[k].trim() !== '')
     .map(([k, rotulo]) => `${rotulo}: ${dados.exame_fisico[k].trim()}`)
     .join('\n')
@@ -69,6 +70,7 @@ export function secoesVisiveis(dados: DadosMedica): { titulo: string; texto: str
     { titulo: 'Exames de imagem', texto: dados.exames_imagem },
     { titulo: 'Exames laboratoriais', texto: dados.exames_laboratoriais },
     { titulo: 'Conduta', texto: dados.conduta },
+    { titulo: 'Observações', texto: textoLivre },
   ]
   return candidatas
     .map((s) => ({ titulo: s.titulo, texto: s.texto.trim() }))
@@ -191,7 +193,7 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
   const codigo = codigoCurto(evolucao.id)
   const hash = evolucao.conteudo_hash?.slice(0, 12) ?? '—'
   const sinais = sinaisVisiveis(dados)
-  const secoes = secoesVisiveis(dados)
+  const secoes = secoesVisiveis(dados, evolucao.texto_livre ?? '')
 
   const campos: [string, string][] = [
     ['Paciente', paciente.nome],

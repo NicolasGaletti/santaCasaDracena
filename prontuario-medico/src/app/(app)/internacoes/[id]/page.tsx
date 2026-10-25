@@ -6,6 +6,7 @@ import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
+import { podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { exigirProfissional } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -38,11 +39,13 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
           .eq('internacao_id', id)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase
-      .from('vw_evolucoes_timeline')
-      .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre')
-      .eq('internacao_id', id)
-      .order('criado_em', { ascending: false }),
+    clinico
+      ? supabase
+          .from('vw_evolucoes_timeline')
+          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre')
+          .eq('internacao_id', id)
+          .order('criado_em', { ascending: false })
+      : Promise.resolve({ data: [] }),
   ])
 
   // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
@@ -51,7 +54,10 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     (e) => e.status === 'RASCUNHO' && e.autor_id === profissional.id,
   )
 
-  const podeEvoluir = linha.status === 'INTERNADO' && (PERFIS_CLINICOS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil)
+  const podeEvoluir =
+    linha.status === 'INTERNADO' &&
+    (PERFIS_CLINICOS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil) &&
+    (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
   const crmCompleto = Boolean(
     profissional.conselho && profissional.numero_conselho && profissional.uf_conselho,
   )
@@ -116,7 +122,9 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
           </TabsContent>
         </Tabs>
       ) : (
-        <Timeline evolucoes={linhasTimeline} />
+        <p className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
+          Conteúdo clínico disponível apenas para profissionais de saúde.
+        </p>
       )}
     </>
   )

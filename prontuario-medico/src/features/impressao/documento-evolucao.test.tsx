@@ -40,6 +40,14 @@ function impressao(dados: DadosMedica, via = 1): EvolucaoImpressao {
 }
 
 describe('secoesVisiveis', () => {
+  it('imprime observações (texto livre) quando preenchido, por último', () => {
+    const dados: DadosMedica = { ...dadosSemExameFisico(), conduta: 'Diurético EV' }
+    expect(secoesVisiveis(dados, 'Paciente pediu alta')).toEqual([
+      { titulo: 'Conduta', texto: 'Diurético EV' },
+      { titulo: 'Observações', texto: 'Paciente pediu alta' },
+    ])
+  })
+
   it('omite seção vazia e mantém a ordem do documento', () => {
     const dados: DadosMedica = {
       ...dadosSemExameFisico(),

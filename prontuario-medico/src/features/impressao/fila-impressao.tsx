@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 export type LinhaFila = {
@@ -27,13 +27,26 @@ export function FilaImpressao({ linhas }: { linhas: LinhaFila[] }) {
     })
   }
 
+  // A via é registrada no servidor quando o PDF é gerado: a lista atualiza quando a pessoa volta para esta aba.
+  useEffect(() => {
+    function atualizar() {
+      if (document.visibilityState === 'visible') router.refresh()
+    }
+    window.addEventListener('focus', atualizar)
+    document.addEventListener('visibilitychange', atualizar)
+    return () => {
+      window.removeEventListener('focus', atualizar)
+      document.removeEventListener('visibilitychange', atualizar)
+    }
+  }, [router])
+
   function imprimir() {
     const ids = linhas.filter((l) => selecionadas.has(l.id)).map((l) => l.id)
     if (ids.length === 0) return
-    window.open(`/evolucoes/lote/pdf?ids=${ids.join(',')}`, '_blank', 'noopener')
+    // Chave nova a cada clique: repetir a mesma requisição do PDF não gera outra via.
+    const chave = crypto.randomUUID()
+    window.open(`/evolucoes/lote/pdf?ids=${ids.join(',')}&k=${chave}`, '_blank', 'noopener')
     setSelecionadas(new Set())
-    // A via só existe depois que o servidor registra a impressão: atualiza com folga.
-    window.setTimeout(() => router.refresh(), 1500)
   }
 
   return (

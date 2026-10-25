@@ -12,7 +12,12 @@ export type Armazenamento = {
   del(chave: string): Promise<void>;
 };
 
-export type EstadoAutosave = 'salvo' | 'pendente' | 'offline';
+export type EstadoAutosave = 'salvo' | 'pendente' | 'offline' | 'erro';
+
+/** Erro do servidor com mensagem pt-BR para o usuário (P0001): não se resolve sozinho, não tenta de novo. */
+export function ehErroTerminal(erro: unknown): erro is { code: 'P0001'; message: string } {
+  return typeof erro === 'object' && erro !== null && (erro as { code?: unknown }).code === 'P0001';
+}
 
 export type FilaAutosave = {
   agendar(p: PayloadRascunho): void;
@@ -21,6 +26,8 @@ export type FilaAutosave = {
   readonly estado: EstadoAutosave;
   readonly ultimoSalvoEm: Date | null;
   readonly evolucaoId: string | undefined;
+  /** Mensagem do servidor quando `estado` é 'erro'; null nos demais estados. */
+  readonly mensagemErro: string | null;
   /** Nenhuma digitação registrada ainda nesta fila. */
   readonly pristina: boolean;
   assinar(cb: () => void): () => void;
@@ -28,8 +35,12 @@ export type FilaAutosave = {
   aoVoltarConexao(): void;
   /** Cancela o timer e envia o pendente em segundo plano (ao desmontar). */
   encerrar(): void;
-  /** Espera envio em andamento, impede novos envios e apaga a cópia local. */
+  /** Espera envio em andamento e impede novos envios. Não apaga a cópia local. */
   cancelar(): Promise<void>;
+  /** Desfaz `cancelar`: envios voltam a funcionar (usado quando o descarte falha). */
+  reabrir(): void;
+  /** Apaga a cópia local. Chamar só depois que o descarte deu certo. */
+  apagarCopiaLocal(): Promise<void>;
 };
 
 type OpcoesFila = {
@@ -52,6 +63,7 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
   const { armazenamento, chave, salvar } = opts;
 
   let estado: EstadoAutosave = 'salvo';
+  let mensagemErro: string | null = null;
   let ultimoSalvoEm: Date | null = null;
   let evolucaoId = opts.evolucaoId;
   let atual: PayloadRascunho | null = null;
@@ -64,8 +76,9 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const ouvintes = new Set<() => void>();
 
-  function mudar(novo: EstadoAutosave) {
+  function mudar(novo: EstadoAutosave, mensagem: string | null = null) {
     estado = novo;
+    mensagemErro = mensagem;
     ouvintes.forEach((cb) => cb());
   }
 
@@ -87,7 +100,8 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
           mudar('salvo');
         }
       } catch (erro) {
-        mudar('offline');
+        if (ehErroTerminal(erro)) mudar('erro', erro.message);
+        else mudar('offline');
         throw erro;
       }
     });
@@ -122,6 +136,9 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
     get ultimoSalvoEm() {
       return ultimoSalvoEm;
     },
+    get mensagemErro() {
+      return mensagemErro;
+    },
     get evolucaoId() {
       return evolucaoId;
     },
@@ -150,6 +167,13 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
       clearTimeout(timer);
       await fila;
       await gravacaoLocal;
+    },
+
+    reabrir() {
+      cancelado = false;
+    },
+
+    async apagarCopiaLocal() {
       await armazenamento.del(chave);
       mudar('salvo');
     },

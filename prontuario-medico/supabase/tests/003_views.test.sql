@@ -25,7 +25,7 @@ insert into public.leitos_historico (internacao_id, leito_ala, por) values
 -- 1. status_hoje reflete evolução finalizada hoje
 reset role;
 select tests.autenticar(current_setting('tst.medico')::uuid);
-select public.salvar_rascunho('ffffffff-0000-0000-0000-000000000003', '{"v":1}'::jsonb, 'Evolucao views');
+select public.salvar_rascunho('ffffffff-0000-0000-0000-000000000003', '{"v":1,"evolucao_clinica":"Evolucao views","conduta":"Conduta views"}'::jsonb, 'Evolucao views');
 reset role;
 select tests.autenticar(current_setting('tst.medico')::uuid);
 select is(

@@ -159,4 +159,72 @@ describe('fila de autosave', () => {
     expect(resolverRascunho(undefined, servidor)?.origem).toBe('servidor');
     expect(resolverRascunho(undefined, null)).toBeNull();
   });
+  it('falha do descarte: reabrir devolve a fila e a cópia local continua salva', async () => {
+    const armazenamento = memoria();
+    const salvar = vi.fn<(p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>>(async () => RETORNO());
+    const fila = criarFilaAutosave({ salvar, armazenamento, chave: CHAVE });
+
+    fila.agendar(payload('antes do descarte'));
+    await fila.cancelar();
+    // Como no componente: o descarte falhou, então a cópia local fica e a fila volta a enviar.
+    expect(await armazenamento.get(CHAVE)).toBeDefined();
+    fila.reabrir();
+
+    fila.agendar(payload('depois da falha'));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(salvar).toHaveBeenCalledTimes(1);
+    expect(salvar.mock.calls[0][0].dados.conduta).toBe('depois da falha');
+    fila.encerrar();
+  });
+
+  it('sem reabrir, cancelar mantém a fila parada', async () => {
+    const salvar = vi.fn<(p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>>(async () => RETORNO());
+    const fila = criarFilaAutosave({ salvar, armazenamento: memoria(), chave: CHAVE });
+
+    await fila.cancelar();
+    fila.agendar(payload('ignorado'));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(salvar).not.toHaveBeenCalled();
+  });
+
+  it('apagarCopiaLocal remove a cópia e volta ao estado salvo', async () => {
+    const armazenamento = memoria();
+    const fila = criarFilaAutosave({
+      salvar: vi.fn(async () => {
+        throw new Error('rede');
+      }),
+      armazenamento,
+      chave: CHAVE,
+    });
+    fila.agendar(payload('pendente'));
+    await vi.advanceTimersByTimeAsync(0);
+    await fila.cancelar();
+    expect(await armazenamento.get(CHAVE)).toBeDefined();
+
+    await fila.apagarCopiaLocal();
+    expect(await armazenamento.get(CHAVE)).toBeUndefined();
+    expect(fila.estado).toBe('salvo');
+  });
+
+  it('erro P0001 do servidor é terminal: estado erro com a mensagem, sem nova tentativa', async () => {
+    const salvar = vi
+      .fn<(p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>>()
+      .mockRejectedValue(Object.assign(new Error('Internação com alta não permite novas evoluções.'), { code: 'P0001' }));
+    const fila = criarFilaAutosave({ salvar, armazenamento: memoria(), chave: CHAVE });
+    window.addEventListener('online', fila.aoVoltarConexao);
+
+    fila.agendar(payload('sem efeito'));
+    await vi.advanceTimersByTimeAsync(3000);
+
+    expect(fila.estado).toBe('erro');
+    expect(fila.mensagemErro).toBe('Internação com alta não permite novas evoluções.');
+
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(salvar).toHaveBeenCalledTimes(1);
+    expect(fila.estado).toBe('erro');
+
+    window.removeEventListener('online', fila.aoVoltarConexao);
+    fila.encerrar();
+  });
 });

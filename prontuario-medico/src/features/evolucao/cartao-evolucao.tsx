@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { BotaoImprimirEvolucao } from './botao-imprimir'
 import type { DadosMedica } from './modelos/medica'
 import { rascunhoMedicaVazio } from './modelos/medica'
 import { ROTULO_CATEGORIA } from './rotulos'
@@ -131,11 +131,7 @@ export function CartaoEvolucao({
           {finalizada ? (
             <>
               <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
-              <Button asChild variant="outline" className="min-h-11">
-                <a href={`/evolucoes/${evolucao.id}/pdf`} target="_blank" rel="noopener">
-                  Imprimir
-                </a>
-              </Button>
+              <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
             </>
           ) : (
             <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>

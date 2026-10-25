@@ -74,13 +74,18 @@ Em cada projeto:
 
 ## Usuários de teste (staging)
 
-Dados fictícios, criados pelo seed. Senha: `Teste@123`.
+Dados fictícios, criados pelo seed.
 
 - medico1@teste.local
 - medico2@teste.local
 - medico.semcrm@teste.local
 - recepcao@teste.local
 - inativo@teste.local
+
+A senha `Teste@123` é só para o ambiente local. Antes de compartilhar o link de staging:
+
+- trocar a senha de cada usuário acima no painel do Supabase (Authentication → Users), ou apagar os usuários que não forem usados;
+- não colocar dado real de paciente em staging: os pacientes são fictícios e assim devem continuar.
 
 ## Testes
 

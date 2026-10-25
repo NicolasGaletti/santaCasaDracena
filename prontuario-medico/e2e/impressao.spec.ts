@@ -145,3 +145,16 @@ test('/imprimir lista a finalizada e ela some depois de impressa', async ({ page
     await expect(page.locator('li', { hasText: `Paciente Impressão ${leito}` })).toHaveCount(0)
   }).toPass({ timeout: 15_000 })
 })
+
+test('mesma chave de impressão repetida não gera nova via', async ({ page }) => {
+  const internacao = await admitirPaciente(page, leitoUnico());
+  const id = await finalizarEvolucao(page, internacao, 'Evolução para chave idempotente');
+  const url = `/evolucoes/${id}/pdf?k=${crypto.randomUUID()}`;
+
+  const primeira = await page.request.get(url);
+  expect(await textoDoPdf(await primeira.body())).not.toContain('2ª via');
+
+  const repetida = await page.request.get(url);
+  expect(repetida.status()).toBe(200);
+  expect(await textoDoPdf(await repetida.body())).not.toContain('2ª via');
+})

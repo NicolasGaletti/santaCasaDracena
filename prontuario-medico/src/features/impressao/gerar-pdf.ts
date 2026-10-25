@@ -49,10 +49,11 @@ async function juntarPdfs(buffers: Buffer[]): Promise<Uint8Array> {
  * Ordem: valida e monta tudo; registra as vias de uma vez (atômico); só então renderiza.
  * Cada evolução é paginada à parte ("Página x de y" é da própria evolução).
  */
-export async function gerarPdf(ids: string[]): Promise<Response> {
+export async function gerarPdf(ids: string[], chave: string | null = null): Promise<Response> {
   if (ids.length === 0 || ids.length > MAXIMO_IDS) return erro(400, 'Informe de 1 a 50 evoluções.')
   if (ids.some((id) => !UUID.test(id))) return erro(400, 'Identificador de evolução inválido.')
   if (new Set(ids).size !== ids.length) return erro(400, 'Evolução repetida na lista.')
+  if (chave !== null && !UUID.test(chave)) return erro(400, 'Chave de impressão inválida.')
 
   const supabase = await createClient()
   const { data: claims } = await supabase.auth.getClaims()
@@ -72,7 +73,7 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
   const { data: evolucoes, error: erroEvolucoes } = await supabase
     .from('vw_evolucoes_timeline')
     .select(
-      'id, internacao_id, categoria, status, dados, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash',
+      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash',
     )
     .in('id', ids)
   if (erroEvolucoes) return erro(500, 'Não foi possível gerar o PDF.')
@@ -100,6 +101,7 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
         id,
         categoria: evolucao.categoria,
         dados: lerDadosMedica(evolucao.dados),
+        texto_livre: evolucao.texto_livre,
         finalizada_em: evolucao.finalizada_em,
         validada_em: evolucao.validada_em,
         snapshot_autor: assinante(evolucao.snapshot_autor),
@@ -120,7 +122,10 @@ export async function gerarPdf(ids: string[]): Promise<Response> {
   }
 
   // Registro atômico: uma chamada, uma transação no banco.
-  const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', { p_ids: ids })
+  const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', {
+    p_ids: ids,
+    p_chave: chave ?? undefined,
+  })
   if (erroVias) {
     if (erroVias.code === 'P0001' && erroVias.message === MENSAGEM_ACESSO_NEGADO) {
       return erro(403, 'Acesso restrito a profissionais clínicos.')

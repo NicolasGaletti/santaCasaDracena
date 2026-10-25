@@ -197,3 +197,64 @@ test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }
   await expect(alertas(page)).toHaveText('Informe o leito.');
   await expect(campo).toHaveValue(leito);
 });
+
+test('finalizar com a ação de servidor interrompida: aviso, botão volta a funcionar', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+  await page.getByLabel('Evolução clínica').fill('Evolução para falha de rede');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para falha de rede');
+
+  // Só a primeira ação de servidor (a finalização) falha; as seguintes passam.
+  let abortada = false;
+  await page.route('**/internacoes/**/evolucao', (r) => {
+    if (r.request().method() === 'POST' && r.request().headers()['next-action'] && !abortada) {
+      abortada = true;
+      return r.abort();
+    }
+    return r.continue();
+  });
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await expect(alertas(page)).toContainText('Sem conexão: a evolução não foi finalizada');
+
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+  expect(abortada).toBe(true);
+});
+
+test('residente vê o aviso no lugar de Finalizar e não vê o botão de outra equipe', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('E-mail Profissional').fill('residente@teste.local');
+  await page.getByLabel('Senha').fill(SENHA);
+  await page.getByRole('button', { name: 'Entrar no Sistema' }).click();
+  await expect(page.getByRole('heading', { name: 'Internados' })).toBeVisible();
+
+  // Internação da Cardiologia (seed): a residente não é membro da equipe.
+  await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await expect(page.getByRole('link', { name: 'Nova evolução' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Continuar rascunho' })).toHaveCount(0);
+});
+
+test('residente da equipe evolui sem botão Finalizar', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('E-mail Profissional').fill('residente@teste.local');
+  await page.getByLabel('Senha').fill(SENHA);
+  await page.getByRole('button', { name: 'Entrar no Sistema' }).click();
+  await expect(page.getByRole('heading', { name: 'Internados' })).toBeVisible();
+
+  // Internação da Clínica Médica (seed): a residente é membro da equipe.
+  await page.goto('/internacoes/c0000000-0000-0000-0000-000000000003');
+  await page.getByRole('link', { name: /Nova evolução|Continuar rascunho/ }).click();
+  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.getByText('O envio para validação do médico chega em breve.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
+});
+
+test('recepção vê o prontuário sem conteúdo clínico', async ({ page }) => {
+  await entrar(page, 'recepcao@teste.local');
+  await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await expect(page.getByText('Conteúdo clínico disponível apenas para profissionais de saúde.')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Evoluções' })).toHaveCount(0);
+});

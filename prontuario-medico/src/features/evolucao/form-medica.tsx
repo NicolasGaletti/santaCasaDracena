@@ -19,6 +19,7 @@ import { modeloMedicaV1, rascunhoMedicaVazio, validarParaFinalizar, type DadosMe
 type Props = {
   internacaoId: string
   userId: string
+  perfil: string
   paciente: { nome: string; leito: string }
   rascunho: { id: string; dados: DadosMedica; textoLivre: string } | null
   anterior: DadosMedica | null
@@ -39,6 +40,13 @@ type CampoExame = keyof DadosMedica['exame_fisico']
 const FUSO_SP = 'America/Sao_Paulo'
 const MENSAGEM_SEM_CONEXAO =
   'Sem conexão: a evolução não foi finalizada. Ela continua salva neste aparelho; tente de novo quando a conexão voltar.'
+
+const MENSAGEM_RESIDENTE = 'Rascunho salvo. O envio para validação do médico chega em breve.'
+
+/** Redirecionamento do Next chega como erro com digest `NEXT_REDIRECT`: não é falha, não se trata. */
+function ehRedirecionamento(erro: unknown): boolean {
+  return typeof erro === 'object' && erro !== null && String((erro as { digest?: unknown }).digest ?? '').startsWith('NEXT_REDIRECT')
+}
 
 const CAMPOS_SINAIS: { chave: Sinal; rotulo: string; placeholder: string; modo: 'text' | 'decimal' }[] = [
   { chave: 'pa', rotulo: 'PA (mmHg)', placeholder: '120/80', modo: 'text' },
@@ -134,7 +142,8 @@ function CampoTextual({
   )
 }
 
-export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior }: Props) {
+export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior }: Props) {
+  const podeFinalizar = perfil !== 'residente'
   const router = useRouter()
   const chave = `rascunho:${internacaoId}:${userId}`
   const dadosInicial = rascunho?.dados ?? rascunhoMedicaVazio()
@@ -248,7 +257,8 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
       travaFinalizacao.current = false
       setEnviando(false)
       setDialogo(null)
-      setErroAcao(MENSAGEM_SEM_CONEXAO)
+      // Erro de regra do servidor (P0001) tem mensagem própria; o resto é conexão.
+      setErroAcao(fila.estado === 'erro' ? (fila.mensagemErro ?? MENSAGEM_SEM_CONEXAO) : MENSAGEM_SEM_CONEXAO)
       return
     }
     const evolucaoId = fila.evolucaoId
@@ -259,38 +269,58 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
       setErroAcao('Não foi possível localizar o rascunho. Tente novamente.')
       return
     }
-    const resultado = await finalizar(evolucaoId)
-    // Em sucesso o servidor redireciona; aqui só chega o erro.
-    travaFinalizacao.current = false
-    setEnviando(false)
-    setDialogo(null)
-    if (resultado?.erro) setErroAcao(resultado.erro)
+    let navegando = false
+    try {
+      const resultado = await finalizar(evolucaoId)
+      // Em sucesso o servidor redireciona; aqui só chega o erro de negócio.
+      if (resultado?.erro) setErroAcao(resultado.erro)
+    } catch (erro) {
+      // Redirecionamento = sucesso: mantém a trava até a navegação terminar.
+      if (ehRedirecionamento(erro)) {
+        navegando = true
+        throw erro
+      }
+      // Falha de transporte ou do servidor: a evolução continua rascunho e o botão volta a funcionar.
+      setErroAcao(MENSAGEM_SEM_CONEXAO)
+    } finally {
+      if (!navegando) {
+        travaFinalizacao.current = false
+        setEnviando(false)
+        setDialogo(null)
+      }
+    }
   }
 
   async function confirmarDescarte() {
     if (!idRascunho) return
     setEnviando(true)
     setErroAcao(null)
+    await fila.cancelar().catch(() => {})
     try {
-      await fila.cancelar()
       await descartar(idRascunho)
-      router.push(`/internacoes/${internacaoId}`)
-      router.refresh()
     } catch {
+      // Descarte falhou: a cópia local fica e a fila volta a enviar.
+      fila.reabrir()
       setEnviando(false)
       setDialogo(null)
       setErroAcao('Não foi possível descartar o rascunho. Tente novamente.')
+      return
     }
+    await fila.apagarCopiaLocal().catch(() => {})
+    router.push(`/internacoes/${internacaoId}`)
+    router.refresh()
   }
 
   const indicador =
-    estado === 'offline'
-      ? 'Sem conexão'
-      : estado === 'pendente'
-        ? 'Salvando…'
-        : ultimoSalvo
-          ? `Salvo às ${horaSalvo(ultimoSalvo)}`
-          : 'Sem alterações'
+    estado === 'erro'
+      ? (fila.mensagemErro ?? 'Não foi possível salvar.')
+      : estado === 'offline'
+        ? 'Sem conexão'
+        : estado === 'pendente'
+          ? 'Salvando…'
+          : ultimoSalvo
+            ? `Salvo às ${horaSalvo(ultimoSalvo)}`
+            : 'Sem alterações'
 
   return (
     <div className="flex flex-col gap-4">
@@ -321,6 +351,12 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
           {paciente.nome} · Leito {paciente.leito}
         </p>
       </header>
+
+      {!podeFinalizar && (
+        <p role="status" className="rounded-lg bg-muted p-3 font-semibold text-muted-foreground">
+          {MENSAGEM_RESIDENTE}
+        </p>
+      )}
 
       {erros.length > 0 && (
         <div role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
@@ -425,9 +461,11 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
           >
             Copiar anterior
           </Button>
-          <Button type="button" disabled={enviando} onClick={pedirFinalizacao} className="h-11 px-4">
-            Finalizar
-          </Button>
+          {podeFinalizar && (
+            <Button type="button" disabled={enviando} onClick={pedirFinalizacao} className="h-11 px-4">
+              Finalizar
+            </Button>
+          )}
         </div>
       </footer>
 
