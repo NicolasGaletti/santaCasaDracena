@@ -45,6 +45,9 @@ const MENSAGEM_SEM_CONEXAO =
 
 const MENSAGEM_SALVAR_SEM_CONEXAO = 'Sem conexão: o rascunho continua salvo neste aparelho.'
 
+/** Sem assinatura: o valor muda só com a hidratação (servidor: false; cliente hidratado: true). */
+const assinaVazio = () => () => {}
+
 const MENSAGEM_RESIDENTE = 'Rascunho salvo. O envio para validação do médico chega em breve.'
 
 /** Redirecionamento do Next chega como erro com digest `NEXT_REDIRECT`: não é falha, não se trata. */
@@ -164,6 +167,9 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
   const travaFinalizacao = useRef(false)
 
   // Uma fila por rascunho. O ouvinte de `online` e o encerramento ficam no efeito abaixo.
+  // Até hidratar, o HTML do servidor fica bloqueado: digitação antes do React não chegaria ao estado.
+  const hidratado = useSyncExternalStore(assinaVazio, () => true, () => false)
+
   const [fila] = useState<FilaAutosave>(() =>
     criarFilaAutosave({
       salvar: salvarRemoto,
@@ -334,7 +340,9 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
   }
 
   const indicador =
-    estado === 'erro'
+    !hidratado
+      ? 'Carregando…'
+      : estado === 'erro'
       ? (fila.mensagemErro ?? 'Não foi possível salvar.')
       : estado === 'offline'
         ? 'Sem conexão'
@@ -392,6 +400,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       )}
 
       <form onSubmit={(e) => e.preventDefault()} aria-label="Evolução médica" className="flex flex-col gap-4 pb-28">
+      <fieldset disabled={!hidratado} className="contents">
         <Accordion type="multiple" defaultValue={['evolucao', 'conduta']} className="rounded-lg border border-border bg-card px-4">
           <AccordionItem value="diagnosticos">
             <AccordionTrigger className="min-h-11 text-base font-bold">Diagnósticos</AccordionTrigger>
@@ -466,6 +475,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+      </fieldset>
       </form>
 
       <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:left-auto lg:mx-auto lg:max-w-6xl">
@@ -476,7 +486,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
           <Button
             type="button"
             variant="outline"
-            disabled={!anterior || enviando || salvando}
+            disabled={!hidratado || !anterior || enviando || salvando}
             title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
             aria-label="Copiar anterior"
             onClick={copiarAnterior}
@@ -485,11 +495,11 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             <Copy aria-hidden="true" className="sm:hidden" />
             <span className="hidden sm:inline">Copiar anterior</span>
           </Button>
-          <Button type="button" variant="secondary" disabled={enviando || salvando} onClick={salvarAgora} className="h-11 px-3 text-sm">
+          <Button type="button" variant="secondary" disabled={!hidratado || enviando || salvando} onClick={salvarAgora} className="h-11 px-3 text-sm">
             Salvar
           </Button>
           {podeFinalizar && (
-            <Button type="button" disabled={enviando} onClick={pedirFinalizacao} className="h-11 px-4">
+            <Button type="button" disabled={!hidratado || enviando} onClick={pedirFinalizacao} className="h-11 px-4">
               Finalizar
             </Button>
           )}

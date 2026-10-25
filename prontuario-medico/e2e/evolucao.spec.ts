@@ -96,6 +96,55 @@ test('salvar offline mostra sem conexão', async ({ page, context }) => {
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
 });
 
+test('campos ficam bloqueados até a hidratação e liberam depois', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+
+  // Segura o JS do cliente: o HTML do servidor aparece, mas o React ainda não hidratou.
+  let liberar: () => void = () => {};
+  const segurado = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  await page.route('**/_next/static/**', async (r) => {
+    await segurado;
+    await r.continue();
+  });
+
+  await page.goto(`/internacoes/${id}/evolucao`, { waitUntil: 'commit' });
+  const campo = page.getByLabel('Evolução clínica');
+  await campo.waitFor({ state: 'attached' });
+  await expect(campo).toBeDisabled();
+  await expect(page.getByText('Carregando…')).toBeVisible();
+
+  liberar();
+  await expect(campo).toBeEnabled({ timeout: 20_000 });
+  await expect(page.getByText('Carregando…')).toHaveCount(0);
+  await page.unroute('**/_next/static/**');
+
+  await campo.fill('Texto depois da hidratação');
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
+});
+
+test('leito fica bloqueado até a hidratação', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+
+  let liberar: () => void = () => {};
+  const segurado = new Promise<void>((resolve) => {
+    liberar = resolve;
+  });
+  await page.route('**/_next/static/**', async (r) => {
+    await segurado;
+    await r.continue();
+  });
+
+  await page.goto(`/internacoes/${id}`, { waitUntil: 'commit' });
+  await page.getByLabel('Leito / ala').waitFor({ state: 'attached' });
+  await expect(page.getByLabel('Leito / ala')).toBeDisabled();
+
+  liberar();
+  await expect(page.getByLabel('Leito / ala')).toBeEnabled({ timeout: 20_000 });
+  await page.unroute('**/_next/static/**');
+});
+
 test('copiar anterior preenche conduta', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);

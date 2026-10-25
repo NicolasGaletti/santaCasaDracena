@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useSyncExternalStore, useTransition } from 'react'
 import { toast } from 'sonner'
 import { trocarLeito } from './actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
+const assinaVazio = () => () => {}
 
 export function CampoLeito({
   internacaoId,
@@ -19,6 +21,8 @@ export function CampoLeito({
   const [salvo, setSalvo] = useState(leitoInicial)
   const [erro, setErro] = useState<string | null>(null)
   const [enviando, startTransition] = useTransition()
+  // Bloqueado no HTML do servidor: digitação antes da hidratação não chegaria ao estado.
+  const hidratado = useSyncExternalStore(assinaVazio, () => true, () => false)
 
   // Sem este aviso, fechar ou recarregar com a troca em voo perde a gravação.
   useEffect(() => {
@@ -65,7 +69,7 @@ export function CampoLeito({
         id="leito-internacao"
         name="leito"
         value={valor}
-        disabled={!editavel}
+        disabled={!editavel || !hidratado}
         onChange={(e) => {
           setErro(null)
           setValor(e.target.value)
