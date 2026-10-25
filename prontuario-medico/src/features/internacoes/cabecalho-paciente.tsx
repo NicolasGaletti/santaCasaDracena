@@ -20,16 +20,16 @@ export function CabecalhoPaciente({ linha }: { linha: LinhaInternacao }) {
         </p>
       </div>
 
-      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
         <div>
           <dt className="text-muted-foreground">Convênio</dt>
-          <dd className="font-semibold">{linha.convenio}</dd>
+          <dd className="break-words font-semibold">{linha.convenio}</dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Equipe</dt>
-          <dd className="font-semibold">{linha.equipe_nome}</dd>
+          <dd className="break-words font-semibold">{linha.equipe_nome}</dd>
         </div>
-        <div>
+        <div className="col-span-2">
           <dt className="text-muted-foreground">Médico responsável</dt>
           <dd className="font-semibold">{linha.medico_responsavel_nome ?? 'Não informado'}</dd>
         </div>

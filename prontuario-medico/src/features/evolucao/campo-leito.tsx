@@ -21,7 +21,12 @@ export function CampoLeito({
 
   function confirmar() {
     const novo = valor.trim()
-    if (novo === salvo || novo === '') {
+    if (novo === '') {
+      setErro('Informe o leito.')
+      setValor(salvo)
+      return
+    }
+    if (novo === salvo) {
       setValor(salvo)
       return
     }

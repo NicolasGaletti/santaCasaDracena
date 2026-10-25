@@ -12,6 +12,11 @@ async function entrar(page: Page, email: string) {
   await expect(page.getByRole('heading', { name: 'Internados' })).toBeVisible();
 }
 
+/** Alertas da aplicação; exclui o anunciador de rota do Next, que também usa role="alert". */
+function alertas(page: Page) {
+  return page.locator('[role="alert"]:not(#__next-route-announcer__)');
+}
+
 function leitoUnico(): string {
   return `E2E-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
@@ -27,7 +32,8 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByLabel('Médico responsável').selectOption({ label: 'Dra. Marina Lopes (teste)' });
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // Primeira navegação após o boot do dev server pode compilar a rota: tempo maior.
+  await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
   return new URL(page.url()).pathname.split('/').pop() as string;
 }
 
@@ -124,4 +130,70 @@ test('offline: mostra "Sem conexão", volta online e salva', async ({ page, cont
 
   await page.reload();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto digitado sem conexão');
+});
+
+test('texto digitado sem conexão sobrevive a recarga e é salvo ao voltar', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  // Só o RPC de salvamento falha; a página continua carregando.
+  await page.route('**/rest/v1/rpc/salvar_rascunho', (r) => r.abort());
+  await page.getByLabel('Evolução clínica').fill('Texto antes da recarga');
+  await expect(page.getByText('Sem conexão')).toBeVisible({ timeout: 10_000 });
+
+  await page.reload();
+  // Sem envio possível, o texto só pode vir do IndexedDB.
+  await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto antes da recarga');
+  await expect(page.getByText('Sem conexão')).toBeVisible({ timeout: 10_000 });
+
+  await page.unroute('**/rest/v1/rpc/salvar_rascunho');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
+
+  await page.reload();
+  await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto antes da recarga');
+});
+
+test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  await page.getByLabel('Evolução clínica').fill('Evolução para duplo clique');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para duplo clique');
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar finalização' }).dblclick();
+
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+  await expect(page.getByTestId('cartao-evolucao')).toHaveCount(1);
+  await expect(alertas(page)).toHaveCount(0);
+});
+
+test('sinal vital inválido mostra erro e bloqueia finalizar', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  await page.getByLabel('Evolução clínica').fill('Evolução com sinal inválido');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com sinal inválido');
+  await page.getByRole('button', { name: 'Sinais vitais' }).click();
+  await page.getByLabel('FC (bpm)').fill('abc');
+  await expect(page.getByText('Digite um número.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+  await expect(alertas(page)).toContainText('FC (bpm)');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }) => {
+  const leito = leitoUnico();
+  const id = await admitirPaciente(page, leito);
+  await page.goto(`/internacoes/${id}`);
+
+  const campo = page.getByLabel('Leito / ala');
+  await campo.fill('   ');
+  await campo.press('Tab');
+  await expect(alertas(page)).toHaveText('Informe o leito.');
+  await expect(campo).toHaveValue(leito);
 });

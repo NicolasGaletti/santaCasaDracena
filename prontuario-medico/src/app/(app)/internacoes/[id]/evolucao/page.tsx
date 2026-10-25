@@ -31,7 +31,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   const [{ data: rascunho }, { data: anterior }] = await Promise.all([
     supabase
       .from('evolucoes')
-      .select('id, dados, texto_livre, atualizado_em')
+      .select('id, dados, texto_livre')
       .eq('internacao_id', id)
       .eq('autor_id', profissional.id)
       .eq('status', 'RASCUNHO')
@@ -49,6 +49,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
 
   return (
     <FormMedica
+      key={id}
       internacaoId={id}
       userId={profissional.id}
       paciente={{ nome: linha.nome, leito: linha.leito_ala }}
@@ -58,7 +59,6 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
               id: rascunho.id,
               dados: lerDadosMedica(rascunho.dados),
               textoLivre: rascunho.texto_livre,
-              atualizado_em: rascunho.atualizado_em,
             }
           : null
       }

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { sair } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
+import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
 
 type Props = {
@@ -16,12 +17,13 @@ const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const ROTULO_PERFIL: Record<string, string> = { medico: 'Médico(a)', recepcao: 'Recepção' }
 
 const NAVEGACAO = [
-  { href: '/', rotulo: 'Internados', rotuloCurto: 'Internados' },
-  { href: '/anteriores', rotulo: 'Internações anteriores', rotuloCurto: 'Anteriores' },
+  { href: '/', chave: 'internados', rotulo: 'Internados', rotuloCurto: 'Internados' },
+  { href: '/anteriores', chave: 'anteriores', rotulo: 'Internações anteriores', rotuloCurto: 'Anteriores' },
 ] as const
 
 export function AppShell({ profissional, children }: Props) {
   const pathname = usePathname()
+  const abaMarcada = useAbaAtiva()
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
   const identificacao =
     profissional.conselho && profissional.numero_conselho
@@ -48,7 +50,12 @@ export function AppShell({ profissional, children }: Props) {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <nav aria-label="Principal" className="flex gap-2">
             {NAVEGACAO.map((item) => {
-              const ativo = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
+              // Página de conteúdo (ex.: prontuário) pode marcar a aba pelo status da internação.
+              const ativo = abaMarcada
+                ? abaMarcada === item.chave
+                : item.href === '/'
+                  ? pathname === '/'
+                  : pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.href}

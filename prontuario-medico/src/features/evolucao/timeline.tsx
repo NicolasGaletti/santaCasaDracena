@@ -25,7 +25,11 @@ export function Timeline({ evolucoes }: { evolucoes: EvolucaoTimeline[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="group" aria-label="Filtrar evoluções por tipo" className="flex flex-wrap gap-2">
+      <div
+        role="group"
+        aria-label="Filtrar evoluções por tipo"
+        className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+      >
         {FILTROS.map((f) => {
           const ativo = f.valor === filtro
           return (
@@ -36,7 +40,7 @@ export function Timeline({ evolucoes }: { evolucoes: EvolucaoTimeline[] }) {
               variant={ativo ? 'default' : 'outline'}
               aria-pressed={ativo}
               onClick={() => setFiltro(f.valor)}
-              className="min-h-11"
+              className="min-h-11 shrink-0 snap-start whitespace-nowrap"
             >
               {f.rotulo}
             </Button>

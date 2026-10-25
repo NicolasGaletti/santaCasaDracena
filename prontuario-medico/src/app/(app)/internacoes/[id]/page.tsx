@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
+import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { exigirProfissional } from '@/lib/auth'
@@ -57,6 +58,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
 
   return (
     <>
+      <MarcarAba status={linha.status} />
       <CabecalhoPaciente linha={linha} />
 
       {podeEvoluir && (

@@ -2,35 +2,38 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { MarcarAba } from '@/components/navegacao-ativa'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/database.types'
 import { descartar, finalizar } from './actions'
-import {
-  armazenamentoIdb,
-  criarFilaAutosave,
-  resolverRascunho,
-  type FilaAutosave,
-  type PayloadRascunho,
-} from './autosave'
+import { armazenamentoIdb, criarFilaAutosave, resolverRascunho, type FilaAutosave, type PayloadRascunho } from './autosave'
 import { modeloMedicaV1, rascunhoMedicaVazio, validarParaFinalizar, type DadosMedica } from './modelos/medica'
 
 type Props = {
   internacaoId: string
   userId: string
   paciente: { nome: string; leito: string }
-  rascunho: { id: string; dados: DadosMedica; textoLivre: string; atualizado_em: string } | null
+  rascunho: { id: string; dados: DadosMedica; textoLivre: string } | null
   anterior: DadosMedica | null
 }
 
 type Sinal = keyof DadosMedica['sinais']
-type CampoTexto = 'diagnosticos' | 'comorbidades' | 'muc' | 'evolucao_clinica' | 'ecg' | 'exames_imagem' | 'exames_laboratoriais' | 'conduta'
+type CampoTexto =
+  | 'diagnosticos'
+  | 'comorbidades'
+  | 'muc'
+  | 'evolucao_clinica'
+  | 'ecg'
+  | 'exames_imagem'
+  | 'exames_laboratoriais'
+  | 'conduta'
 type CampoExame = keyof DadosMedica['exame_fisico']
 
 const FUSO_SP = 'America/Sao_Paulo'
@@ -69,12 +72,24 @@ function brutosDe(d: DadosMedica): Record<Sinal, string> {
   }
 }
 
-/** Campo numérico vazio vira null antes de validar ou salvar. */
-function paraNumero(texto: string): number | null {
+/** Texto do campo numérico: vazio é "sem valor" (null); algo que não é número é inválido. */
+function lerNumero(texto: string): { ok: true; valor: number | null } | { ok: false } {
   const t = texto.trim().replace(',', '.')
-  if (t === '') return null
+  if (t === '') return { ok: true, valor: null }
   const n = Number(t)
-  return Number.isFinite(n) ? n : null
+  return Number.isFinite(n) ? { ok: true, valor: n } : { ok: false }
+}
+
+/** Mensagem de erro do sinal, ou null. A faixa vem do próprio schema do modelo. */
+function erroSinal(chave: Sinal, texto: string): string | null {
+  const t = texto.trim()
+  if (t === '') return null
+  if (chave === 'pa') return /^\d{2,3}\/\d{2,3}$/.test(t) ? null : 'Use o formato 120/80.'
+  const lido = lerNumero(t)
+  if (!lido.ok) return 'Digite um número.'
+  return modeloMedicaV1.shape.sinais.shape[chave].safeParse(lido.valor).success
+    ? null
+    : 'Valor fora da faixa aceita.'
 }
 
 async function salvarRemoto(p: PayloadRascunho): Promise<{ id: string; atualizado_em: string }> {
@@ -114,13 +129,7 @@ function CampoTextual({
         {rotulo}
         {obrigatorio && <span aria-hidden="true"> *</span>}
       </Label>
-      <Textarea
-        id={id}
-        rows={linhas}
-        value={valor}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-h-24 text-base"
-      />
+      <Textarea id={id} rows={linhas} value={valor} onChange={(e) => onChange(e.target.value)} className="min-h-24 text-base" />
     </div>
   )
 }
@@ -128,9 +137,18 @@ function CampoTextual({
 export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior }: Props) {
   const router = useRouter()
   const chave = `rascunho:${internacaoId}:${userId}`
+  const dadosInicial = rascunho?.dados ?? rascunhoMedicaVazio()
 
-  const [dados, setDados] = useState<DadosMedica>(() => rascunho?.dados ?? rascunhoMedicaVazio())
-  const [brutos, setBrutos] = useState<Record<Sinal, string>>(() => brutosDe(rascunho?.dados ?? rascunhoMedicaVazio()))
+  const [dados, setDados] = useState<DadosMedica>(dadosInicial)
+  const [brutos, setBrutos] = useState<Record<Sinal, string>>(() => brutosDe(dadosInicial))
+  // Texto livre carregado do servidor é preservado; o formulário não o edita.
+  const [textoLivre] = useState(rascunho?.textoLivre ?? '')
+  const [erros, setErros] = useState<string[]>([])
+  const [dialogo, setDialogo] = useState<null | 'finalizar' | 'descartar'>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
+  const travaFinalizacao = useRef(false)
+
   // Uma fila por rascunho. O ouvinte de `online` e o encerramento ficam no efeito abaixo.
   const [fila] = useState<FilaAutosave>(() =>
     criarFilaAutosave({
@@ -140,10 +158,6 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
       evolucaoId: rascunho?.id,
     }),
   )
-  const [erros, setErros] = useState<string[]>([])
-  const [dialogo, setDialogo] = useState<null | 'finalizar' | 'descartar'>(null)
-  const [enviando, setEnviando] = useState(false)
-  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   useEffect(() => {
     window.addEventListener('online', fila.aoVoltarConexao)
@@ -153,20 +167,14 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
     }
   }, [fila])
 
-  // Restaura a cópia local se ela for mais nova que o servidor. As props iniciais são fixas
-  // para este formulário, por isso só `fila` e `chave` entram nas dependências.
+  // Restaura a cópia local (IndexedDB) só se o formulário ainda não foi editado: nunca sobrescreve digitação.
   useEffect(() => {
     let vivo = true
     armazenamentoIdb
       .get(chave)
       .then((local) => {
-        const escolhido = resolverRascunho(
-          local,
-          rascunho
-            ? { dados: rascunho.dados, textoLivre: rascunho.textoLivre, atualizado_em: rascunho.atualizado_em }
-            : null,
-        )
-        if (!vivo || escolhido?.origem !== 'local') return
+        const escolhido = resolverRascunho(local, rascunho ? { dados: rascunho.dados, textoLivre: rascunho.textoLivre } : null)
+        if (!vivo || escolhido?.origem !== 'local' || !fila.pristina) return
         setDados(escolhido.dados)
         setBrutos(brutosDe(escolhido.dados))
         fila.agendar({ internacaoId, dados: escolhido.dados, textoLivre: escolhido.textoLivre })
@@ -175,7 +183,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
     return () => {
       vivo = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ver comentário acima
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- as props iniciais são fixas para este formulário (key={id} na página)
   }, [fila, chave])
 
   const assinar = useCallback((cb: () => void) => fila.assinar(cb), [fila])
@@ -189,7 +197,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
 
   function alterar(novo: DadosMedica) {
     setDados(novo)
-    fila.agendar({ internacaoId, dados: novo, textoLivre: '' })
+    fila.agendar({ internacaoId, dados: novo, textoLivre })
   }
 
   function alterarCampo(campo: CampoTexto, valor: string) {
@@ -202,7 +210,10 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
 
   function alterarSinal(campo: Sinal, texto: string) {
     setBrutos((b) => ({ ...b, [campo]: texto }))
-    const valor = campo === 'pa' ? texto : paraNumero(texto)
+    // Campo inválido não substitui o último valor válido: o erro aparece e bloqueia a finalização.
+    if (erroSinal(campo, texto) !== null) return
+    const lido = lerNumero(texto)
+    const valor = campo === 'pa' ? texto.trim() : lido.ok ? lido.valor : null
     alterar({ ...dados, sinais: { ...dados.sinais, [campo]: valor } as DadosMedica['sinais'] })
   }
 
@@ -212,23 +223,29 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
     alterar({ ...anterior, modelo_versao: 'medica@1', sinais: dados.sinais })
   }
 
+  const errosSinais = CAMPOS_SINAIS.flatMap((c) => {
+    const e = erroSinal(c.chave, brutos[c.chave])
+    return e ? [`${c.rotulo}: ${e}`] : []
+  })
+
   function pedirFinalizacao() {
-    const encontrados = [...validarParaFinalizar(dados)]
-    if (!modeloMedicaV1.safeParse(dados).success) {
-      encontrados.push('Revise os sinais vitais: há valor fora da faixa aceita.')
-    }
+    const encontrados = [...validarParaFinalizar(dados), ...errosSinais]
     setErros(encontrados)
     setErroAcao(null)
     if (encontrados.length === 0) setDialogo('finalizar')
   }
 
   async function confirmarFinalizacao() {
+    // Trava síncrona: dois cliques no mesmo instante não disparam duas finalizações.
+    if (travaFinalizacao.current) return
+    travaFinalizacao.current = true
     setEnviando(true)
     setErroAcao(null)
     try {
-      // Envia o que estiver pendente antes de finalizar; sem isso o servidor poderia finalizar uma versão antiga.
+      // Espera o envio em andamento e garante que a versão mais nova foi salva antes de finalizar.
       await fila.forcar()
     } catch {
+      travaFinalizacao.current = false
       setEnviando(false)
       setDialogo(null)
       setErroAcao(MENSAGEM_SEM_CONEXAO)
@@ -236,6 +253,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
     }
     const evolucaoId = fila.evolucaoId
     if (!evolucaoId) {
+      travaFinalizacao.current = false
       setEnviando(false)
       setDialogo(null)
       setErroAcao('Não foi possível localizar o rascunho. Tente novamente.')
@@ -243,6 +261,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
     }
     const resultado = await finalizar(evolucaoId)
     // Em sucesso o servidor redireciona; aqui só chega o erro.
+    travaFinalizacao.current = false
     setEnviando(false)
     setDialogo(null)
     if (resultado?.erro) setErroAcao(resultado.erro)
@@ -266,22 +285,37 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
 
   const indicador =
     estado === 'offline'
-      ? 'Sem conexão. Suas alterações ficam neste aparelho até a conexão voltar.'
+      ? 'Sem conexão'
       : estado === 'pendente'
         ? 'Salvando…'
         : ultimoSalvo
           ? `Salvo às ${horaSalvo(ultimoSalvo)}`
-          : 'Sem alterações pendentes'
+          : 'Sem alterações'
 
   return (
     <div className="flex flex-col gap-4">
+      <MarcarAba status="INTERNADO" />
       <header className="flex flex-col gap-1">
-        <Link
-          href={`/internacoes/${internacaoId}`}
-          className="inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline"
-        >
-          ← Voltar ao prontuário
-        </Link>
+        <div className="flex items-start justify-between gap-3">
+          <Link
+            href={`/internacoes/${internacaoId}`}
+            className="inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline"
+          >
+            ← Prontuário
+          </Link>
+          {idRascunho && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="min-h-11 px-3 font-semibold text-destructive hover:text-destructive"
+              disabled={enviando}
+              onClick={() => setDialogo('descartar')}
+            >
+              Descartar rascunho
+            </Button>
+          )}
+        </div>
         <h1 className="text-2xl font-bold leading-snug">Evolução médica</h1>
         <p className="text-muted-foreground">
           {paciente.nome} · Leito {paciente.leito}
@@ -299,7 +333,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
         </div>
       )}
 
-      <form onSubmit={(e) => e.preventDefault()} aria-label="Evolução médica" className="flex flex-col gap-4">
+      <form onSubmit={(e) => e.preventDefault()} aria-label="Evolução médica" className="flex flex-col gap-4 pb-28">
         <Accordion type="multiple" defaultValue={['evolucao', 'conduta']} className="rounded-lg border border-border bg-card px-4">
           <AccordionItem value="diagnosticos">
             <AccordionTrigger className="min-h-11 text-base font-bold">Diagnósticos</AccordionTrigger>
@@ -313,14 +347,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
           <AccordionItem value="evolucao">
             <AccordionTrigger className="min-h-11 text-base font-bold">Evolução</AccordionTrigger>
             <AccordionContent className="flex flex-col gap-4 pb-4">
-              <CampoTextual
-                id="ev-evolucao"
-                rotulo="Evolução clínica"
-                valor={dados.evolucao_clinica}
-                onChange={(v) => alterarCampo('evolucao_clinica', v)}
-                obrigatorio
-                linhas={6}
-              />
+              <CampoTextual id="ev-evolucao" rotulo="Evolução clínica" valor={dados.evolucao_clinica} onChange={(v) => alterarCampo('evolucao_clinica', v)} obrigatorio linhas={6} />
             </AccordionContent>
           </AccordionItem>
 
@@ -337,20 +364,30 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
             <AccordionTrigger className="min-h-11 text-base font-bold">Sinais vitais</AccordionTrigger>
             <AccordionContent className="pb-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {CAMPOS_SINAIS.map((c) => (
-                  <div key={c.chave} className="grid gap-2">
-                    <Label htmlFor={`ev-sinal-${c.chave}`}>{c.rotulo}</Label>
-                    <Input
-                      id={`ev-sinal-${c.chave}`}
-                      inputMode={c.modo}
-                      autoComplete="off"
-                      placeholder={c.placeholder}
-                      value={brutos[c.chave]}
-                      onChange={(e) => alterarSinal(c.chave, e.target.value)}
-                      className="h-11 text-base tabular-nums"
-                    />
-                  </div>
-                ))}
+                {CAMPOS_SINAIS.map((c) => {
+                  const erro = erroSinal(c.chave, brutos[c.chave])
+                  return (
+                    <div key={c.chave} className="grid content-start gap-2">
+                      <Label htmlFor={`ev-sinal-${c.chave}`}>{c.rotulo}</Label>
+                      <Input
+                        id={`ev-sinal-${c.chave}`}
+                        inputMode={c.modo}
+                        autoComplete="off"
+                        placeholder={c.placeholder}
+                        value={brutos[c.chave]}
+                        aria-invalid={erro ? true : undefined}
+                        aria-describedby={erro ? `erro-sinal-${c.chave}` : undefined}
+                        onChange={(e) => alterarSinal(c.chave, e.target.value)}
+                        className="h-11 text-base tabular-nums"
+                      />
+                      {erro && (
+                        <p id={`erro-sinal-${c.chave}`} className="text-sm font-semibold text-destructive">
+                          {erro}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -359,14 +396,7 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
             <AccordionTrigger className="min-h-11 text-base font-bold">Exame físico</AccordionTrigger>
             <AccordionContent className="flex flex-col gap-4 pb-4">
               {CAMPOS_EXAME.map((c) => (
-                <CampoTextual
-                  key={c.chave}
-                  id={`ev-exame-${c.chave}`}
-                  rotulo={c.rotulo}
-                  valor={dados.exame_fisico[c.chave]}
-                  onChange={(v) => alterarExame(c.chave, v)}
-                  linhas={2}
-                />
+                <CampoTextual key={c.chave} id={`ev-exame-${c.chave}`} rotulo={c.rotulo} valor={dados.exame_fisico[c.chave]} onChange={(v) => alterarExame(c.chave, v)} linhas={2} />
               ))}
             </AccordionContent>
           </AccordionItem>
@@ -374,51 +404,38 @@ export function FormMedica({ internacaoId, userId, paciente, rascunho, anterior 
           <AccordionItem value="conduta">
             <AccordionTrigger className="min-h-11 text-base font-bold">Conduta</AccordionTrigger>
             <AccordionContent className="flex flex-col gap-4 pb-4">
-              <CampoTextual
-                id="ev-conduta"
-                rotulo="Conduta"
-                valor={dados.conduta}
-                onChange={(v) => alterarCampo('conduta', v)}
-                obrigatorio
-                linhas={4}
-              />
+              <CampoTextual id="ev-conduta" rotulo="Conduta" valor={dados.conduta} onChange={(v) => alterarCampo('conduta', v)} obrigatorio linhas={4} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
       </form>
 
-      <footer className="sticky bottom-0 -mx-4 flex flex-col gap-3 border-t border-border bg-card p-4">
-        <p role="status" aria-live="polite" className="text-sm font-semibold text-muted-foreground">
+      <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:left-auto lg:mx-auto lg:max-w-6xl">
+        <p role="status" aria-live="polite" className="min-w-0 shrink text-xs font-semibold text-muted-foreground">
           {indicador}
         </p>
-        {erroAcao && (
-          <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-            {erroAcao}
-          </p>
-        )}
-        {!anterior && (
-          <p className="text-sm text-muted-foreground">Sem evolução finalizada anterior para copiar.</p>
-        )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          {idRascunho && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              disabled={enviando}
-              onClick={() => setDialogo('descartar')}
-            >
-              Descartar rascunho
-            </Button>
-          )}
-          <Button type="button" variant="outline" size="lg" disabled={!anterior || enviando} onClick={copiarAnterior}>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!anterior || enviando}
+            title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
+            onClick={copiarAnterior}
+            className="h-11 px-3 text-sm"
+          >
             Copiar anterior
           </Button>
-          <Button type="button" size="lg" disabled={enviando} onClick={pedirFinalizacao}>
+          <Button type="button" disabled={enviando} onClick={pedirFinalizacao} className="h-11 px-4">
             Finalizar
           </Button>
         </div>
       </footer>
+
+      {erroAcao && (
+        <p role="alert" className="fixed inset-x-3 bottom-20 z-30 rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+          {erroAcao}
+        </p>
+      )}
 
       <Dialog open={dialogo !== null} onOpenChange={(aberto) => !aberto && !enviando && setDialogo(null)}>
         <DialogContent>

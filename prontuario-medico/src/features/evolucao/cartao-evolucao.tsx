@@ -17,6 +17,16 @@ export type EvolucaoTimeline = {
 
 const FUSO_SP = 'America/Sao_Paulo'
 
+const ROTULO_CATEGORIA: Record<string, string> = {
+  medica: 'Médica',
+  enfermagem: 'Enfermagem',
+  fisioterapia: 'Fisioterapia',
+  nutricao: 'Nutrição',
+  psicologia: 'Psicologia',
+  fonoaudiologia: 'Fonoaudiologia',
+  servico_social: 'Serviço social',
+}
+
 /**
  * Lê `dados` tolerando formatos antigos: campos ausentes viram vazio, nunca o texto padrão do exame físico.
  */
@@ -122,7 +132,7 @@ export function CartaoEvolucao({
             {evolucao.autor_nome ?? 'Autor não identificado'}
           </h3>
           <p className="text-sm text-muted-foreground">
-            {formatarDataHora(data)} · {evolucao.categoria}
+            {formatarDataHora(data)} · {ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria}
           </p>
         </div>
         {finalizada ? (

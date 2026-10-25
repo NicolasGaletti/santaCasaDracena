@@ -3,7 +3,7 @@ import type { DadosMedica } from './modelos/medica';
 
 export type PayloadRascunho = { internacaoId: string; dados: DadosMedica; textoLivre: string };
 
-/** Cópia local: o que foi digitado e ainda não confirmado pelo servidor. */
+/** Cópia local: existe só enquanto o último envio não foi confirmado pelo servidor. */
 export type CopiaLocal = PayloadRascunho & { salvoLocalEm: string };
 
 export type Armazenamento = {
@@ -16,17 +16,19 @@ export type EstadoAutosave = 'salvo' | 'pendente' | 'offline';
 
 export type FilaAutosave = {
   agendar(p: PayloadRascunho): void;
-  /** Envia já o que estiver pendente. Rejeita se o envio falhar. */
+  /** Espera envios em andamento e garante que a versão mais nova foi salva. Rejeita se falhar. */
   forcar(): Promise<void>;
   readonly estado: EstadoAutosave;
   readonly ultimoSalvoEm: Date | null;
   readonly evolucaoId: string | undefined;
+  /** Nenhuma digitação registrada ainda nesta fila. */
+  readonly pristina: boolean;
   assinar(cb: () => void): () => void;
   /** Handler do evento `online`: reenvia o pendente. Quem registra o ouvinte é o componente. */
   aoVoltarConexao(): void;
   /** Cancela o timer e envia o pendente em segundo plano (ao desmontar). */
   encerrar(): void;
-  /** Descarta o pendente e a cópia local, sem enviar (usado ao descartar o rascunho). */
+  /** Espera envio em andamento, impede novos envios e apaga a cópia local. */
   cancelar(): Promise<void>;
 };
 
@@ -53,9 +55,12 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
   let ultimoSalvoEm: Date | null = null;
   let evolucaoId = opts.evolucaoId;
   let atual: PayloadRascunho | null = null;
-  let versao = 0;
-  let temPendencia = false;
+  let versao = 0; // incrementa a cada agendar
+  let versaoSalva = 0; // última versão confirmada pelo servidor
+  let cancelado = false;
   let gravacaoLocal: Promise<void> = Promise.resolve();
+  // Cadeia única: todo envio entra aqui, então nunca há dois `salvar` simultâneos.
+  let fila: Promise<void> = Promise.resolve();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const ouvintes = new Set<() => void>();
 
@@ -64,48 +69,51 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
     ouvintes.forEach((cb) => cb());
   }
 
-  async function enviar(): Promise<void> {
-    await gravacaoLocal;
-    if (!atual || !temPendencia) return;
-    const enviado = atual;
-    const versaoEnviada = versao;
-    try {
-      const retorno = await salvar(enviado);
-      evolucaoId = retorno.id;
-      ultimoSalvoEm = new Date(retorno.atualizado_em);
-      // Se houve digitação depois do envio, a cópia local e o timer novos continuam valendo.
-      if (versaoEnviada === versao) {
-        temPendencia = false;
-        await armazenamento.del(chave);
-        mudar('salvo');
+  /** Envia a versão mais nova no momento em que o envio começa, não quando foi pedido. */
+  function enviarUltimo(): Promise<void> {
+    const envio = fila.then(async () => {
+      if (cancelado || !atual || versaoSalva === versao) return;
+      await gravacaoLocal;
+      const enviado = atual;
+      const versaoEnviada = versao;
+      try {
+        const retorno = await salvar(enviado);
+        evolucaoId = retorno.id;
+        ultimoSalvoEm = new Date(retorno.atualizado_em);
+        versaoSalva = versaoEnviada;
+        // Se houve digitação depois deste envio, a cópia local e o timer novos continuam valendo.
+        if (versaoEnviada === versao) {
+          await armazenamento.del(chave);
+          mudar('salvo');
+        }
+      } catch (erro) {
+        mudar('offline');
+        throw erro;
       }
-    } catch (erro) {
-      mudar('offline');
-      throw erro;
-    }
-  }
-
-  function aoVoltarConexao() {
-    if (estado === 'offline' && temPendencia) void enviar().catch(() => {});
+    });
+    fila = envio.catch(() => {});
+    return envio;
   }
 
   return {
     agendar(p) {
+      if (cancelado) return;
       atual = p;
       versao += 1;
-      temPendencia = true;
       const copia: CopiaLocal = { ...p, salvoLocalEm: new Date().toISOString() };
       gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, copia));
       clearTimeout(timer);
       timer = setTimeout(() => {
-        void enviar().catch(() => {});
+        void enviarUltimo().catch(() => {});
       }, esperaMs);
       if (estado !== 'pendente') mudar('pendente');
     },
 
     async forcar() {
       clearTimeout(timer);
-      await enviar();
+      while (!cancelado && atual && versaoSalva !== versao) {
+        await enviarUltimo();
+      }
     },
 
     get estado() {
@@ -117,6 +125,9 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
     get evolucaoId() {
       return evolucaoId;
     },
+    get pristina() {
+      return versao === 0;
+    },
 
     assinar(cb) {
       ouvintes.add(cb);
@@ -125,20 +136,22 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
       };
     },
 
-    async cancelar() {
-      clearTimeout(timer);
-      temPendencia = false;
-      versao += 1;
-      await gravacaoLocal;
-      await armazenamento.del(chave);
-      mudar('salvo');
+    aoVoltarConexao() {
+      if (estado === 'offline') void enviarUltimo().catch(() => {});
     },
-
-    aoVoltarConexao,
 
     encerrar() {
       clearTimeout(timer);
-      if (temPendencia) void enviar().catch(() => {});
+      if (atual && versaoSalva !== versao) void enviarUltimo().catch(() => {});
+    },
+
+    async cancelar() {
+      cancelado = true;
+      clearTimeout(timer);
+      await fila;
+      await gravacaoLocal;
+      await armazenamento.del(chave);
+      mudar('salvo');
     },
   };
 }
@@ -149,16 +162,15 @@ export type RascunhoResolvido = {
   textoLivre: string;
 };
 
-/** Ao abrir o form: a cópia local vence se for mais nova que o `atualizado_em` do servidor. */
+/**
+ * Ao abrir o form: se existe cópia local, ela vence. Ela só existe quando o último envio não
+ * completou, então é mais nova que o servidor por definição. Sem comparação de relógios.
+ */
 export function resolverRascunho(
   local: CopiaLocal | undefined,
-  servidor: { dados: DadosMedica; textoLivre: string; atualizado_em: string } | null,
+  servidor: { dados: DadosMedica; textoLivre: string } | null,
 ): RascunhoResolvido | null {
-  if (local && (!servidor || Date.parse(local.salvoLocalEm) > Date.parse(servidor.atualizado_em))) {
-    return { origem: 'local', dados: local.dados, textoLivre: local.textoLivre };
-  }
-  if (servidor) {
-    return { origem: 'servidor', dados: servidor.dados, textoLivre: servidor.textoLivre };
-  }
+  if (local) return { origem: 'local', dados: local.dados, textoLivre: local.textoLivre };
+  if (servidor) return { origem: 'servidor', dados: servidor.dados, textoLivre: servidor.textoLivre };
   return null;
 }
