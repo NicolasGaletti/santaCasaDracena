@@ -61,6 +61,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "acessos_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
+          },
+          {
             foreignKeyName: "acessos_profissional_id_fkey";
             columns: ["profissional_id"];
             isOneToOne: false;
@@ -203,6 +210,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "evolucoes_adendo_de_fkey";
+            columns: ["adendo_de"];
+            isOneToOne: false;
+            referencedRelation: "vw_evolucoes_timeline";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "evolucoes_autor_id_fkey";
             columns: ["autor_id"];
             isOneToOne: false;
@@ -222,6 +236,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "internacoes";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
           },
           {
             foreignKeyName: "evolucoes_validada_por_fkey";
@@ -268,6 +289,13 @@ export type Database = {
             columns: ["evolucao_id"];
             isOneToOne: false;
             referencedRelation: "evolucoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "impressoes_evolucao_id_fkey";
+            columns: ["evolucao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_evolucoes_timeline";
             referencedColumns: ["id"];
           },
           {
@@ -367,6 +395,13 @@ export type Database = {
             referencedRelation: "pacientes";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "internacoes_paciente_id_fkey";
+            columns: ["paciente_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["paciente_id"];
+          },
         ];
       };
       internacoes_clinico: {
@@ -396,6 +431,13 @@ export type Database = {
             isOneToOne: true;
             referencedRelation: "internacoes";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "internacoes_clinico_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: true;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
           },
         ];
       };
@@ -432,6 +474,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "internacoes";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leitos_historico_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
           },
           {
             foreignKeyName: "leitos_historico_por_fkey";
@@ -557,6 +606,117 @@ export type Database = {
       };
     };
     Views: {
+      vw_evolucoes_timeline: {
+        Row: {
+          adendo_de: string | null;
+          assinatura_digital: string | null;
+          atualizado_em: string;
+          autor_id: string;
+          autor_nome: string | null;
+          categoria: Database["public"]["Enums"]["categoria_evolucao"];
+          conteudo_hash: string | null;
+          criado_em: string;
+          dados: NonNullable<Json>;
+          devolvida_motivo: string | null;
+          enviada_em: string | null;
+          finalizada_em: string | null;
+          id: string;
+          internacao_id: string;
+          snapshot_autor: Json | null;
+          snapshot_validador: Json | null;
+          status: Database["public"]["Enums"]["status_evolucao"];
+          texto_livre: string;
+          validada_em: string | null;
+          validada_por: string | null;
+          vias_impressas: number | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "evolucoes_adendo_de_fkey";
+            columns: ["adendo_de"];
+            isOneToOne: false;
+            referencedRelation: "evolucoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_adendo_de_fkey";
+            columns: ["adendo_de"];
+            isOneToOne: false;
+            referencedRelation: "vw_evolucoes_timeline";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_autor_id_fkey";
+            columns: ["autor_id"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_autor_id_fkey";
+            columns: ["autor_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "internacoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
+          },
+          {
+            foreignKeyName: "evolucoes_validada_por_fkey";
+            columns: ["validada_por"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_validada_por_fkey";
+            columns: ["validada_por"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vw_internacoes_lista: {
+        Row: {
+          admitido_em: string;
+          alta_em: string | null;
+          convenio: string;
+          data_nascimento: string;
+          equipe_id: string;
+          equipe_nome: string;
+          internacao_id: string;
+          leito_ala: string;
+          medico_responsavel_nome: string | null;
+          nome: string;
+          paciente_id: string;
+          status: Database["public"]["Enums"]["status_internacao"];
+          status_hoje: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [
+          {
+            foreignKeyName: "internacoes_equipe_id_fkey";
+            columns: ["equipe_id"];
+            isOneToOne: false;
+            referencedRelation: "equipes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       vw_profissionais_publico: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_evolucao"] | null;
