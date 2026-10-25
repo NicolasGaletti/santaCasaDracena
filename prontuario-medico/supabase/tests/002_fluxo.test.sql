@@ -183,9 +183,11 @@ select ok(
       and snapshot_autor->>'uf' = 'SP'
       and conteudo_hash = encode(extensions.digest(
         jsonb_build_object(
+          'v', 2,
           'dados', dados, 'texto', texto_livre, 'internacao', internacao_id,
           'autor', autor_id,
-          'finalizada_em', to_char(finalizada_em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+          'finalizada_em', to_char(finalizada_em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'anexos', '[]'::jsonb
         )::text, 'sha256'), 'hex')
   ),
   'finalizar grava snapshot, hash e finalizada_em'
@@ -199,9 +201,11 @@ select ok(
     where id = '44444444-4444-4444-4444-444444444444'
       and conteudo_hash = encode(extensions.digest(
         jsonb_build_object(
+          'v', 2,
           'dados', dados, 'texto', texto_livre, 'internacao', internacao_id,
           'autor', autor_id,
-          'finalizada_em', to_char(finalizada_em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+          'finalizada_em', to_char(finalizada_em at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'anexos', '[]'::jsonb
         )::text, 'sha256'), 'hex')
   ),
   'hash independe do fuso horário da sessão'

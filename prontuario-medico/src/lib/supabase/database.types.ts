@@ -241,6 +241,7 @@ export type Database = {
           devolvida_motivo: string | null;
           enviada_em: string | null;
           finalizada_em: string | null;
+          hash_versao: number;
           id: string;
           internacao_id: string;
           snapshot_autor: Json | null;
@@ -263,6 +264,7 @@ export type Database = {
           devolvida_motivo?: string | null;
           enviada_em?: string | null;
           finalizada_em?: string | null;
+          hash_versao?: number;
           id?: string;
           internacao_id: string;
           snapshot_autor?: Json | null;
@@ -284,6 +286,7 @@ export type Database = {
           devolvida_motivo?: string | null;
           enviada_em?: string | null;
           finalizada_em?: string | null;
+          hash_versao?: number;
           id?: string;
           internacao_id?: string;
           snapshot_autor?: Json | null;
@@ -715,8 +718,10 @@ export type Database = {
           devolvida_motivo: string | null;
           enviada_em: string | null;
           finalizada_em: string | null;
+          hash_versao: number;
           id: string;
           internacao_id: string;
+          qtd_anexos: number | null;
           snapshot_autor: Json | null;
           snapshot_validador: Json | null;
           status: Database["public"]["Enums"]["status_evolucao"];
