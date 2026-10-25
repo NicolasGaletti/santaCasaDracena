@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(34);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
@@ -30,14 +30,14 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, da
 
 -- anexos confirmados já existentes (inseridos como postgres)
 insert into public.anexos (id, evolucao_id, internacao_id, tipo, descricao, data_exame, storage_path, mime, tamanho_bytes, sha256, confirmado, enviado_por) values
-  ('99999999-9999-9999-9999-999999999991', '44444444-4444-4444-4444-444444444444', '33333333-3333-3333-3333-333333333333', 'LABORATORIO', 'Hemograma', current_date, 'internacoes/33333333-3333-3333-3333-333333333333/99999999-9999-9999-9999-999999999991', 'application/pdf', 1000, repeat('a', 64), true, current_setting('tst.medico_a')::uuid),
-  ('99999999-9999-9999-9999-999999999992', '66666666-6666-6666-6666-666666666666', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'IMAGEM', 'Raio-X', current_date, 'internacoes/dddddddd-dddd-dddd-dddd-dddddddddddd/99999999-9999-9999-9999-999999999992', 'image/jpeg', 2000, repeat('b', 64), true, current_setting('tst.medico_a')::uuid);
+  ('99999999-9999-9999-9999-999999999991', '44444444-4444-4444-4444-444444444444', '33333333-3333-3333-3333-333333333333', 'LABORATORIO', 'Hemograma', (now() at time zone 'America/Sao_Paulo')::date, 'internacoes/33333333-3333-3333-3333-333333333333/99999999-9999-9999-9999-999999999991', 'application/pdf', 1000, repeat('a', 64), true, current_setting('tst.medico_a')::uuid),
+  ('99999999-9999-9999-9999-999999999992', '66666666-6666-6666-6666-666666666666', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'IMAGEM', 'Raio-X', (now() at time zone 'America/Sao_Paulo')::date, 'internacoes/dddddddd-dddd-dddd-dddd-dddddddddddd/99999999-9999-9999-9999-999999999992', 'image/jpeg', 2000, repeat('b', 64), true, current_setting('tst.medico_a')::uuid);
 
 -- 1. criar_anexo gera caminho por internação
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select set_config('tst.c1_id', c.id::text, true), set_config('tst.c1_path', c.storage_path, true)
-  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'LABORATORIO', 'Hemograma', current_date, 'application/pdf', 1000, repeat('c', 64)) c;
+  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'LABORATORIO', 'Hemograma', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('c', 64)) c;
 reset role;
 select is(
   current_setting('tst.c1_path'),
@@ -49,7 +49,7 @@ select is(
 reset role;
 select tests.autenticar(current_setting('tst.medico_b')::uuid);
 select throws_ok(
-  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', current_date, 'application/pdf', 1000, repeat('c', 64))$$,
+  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('c', 64))$$,
   'P0001', 'Acesso negado.',
   'não autor não cria anexo'
 );
@@ -58,21 +58,21 @@ select throws_ok(
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select throws_ok(
-  $$select * from public.criar_anexo('66666666-6666-6666-6666-666666666666', 'OUTRO', '', current_date, 'application/pdf', 1000, repeat('c', 64))$$,
+  $$select * from public.criar_anexo('66666666-6666-6666-6666-666666666666', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('c', 64))$$,
   'P0001', 'Somente rascunhos podem receber anexos.',
   'criar em evolução finalizada falha'
 );
 
 -- 4. mime não permitido falha
 select throws_ok(
-  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', current_date, 'image/gif', 1000, repeat('c', 64))$$,
+  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'image/gif', 1000, repeat('c', 64))$$,
   'P0001', 'Formato não suportado. Envie foto ou PDF.',
   'mime não permitido falha'
 );
 
 -- 5. tamanho acima de 20 MB falha
 select throws_ok(
-  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', current_date, 'application/pdf', 20971521, repeat('c', 64))$$,
+  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 20971521, repeat('c', 64))$$,
   'P0001', 'Arquivo maior que 20 MB.',
   'tamanho acima de 20 MB falha'
 );
@@ -84,17 +84,28 @@ select throws_ok(
   'data do exame futura falha'
 );
 
+-- 6b. limite de data em SP: hoje é aceita, amanhã é recusada
+select lives_ok(
+  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('c', 64))$$,
+  'data do exame hoje em SP é aceita'
+);
+select throws_ok(
+  $$select * from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', ((now() at time zone 'America/Sao_Paulo')::date + 1), 'application/pdf', 1000, repeat('c', 64))$$,
+  'P0001', 'Data do exame não pode ser futura.',
+  'data do exame amanhã em SP é recusada'
+);
+
 -- 7. cliente não insere linha de anexo diretamente
 select throws_ok(
   $$insert into public.anexos (evolucao_id, internacao_id, tipo, data_exame, storage_path, mime, tamanho_bytes, sha256, enviado_por)
-    values ('44444444-4444-4444-4444-444444444444', '33333333-3333-3333-3333-333333333333', 'OUTRO', current_date, 'x', 'image/jpeg', 1, repeat('c', 64), current_setting('tst.medico_a')::uuid)$$,
+    values ('44444444-4444-4444-4444-444444444444', '33333333-3333-3333-3333-333333333333', 'OUTRO', (now() at time zone 'America/Sao_Paulo')::date, 'x', 'image/jpeg', 1, repeat('c', 64), current_setting('tst.medico_a')::uuid)$$,
   '42501', 'permission denied for table anexos',
   'cliente não insere anexo diretamente'
 );
 
 -- 8. confirmar sem objeto falha
 select set_config('tst.sem_id', c.id::text, true)
-  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', current_date, 'application/pdf', 1000, repeat('d', 64)) c;
+  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', '', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('d', 64)) c;
 select throws_ok(
   $$select public.confirmar_anexo(current_setting('tst.sem_id')::uuid)$$,
   'P0001', 'Arquivo do anexo não foi recebido.',
@@ -111,7 +122,7 @@ select throws_ok(
 
 -- 10. upload com anexo reservado + confirmar
 select set_config('tst.g1_id', c.id::text, true), set_config('tst.g1_path', c.storage_path, true)
-  from public.criar_anexo('13131313-1313-1313-1313-131313131313', 'ECG', 'Eletro', current_date, 'image/jpeg', 3000, repeat('e', 64)) c;
+  from public.criar_anexo('13131313-1313-1313-1313-131313131313', 'ECG', 'Eletro', (now() at time zone 'America/Sao_Paulo')::date, 'image/jpeg', 3000, repeat('e', 64)) c;
 select lives_ok(
   $$insert into storage.objects (bucket_id, name, owner, metadata)
     values ('anexos', current_setting('tst.g1_path'), current_setting('tst.medico_a')::uuid, '{}')$$,
@@ -128,10 +139,30 @@ select is(
   'confirmar com objeto marca confirmado'
 );
 
+-- 10b. outro médico não vê objeto de rascunho alheio nem envia no caminho reservado a outro
+reset role;
+select tests.autenticar(current_setting('tst.medico_b')::uuid);
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'anexos' and name = current_setting('tst.g1_path')),
+  0,
+  'outro médico não vê objeto de rascunho alheio'
+);
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('anexos', current_setting('tst.g1_path'), current_setting('tst.medico_b')::uuid, '{}')$$,
+  '42501', 'new row violates row-level security policy for table "objects"',
+  'outro médico não envia objeto em caminho reservado a outro'
+);
+
 -- 11. recepção não lê anexos
 reset role;
 select tests.autenticar(current_setting('tst.recepcao')::uuid);
 select is((select count(*)::int from public.anexos), 0, 'recepção não lê anexos');
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'anexos'),
+  0,
+  'recepção não lê objetos de anexos'
+);
 
 -- 12. outro médico não vê anexo de rascunho alheio
 reset role;
@@ -158,6 +189,23 @@ select is(
   'autor vê anexo confirmado do próprio rascunho'
 );
 
+-- 14b. storage de anexo finalizado: upload no caminho é negado ao autor; outro médico vê o objeto
+select throws_ok(
+  $$insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('anexos', 'internacoes/dddddddd-dddd-dddd-dddd-dddddddddddd/99999999-9999-9999-9999-999999999992', current_setting('tst.medico_a')::uuid, '{}')$$,
+  '42501', 'new row violates row-level security policy for table "objects"',
+  'upload no caminho de anexo finalizado é negado'
+);
+reset role;
+insert into storage.objects (bucket_id, name, owner, metadata) values
+  ('anexos', 'internacoes/dddddddd-dddd-dddd-dddd-dddddddddddd/99999999-9999-9999-9999-999999999992', current_setting('tst.medico_a')::uuid, '{}');
+select tests.autenticar(current_setting('tst.medico_b')::uuid);
+select is(
+  (select count(*)::int from storage.objects where bucket_id = 'anexos' and name = 'internacoes/dddddddd-dddd-dddd-dddd-dddddddddddd/99999999-9999-9999-9999-999999999992'),
+  1,
+  'outro médico vê objeto de anexo finalizado'
+);
+
 -- 15. update direto em anexo de evolução finalizada é bloqueado (trigger)
 reset role;
 select throws_ok(
@@ -170,7 +218,7 @@ select throws_ok(
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select set_config('tst.rm_id', c.id::text, true)
-  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', 'Remover', current_date, 'application/pdf', 1000, repeat('f', 64)) c;
+  from public.criar_anexo('44444444-4444-4444-4444-444444444444', 'OUTRO', 'Remover', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('f', 64)) c;
 select lives_ok(
   $$select public.remover_anexo(current_setting('tst.rm_id')::uuid)$$,
   'remover anexo de rascunho é aceito'
@@ -191,13 +239,30 @@ select throws_ok(
   'remover_anexo após finalizar falha'
 );
 
--- 18. autor não apaga objeto após finalizar
+-- 18a. controle positivo: antes de finalizar, o autor apaga o objeto do próprio rascunho.
 -- storage.protect_delete bloqueia DELETE direto por padrão; liga a flag para testar só a RLS.
+reset role;
+select tests.autenticar(current_setting('tst.medico_a')::uuid);
+select set_config('storage.allow_delete_query', 'true', true);
+select set_config('tst.x_path', c.storage_path, true)
+  from public.criar_anexo('13131313-1313-1313-1313-131313131313', 'OUTRO', 'Controle', (now() at time zone 'America/Sao_Paulo')::date, 'application/pdf', 1000, repeat('9', 64)) c;
+select lives_ok(
+  $$insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('anexos', current_setting('tst.x_path'), current_setting('tst.medico_a')::uuid, '{}')$$,
+  'upload do controle em rascunho é aceito'
+);
+with d as (
+  delete from storage.objects
+  where bucket_id = 'anexos' and name = current_setting('tst.x_path')
+  returning 1
+)
+select is((select count(*)::int from d), 1, 'autor apaga objeto do próprio rascunho antes de finalizar (controle)');
+
+-- 18b. após finalizar, o mesmo DELETE não remove nada
 select lives_ok(
   $$select public.finalizar_evolucao('13131313-1313-1313-1313-131313131313')$$,
   'finalizar evolução com anexo confirmado é aceito'
 );
-select set_config('storage.allow_delete_query', 'true', true);
 with d as (
   delete from storage.objects
   where bucket_id = 'anexos' and name = current_setting('tst.g1_path')
