@@ -1,14 +1,14 @@
 import { del, get, set } from 'idb-keyval';
 import type { DadosMedica } from './modelos/medica';
 
-export type PayloadRascunho = { internacaoId: string; dados: DadosMedica; textoLivre: string };
+export type PayloadRascunho<D = DadosMedica> = { internacaoId: string; dados: D; textoLivre: string };
 
 /** Cópia local: existe só enquanto o último envio não foi confirmado pelo servidor. */
-export type CopiaLocal = PayloadRascunho & { salvoLocalEm: string };
+export type CopiaLocal<D = DadosMedica> = PayloadRascunho<D> & { salvoLocalEm: string };
 
-export type Armazenamento = {
-  get(chave: string): Promise<CopiaLocal | undefined>;
-  set(chave: string, valor: CopiaLocal): Promise<void>;
+export type Armazenamento<D = DadosMedica> = {
+  get(chave: string): Promise<CopiaLocal<D> | undefined>;
+  set(chave: string, valor: CopiaLocal<D>): Promise<void>;
   del(chave: string): Promise<void>;
 };
 
@@ -19,8 +19,8 @@ export function ehErroTerminal(erro: unknown): erro is { code: 'P0001'; message:
   return typeof erro === 'object' && erro !== null && (erro as { code?: unknown }).code === 'P0001';
 }
 
-export type FilaAutosave = {
-  agendar(p: PayloadRascunho): void;
+export type FilaAutosave<D = DadosMedica> = {
+  agendar(p: PayloadRascunho<D>): void;
   /** Espera envios em andamento e garante que a versão mais nova foi salva. Rejeita se falhar. */
   forcar(): Promise<void>;
   readonly estado: EstadoAutosave;
@@ -43,22 +43,24 @@ export type FilaAutosave = {
   apagarCopiaLocal(): Promise<void>;
 };
 
-type OpcoesFila = {
-  salvar: (p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>;
-  armazenamento: Armazenamento;
+type OpcoesFila<D> = {
+  salvar: (p: PayloadRascunho<D>) => Promise<{ id: string; atualizado_em: string }>;
+  armazenamento: Armazenamento<D>;
   chave: string;
   esperaMs?: number;
   evolucaoId?: string;
 };
 
 /** Armazenamento de produção: IndexedDB via idb-keyval. */
-export const armazenamentoIdb: Armazenamento = {
-  get: (chave) => get<CopiaLocal>(chave),
-  set: (chave, valor) => set(chave, valor),
-  del: (chave) => del(chave),
-};
+export function armazenamentoIdb<D = DadosMedica>(): Armazenamento<D> {
+  return {
+    get: (chave) => get<CopiaLocal<D>>(chave),
+    set: (chave, valor) => set(chave, valor),
+    del: (chave) => del(chave),
+  };
+}
 
-export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
+export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAutosave<D> {
   const esperaMs = opts.esperaMs ?? 3000;
   const { armazenamento, chave, salvar } = opts;
 
@@ -66,7 +68,7 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
   let mensagemErro: string | null = null;
   let ultimoSalvoEm: Date | null = null;
   let evolucaoId = opts.evolucaoId;
-  let atual: PayloadRascunho | null = null;
+  let atual: PayloadRascunho<D> | null = null;
   let versao = 0; // incrementa a cada agendar
   let versaoSalva = 0; // última versão confirmada pelo servidor
   let cancelado = false;
@@ -114,7 +116,7 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
       if (cancelado) return;
       atual = p;
       versao += 1;
-      const copia: CopiaLocal = { ...p, salvoLocalEm: new Date().toISOString() };
+      const copia: CopiaLocal<D> = { ...p, salvoLocalEm: new Date().toISOString() };
       gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, copia));
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -180,9 +182,9 @@ export function criarFilaAutosave(opts: OpcoesFila): FilaAutosave {
   };
 }
 
-export type RascunhoResolvido = {
+export type RascunhoResolvido<D = DadosMedica> = {
   origem: 'local' | 'servidor';
-  dados: DadosMedica;
+  dados: D;
   textoLivre: string;
 };
 
@@ -190,10 +192,10 @@ export type RascunhoResolvido = {
  * Ao abrir o form: se existe cópia local, ela vence. Ela só existe quando o último envio não
  * completou, então é mais nova que o servidor por definição. Sem comparação de relógios.
  */
-export function resolverRascunho(
-  local: CopiaLocal | undefined,
-  servidor: { dados: DadosMedica; textoLivre: string } | null,
-): RascunhoResolvido | null {
+export function resolverRascunho<D = DadosMedica>(
+  local: CopiaLocal<D> | undefined,
+  servidor: { dados: D; textoLivre: string } | null,
+): RascunhoResolvido<D> | null {
   if (local) return { origem: 'local', dados: local.dados, textoLivre: local.textoLivre };
   if (servidor) return { origem: 'servidor', dados: servidor.dados, textoLivre: servidor.textoLivre };
   return null;

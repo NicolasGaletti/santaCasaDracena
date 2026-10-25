@@ -1,8 +1,7 @@
 import { z } from 'zod';
+import { sinaisSchema, sinaisVazios } from './sinais';
 
 const texto = z.string().default('');
-const numeroFaixa = (min: number, max: number) =>
-  z.number().min(min).max(max).nullable().default(null);
 
 export const modeloMedicaV1 = z.object({
   modelo_versao: z.literal('medica@1'),
@@ -13,15 +12,7 @@ export const modeloMedicaV1 = z.object({
   ecg: texto,
   exames_imagem: texto,
   exames_laboratoriais: texto,
-  sinais: z.object({
-    pa: z.string().regex(/^\d{2,3}\/\d{2,3}$|^$/).default(''),
-    fc: numeroFaixa(0, 300),
-    fr: numeroFaixa(0, 80),
-    temp: numeroFaixa(25, 45),
-    sato2: numeroFaixa(0, 100),
-    dextro: numeroFaixa(0, 1000),
-    diurese: numeroFaixa(0, 20000),
-  }),
+  sinais: sinaisSchema,
   exame_fisico: z.object({
     geral: texto,
     ar: texto,
@@ -45,7 +36,7 @@ export function rascunhoMedicaVazio(): DadosMedica {
     ecg: '',
     exames_imagem: '',
     exames_laboratoriais: '',
-    sinais: { pa: '', fc: null, fr: null, temp: null, sato2: null, dextro: null, diurese: null },
+    sinais: sinaisVazios(),
     exame_fisico: {
       geral: 'REG, hidratada, hipocorada +2/+4, anictérica, acianótica, afebril',
       ar: 'MV + bilateralmente, SRA',
