@@ -1,0 +1,273 @@
+import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import type { DadosMedica } from '@/features/evolucao/modelos/medica'
+import { ROTULO_CATEGORIA } from '@/features/evolucao/rotulos'
+import { formatarData, idade } from '@/lib/datas'
+
+const FUSO_SP = 'America/Sao_Paulo'
+
+// Palavras inteiras nunca são quebradas com hífen: documento legal, leitura exata.
+Font.registerHyphenationCallback((palavra) => [palavra])
+
+export type Assinante = {
+  nome: string
+  conselho: string | null
+  numero: string | null
+  uf: string | null
+}
+
+export type EvolucaoImpressao = {
+  evolucao: {
+    id: string
+    categoria: string
+    dados: DadosMedica
+    finalizada_em: string
+    validada_em: string | null
+    snapshot_autor: Assinante | null
+    snapshot_validador: Assinante | null
+    conteudo_hash: string | null
+  }
+  internacao: {
+    leito_ala: string
+    equipe_nome: string
+    medico_responsavel_nome: string | null
+  }
+  paciente: {
+    nome: string
+    data_nascimento: string
+    convenio: string
+  }
+  via: number
+}
+
+/** Código curto impresso no rodapé: 8 primeiros caracteres do uuid, em maiúsculas. */
+export function codigoCurto(id: string): string {
+  return id.slice(0, 8).toUpperCase()
+}
+
+const ROTULOS_EXAME_FISICO: [keyof DadosMedica['exame_fisico'], string][] = [
+  ['geral', 'Geral'],
+  ['ar', 'AR'],
+  ['acv', 'ACV'],
+  ['abdome', 'Abdome'],
+  ['membros', 'Membros'],
+  ['neuro', 'Neuro'],
+]
+
+/** Seções do documento, na ordem impressa. Seção sem texto some. */
+export function secoesVisiveis(dados: DadosMedica): { titulo: string; texto: string }[] {
+  const exameFisico = ROTULOS_EXAME_FISICO.filter(([k]) => dados.exame_fisico[k].trim() !== '')
+    .map(([k, rotulo]) => `${rotulo}: ${dados.exame_fisico[k].trim()}`)
+    .join('\n')
+
+  const candidatas: { titulo: string; texto: string }[] = [
+    { titulo: 'Diagnósticos', texto: dados.diagnosticos },
+    { titulo: 'Comorbidades', texto: dados.comorbidades },
+    { titulo: 'MUC', texto: dados.muc },
+    { titulo: 'Evolução clínica', texto: dados.evolucao_clinica },
+    { titulo: 'Exame físico', texto: exameFisico },
+    { titulo: 'ECG', texto: dados.ecg },
+    { titulo: 'Exames de imagem', texto: dados.exames_imagem },
+    { titulo: 'Exames laboratoriais', texto: dados.exames_laboratoriais },
+    { titulo: 'Conduta', texto: dados.conduta },
+  ]
+  return candidatas
+    .map((s) => ({ titulo: s.titulo, texto: s.texto.trim() }))
+    .filter((s) => s.texto !== '')
+}
+
+/** Sinais vitais informados, com unidade. Vazio quando nenhum foi preenchido. */
+export function sinaisVisiveis(dados: DadosMedica): { rotulo: string; valor: string }[] {
+  const s = dados.sinais
+  const decimal = (n: number) => String(n).replace('.', ',')
+  const candidatos: ({ rotulo: string; valor: string | null })[] = [
+    { rotulo: 'PA', valor: s.pa.trim() !== '' ? `${s.pa.trim()} mmHg` : null },
+    { rotulo: 'FC', valor: s.fc !== null ? `${decimal(s.fc)} bpm` : null },
+    { rotulo: 'FR', valor: s.fr !== null ? `${decimal(s.fr)} irpm` : null },
+    { rotulo: 'Temp.', valor: s.temp !== null ? `${decimal(s.temp)} °C` : null },
+    { rotulo: 'SatO2', valor: s.sato2 !== null ? `${decimal(s.sato2)} %` : null },
+    { rotulo: 'Dextro', valor: s.dextro !== null ? `${decimal(s.dextro)} mg/dL` : null },
+    { rotulo: 'Diurese', valor: s.diurese !== null ? `${decimal(s.diurese)} mL/24 h` : null },
+  ]
+  return candidatos.filter((c): c is { rotulo: string; valor: string } => c.valor !== null)
+}
+
+/** dd/mm/aaaa hh:mm no horário de São Paulo. */
+export function formatarDataHoraSP(iso: string): string {
+  const partes = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: FUSO_SP,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const valor = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? ''
+  return `${valor('day')}/${valor('month')}/${valor('year')} ${valor('hour')}:${valor('minute')}`
+}
+
+/** Linha de validação; nunca usa identidade padrão. */
+export function linhaValidacao(evolucao: EvolucaoImpressao['evolucao']): string {
+  const assinante = evolucao.snapshot_validador ?? evolucao.snapshot_autor
+  if (!assinante?.nome) return 'Identificação não disponível'
+  const registro = [
+    assinante.conselho,
+    assinante.numero && assinante.uf ? `${assinante.numero}/${assinante.uf}` : assinante.numero,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const quando = formatarDataHoraSP(evolucao.validada_em ?? evolucao.finalizada_em)
+  return `Validado por ${assinante.nome}${registro ? ` – ${registro}` : ''} em ${quando}`
+}
+
+function tituloDocumento(categoria: string): string {
+  if (categoria === 'medica') return 'EVOLUÇÃO MÉDICA DIÁRIA'
+  return `EVOLUÇÃO · ${(ROTULO_CATEGORIA[categoria] ?? categoria).toUpperCase()}`
+}
+
+const cinza = '#444444'
+
+const estilos = StyleSheet.create({
+  pagina: {
+    paddingTop: 92,
+    paddingBottom: 70,
+    paddingHorizontal: 42,
+    fontSize: 10.5,
+    color: '#000000',
+    backgroundColor: '#ffffff',
+  },
+  cabecalho: {
+    position: 'absolute',
+    top: 28,
+    left: 42,
+    right: 42,
+    borderBottomWidth: 1,
+    borderBottomColor: '#000000',
+    paddingBottom: 6,
+  },
+  cabecalhoLinha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hospital: { fontSize: 13, fontWeight: 'bold' },
+  via: { fontSize: 12, fontWeight: 'bold' },
+  titulo: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
+  rodape: {
+    position: 'absolute',
+    bottom: 24,
+    left: 42,
+    right: 42,
+    fontSize: 9,
+    color: cinza,
+    textAlign: 'center',
+    borderTopWidth: 0.5,
+    borderTopColor: cinza,
+    paddingTop: 4,
+  },
+  grade: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 0.75, borderColor: '#000000', marginBottom: 10 },
+  campo: { width: '50%', paddingVertical: 3, paddingHorizontal: 5, borderBottomWidth: 0.5, borderColor: '#777777' },
+  campoLargo: { width: '100%', paddingVertical: 3, paddingHorizontal: 5, borderBottomWidth: 0.5, borderColor: '#777777' },
+  rotulo: { fontSize: 9, color: cinza, fontWeight: 'bold' },
+  valor: { fontSize: 10.5, lineHeight: 1.4 },
+  tabelaSinais: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 0.75, borderColor: '#000000', marginBottom: 10 },
+  celulaSinal: { width: '14.2857%', paddingVertical: 4, paddingHorizontal: 5, borderRightWidth: 0.5, borderColor: '#777777' },
+  secao: { marginBottom: 9 },
+  tituloSecao: { fontSize: 10.5, fontWeight: 'bold', marginBottom: 2 },
+  textoSecao: { fontSize: 10.5, lineHeight: 1.4 },
+  blocoAssinatura: { marginTop: 14 },
+  validacao: { fontSize: 10, marginBottom: 6 },
+  caixaAssinatura: {
+    height: 78,
+    borderWidth: 0.75,
+    borderColor: '#000000',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 8,
+    paddingBottom: 6,
+  },
+  linhaAssinatura: { borderTopWidth: 0.75, borderColor: '#000000', marginBottom: 4 },
+  rotuloAssinatura: { fontSize: 10, textAlign: 'center' },
+})
+
+function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
+  const { evolucao, internacao, paciente, via } = item
+  const dados = evolucao.dados
+  const codigo = codigoCurto(evolucao.id)
+  const hash = evolucao.conteudo_hash?.slice(0, 12) ?? '—'
+  const sinais = sinaisVisiveis(dados)
+  const secoes = secoesVisiveis(dados)
+
+  const campos: [string, string][] = [
+    ['Paciente', paciente.nome],
+    ['Data de nascimento', `${formatarData(paciente.data_nascimento)} (${idade(paciente.data_nascimento, new Date(evolucao.finalizada_em))} anos)`],
+    ['Leito / ala', internacao.leito_ala],
+    ['Convênio', paciente.convenio],
+    ['Equipe', internacao.equipe_nome],
+    ['Médico responsável', internacao.medico_responsavel_nome ?? 'Não informado'],
+  ]
+
+  return (
+    <Page size="A4" style={estilos.pagina} wrap>
+      <View fixed style={estilos.cabecalho}>
+        <View style={estilos.cabecalhoLinha}>
+          <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
+          {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
+        </View>
+        <Text style={estilos.titulo}>{tituloDocumento(evolucao.categoria)}</Text>
+      </View>
+
+      <View style={estilos.grade}>
+        {campos.map(([rotulo, valor]) => (
+          <View key={rotulo} style={estilos.campo}>
+            <Text style={estilos.rotulo}>{rotulo}</Text>
+            <Text style={estilos.valor}>{valor}</Text>
+          </View>
+        ))}
+        <View style={estilos.campoLargo}>
+          <Text style={estilos.rotulo}>Data e hora da evolução</Text>
+          <Text style={estilos.valor}>{formatarDataHoraSP(evolucao.finalizada_em)}</Text>
+        </View>
+      </View>
+
+      {sinais.length > 0 && (
+        <View style={estilos.tabelaSinais}>
+          {sinais.map((s) => (
+            <View key={s.rotulo} style={estilos.celulaSinal}>
+              <Text style={estilos.rotulo}>{s.rotulo}</Text>
+              <Text style={estilos.valor}>{s.valor}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {secoes.map((s) => (
+        <View key={s.titulo} style={estilos.secao}>
+          <Text style={estilos.tituloSecao}>{s.titulo}</Text>
+          <Text style={estilos.textoSecao}>{s.texto}</Text>
+        </View>
+      ))}
+
+      <View wrap={false} style={estilos.blocoAssinatura}>
+        <Text style={estilos.validacao}>{linhaValidacao(evolucao)}</Text>
+        <View style={estilos.caixaAssinatura}>
+          <View style={estilos.linhaAssinatura} />
+          <Text style={estilos.rotuloAssinatura}>Assinatura e carimbo do médico</Text>
+        </View>
+      </View>
+
+      <Text
+        fixed
+        style={estilos.rodape}
+        render={({ pageNumber, totalPages }) =>
+          `Código ${codigo} · Hash ${hash} · Página ${pageNumber} de ${totalPages}`
+        }
+      />
+    </Page>
+  )
+}
+
+export function DocumentoEvolucao({ evolucoes }: { evolucoes: EvolucaoImpressao[] }) {
+  return (
+    <Document title="Evolução médica" author="Santa Casa de Dracena">
+      {evolucoes.map((item) => (
+        <PaginaEvolucao key={item.evolucao.id} item={item} />
+      ))}
+    </Document>
+  )
+}

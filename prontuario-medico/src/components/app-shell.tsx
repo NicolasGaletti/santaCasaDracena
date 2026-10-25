@@ -14,6 +14,7 @@ type Props = {
 }
 
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
+const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
 const ROTULO_PERFIL: Record<string, string> = { medico: 'Médico(a)', recepcao: 'Recepção' }
 
 const NAVEGACAO = [
@@ -21,10 +22,17 @@ const NAVEGACAO = [
   { href: '/anteriores', chave: 'anteriores', rotulo: 'Internações anteriores', rotuloCurto: 'Anteriores' },
 ] as const
 
+const NAVEGACAO_CLINICA = [
+  ...NAVEGACAO,
+  { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' },
+] as const
+
 export function AppShell({ profissional, children }: Props) {
   const pathname = usePathname()
   const abaMarcada = useAbaAtiva()
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
+  const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
+  const navegacao = clinico ? NAVEGACAO_CLINICA : NAVEGACAO
   const identificacao =
     profissional.conselho && profissional.numero_conselho
       ? `${profissional.conselho} ${profissional.numero_conselho}${profissional.uf_conselho ? `/${profissional.uf_conselho}` : ''}`
@@ -49,7 +57,7 @@ export function AppShell({ profissional, children }: Props) {
       <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <nav aria-label="Principal" className="flex gap-2">
-            {NAVEGACAO.map((item) => {
+            {navegacao.map((item) => {
               // Página de conteúdo (ex.: prontuário) pode marcar a aba pelo status da internação.
               const ativo = abaMarcada
                 ? abaMarcada === item.chave
@@ -61,7 +69,7 @@ export function AppShell({ profissional, children }: Props) {
                   key={item.href}
                   href={item.href}
                   aria-current={ativo ? 'page' : undefined}
-                  className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-4 font-semibold transition-colors ${
+                  className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 font-semibold sm:px-4 transition-colors ${
                     ativo
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'

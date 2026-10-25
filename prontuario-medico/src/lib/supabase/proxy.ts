@@ -4,6 +4,8 @@ import type { Database } from './database.types'
 
 const ROTAS_PUBLICAS = ['/login']
 const PREFIXOS_PUBLICOS = ['/auth/']
+// PDF não é página: sem sessão responde 401 em vez de redirecionar para o login.
+const ROTA_PDF = /^\/evolucoes\/[^/]+\/pdf$/
 
 export async function atualizarSessao(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -33,6 +35,9 @@ export async function atualizarSessao(request: NextRequest) {
     ROTAS_PUBLICAS.includes(pathname) || PREFIXOS_PUBLICOS.some((p) => pathname.startsWith(p))
 
   if (!data?.claims && !publica) {
+    if (ROTA_PDF.test(pathname)) {
+      return NextResponse.json({ erro: 'Não autenticado.' }, { status: 401 })
+    }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.search = ''

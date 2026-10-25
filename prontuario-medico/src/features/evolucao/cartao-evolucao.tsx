@@ -1,6 +1,8 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { DadosMedica } from './modelos/medica'
 import { rascunhoMedicaVazio } from './modelos/medica'
+import { ROTULO_CATEGORIA } from './rotulos'
 
 export type SecaoExame = 'ecg' | 'exames_imagem' | 'exames_laboratoriais'
 
@@ -16,16 +18,6 @@ export type EvolucaoTimeline = {
 }
 
 const FUSO_SP = 'America/Sao_Paulo'
-
-const ROTULO_CATEGORIA: Record<string, string> = {
-  medica: 'Médica',
-  enfermagem: 'Enfermagem',
-  fisioterapia: 'Fisioterapia',
-  nutricao: 'Nutrição',
-  psicologia: 'Psicologia',
-  fonoaudiologia: 'Fonoaudiologia',
-  servico_social: 'Serviço social',
-}
 
 /**
  * Lê `dados` tolerando formatos antigos: campos ausentes viram vazio, nunca o texto padrão do exame físico.
@@ -135,11 +127,20 @@ export function CartaoEvolucao({
             {formatarDataHora(data)} · {ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria}
           </p>
         </div>
-        {finalizada ? (
-          <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
-        ) : (
-          <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {finalizada ? (
+            <>
+              <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
+              <Button asChild variant="outline" className="min-h-11">
+                <a href={`/evolucoes/${evolucao.id}/pdf`} target="_blank" rel="noopener">
+                  Imprimir
+                </a>
+              </Button>
+            </>
+          ) : (
+            <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>
+          )}
+        </div>
       </header>
 
       {!secao && sinaisPreenchidos.length > 0 && (
