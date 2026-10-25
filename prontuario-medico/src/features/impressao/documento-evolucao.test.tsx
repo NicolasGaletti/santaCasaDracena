@@ -54,6 +54,7 @@ const anexoPdf: AnexoImpressao = {
   dataExame: '2026-10-24',
   mime: 'application/pdf',
   imagem: null,
+  miniaturaIndisponivel: false,
 }
 
 const anexoFoto: AnexoImpressao = {
@@ -63,6 +64,7 @@ const anexoFoto: AnexoImpressao = {
   dataExame: '2026-10-24',
   mime: 'image/jpeg',
   imagem: { data: new Uint8Array(FOTO), formato: 'jpg' },
+  miniaturaIndisponivel: false,
 }
 
 async function textoDoPdf(buffer: Buffer): Promise<string> {

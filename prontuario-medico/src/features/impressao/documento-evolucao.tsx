@@ -24,6 +24,8 @@ export type AnexoImpressao = {
   dataExame: string
   mime: string
   imagem: { data: Uint8Array; formato: 'jpg' | 'png' } | null
+  /** Imagem embutível que não pôde ser baixada para a miniatura (impressão sem imagens). */
+  miniaturaIndisponivel: boolean
 }
 
 export type EvolucaoImpressao = {
@@ -208,7 +210,7 @@ const estilos = StyleSheet.create({
   linhaAnexo: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderColor: '#777777' },
   celulaAnexo: { paddingVertical: 4, paddingHorizontal: 5 },
   cabecalhoAnexo: { fontSize: 9, fontWeight: 'bold', color: cinza },
-  miniatura: { width: 120, height: 90, objectFit: 'contain' },
+  miniatura: { width: 100, height: 75, objectFit: 'contain' },
   legendaImagem: { fontSize: 10.5, fontWeight: 'bold', marginBottom: 2 },
   imagemPagina: { width: 511, height: 600, objectFit: 'contain' },
 })
@@ -271,6 +273,7 @@ function TabelaAnexos({ anexos }: { anexos: AnexoImpressao[] }) {
             <View style={[estilos.celulaAnexo, { width: LARGURAS_ANEXO.miniatura }]}>
               {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF do react-pdf não tem alt; a legenda é o texto da página */}
               {a.imagem && <Image style={estilos.miniatura} src={fonteImagem(a.imagem)} />}
+              {!a.imagem && a.miniaturaIndisponivel && <Text style={estilos.valor}>Miniatura indisponível</Text>}
             </View>
           </View>
         ))}

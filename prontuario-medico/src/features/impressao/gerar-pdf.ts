@@ -27,7 +27,13 @@ type LinhaAnexo = {
   data_exame: string
   mime: string
   storage_path: string
+  tamanho_bytes: number
 }
+
+const LIMITE_BYTES_IMAGENS = 80 * 1024 * 1024
+const CONCORRENCIA_DOWNLOADS = 4
+const MENSAGEM_ANEXOS = 'Não foi possível obter os anexos para impressão.'
+const MENSAGEM_MUITAS_IMAGENS = 'Muitas imagens para imprimir de uma vez. Imprima menos evoluções por vez.'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MAXIMO_IDS = 50
@@ -71,35 +77,55 @@ function formatoEmbutivel(mime: string): 'jpg' | 'png' | null {
   return null
 }
 
-/**
- * Anexos confirmados, agrupados por evolução. Imagens embutíveis são baixadas com o cliente do
- * usuário (RLS). Devolve `null` se algum download falhar: a impressão não deve sair sem a imagem.
- */
-async function carregarAnexos(
-  supabase: Cliente,
-  linhas: LinhaAnexo[],
-): Promise<Map<string, AnexoImpressao[]> | null> {
-  try {
-    const anexos = await Promise.all(
-      linhas.map(async (l): Promise<AnexoImpressao> => {
-        const formato = formatoEmbutivel(l.mime)
-        let imagem: AnexoImpressao['imagem'] = null
-        if (formato) {
-          const { data, error } = await supabase.storage.from('anexos').download(l.storage_path)
-          if (error || !data) throw new Error('download de anexo falhou')
-          imagem = { data: new Uint8Array(await data.arrayBuffer()), formato }
-        }
-        return { id: l.id, tipo: l.tipo, descricao: l.descricao, dataExame: l.data_exame, mime: l.mime, imagem }
-      }),
-    )
-    const porEvolucao = new Map<string, AnexoImpressao[]>()
-    linhas.forEach((l, i) => {
-      porEvolucao.set(l.evolucao_id, [...(porEvolucao.get(l.evolucao_id) ?? []), anexos[i]])
-    })
-    return porEvolucao
-  } catch {
-    return null
+/** Executa `fn` em cada item com no máximo `limite` chamadas em paralelo; mantém a ordem dos resultados. */
+async function mapaLimitado<T, R>(itens: T[], limite: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const resultados = new Array<R>(itens.length)
+  let proximo = 0
+  const trabalhador = async () => {
+    while (proximo < itens.length) {
+      const i = proximo++
+      resultados[i] = await fn(itens[i])
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(limite, itens.length) }, trabalhador))
+  return resultados
+}
+
+type Carga = { porEvolucao: Map<string, AnexoImpressao[]> } | { resposta: Response }
+
+/**
+ * Anexos confirmados, agrupados por evolução. Imagens embutíveis (JPEG/PNG) são baixadas com o cliente
+ * do usuário (RLS), com no máximo 4 downloads ao mesmo tempo. Acima de 80 MB de imagens, nada é baixado (413).
+ * Falha de download: com `comImagens` a impressão falha (500); sem ele, a miniatura vira "indisponível".
+ */
+async function carregarAnexos(supabase: Cliente, linhas: LinhaAnexo[], comImagens: boolean): Promise<Carga> {
+  const bytesImagens = linhas
+    .filter((l) => formatoEmbutivel(l.mime) !== null)
+    .reduce((total, l) => total + l.tamanho_bytes, 0)
+  if (bytesImagens > LIMITE_BYTES_IMAGENS) return { resposta: erro(413, MENSAGEM_MUITAS_IMAGENS) }
+
+  const anexos = await mapaLimitado(linhas, CONCORRENCIA_DOWNLOADS, async (l): Promise<AnexoImpressao> => {
+    const formato = formatoEmbutivel(l.mime)
+    const base = { id: l.id, tipo: l.tipo, descricao: l.descricao, dataExame: l.data_exame, mime: l.mime }
+    if (!formato) return { ...base, imagem: null, miniaturaIndisponivel: false }
+    try {
+      const { data, error } = await supabase.storage.from('anexos').download(l.storage_path)
+      if (error || !data) throw new Error('download de anexo falhou')
+      const bytes = new Uint8Array(await data.arrayBuffer())
+      return { ...base, imagem: { data: bytes, formato }, miniaturaIndisponivel: false }
+    } catch {
+      return { ...base, imagem: null, miniaturaIndisponivel: true }
+    }
+  })
+  if (comImagens && anexos.some((a) => a.miniaturaIndisponivel)) {
+    return { resposta: erro(500, MENSAGEM_ANEXOS) }
+  }
+
+  const porEvolucao = new Map<string, AnexoImpressao[]>()
+  linhas.forEach((l, i) => {
+    porEvolucao.set(l.evolucao_id, [...(porEvolucao.get(l.evolucao_id) ?? []), anexos[i]])
+  })
+  return { porEvolucao }
 }
 
 /**
@@ -185,14 +211,14 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   // Anexos: baixados aqui, antes de qualquer via ser registrada.
   const { data: linhasAnexos, error: erroAnexos } = await supabase
     .from('anexos')
-    .select('id, evolucao_id, tipo, descricao, data_exame, mime, storage_path')
+    .select('id, evolucao_id, tipo, descricao, data_exame, mime, storage_path, tamanho_bytes')
     .in('evolucao_id', ids)
     .eq('confirmado', true)
     .order('enviado_em', { ascending: true })
   if (erroAnexos) return erro(500, 'Não foi possível gerar o PDF.')
-  const anexosPorEvolucao = await carregarAnexos(supabase, (linhasAnexos ?? []) as LinhaAnexo[])
-  if (!anexosPorEvolucao) return erro(500, 'Não foi possível obter os anexos para impressão.')
-  for (const item of itens) item.anexos = anexosPorEvolucao.get(item.evolucao.id) ?? []
+  const carga = await carregarAnexos(supabase, (linhasAnexos ?? []) as LinhaAnexo[], incluirImagens)
+  if ('resposta' in carga) return carga.resposta
+  for (const item of itens) item.anexos = carga.porEvolucao.get(item.evolucao.id) ?? []
 
   // Registro atômico: uma chamada, uma transação no banco.
   const { data: registros, error: erroVias } = await supabase.rpc('registrar_impressoes', {

@@ -64,4 +64,14 @@ describe('urlAssinada', () => {
 
     expect(resultado).toEqual({ url: 'https://x/assinada' });
   });
+
+  it('não registra acesso quando a URL assinada falha', async () => {
+    maybeSingle.mockResolvedValue({ data: { storage_path: 'internacoes/i/a', internacao_id: INTERNACAO }, error: null });
+    createSignedUrl.mockResolvedValue({ data: null, error: { message: 'falhou' } });
+
+    const resultado = await urlAssinada(ANEXO);
+
+    expect(resultado).toEqual({ erro: 'Não foi possível abrir o anexo. Tente novamente.' });
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });
