@@ -48,8 +48,8 @@ export async function descartar(evolucaoId: string): Promise<void> {
   if (erroAnexos) throw new Error(MENSAGEM_GENERICA)
   const caminhos = (anexos ?? []).map((a) => a.storage_path)
   if (caminhos.length > 0) {
-    const { error: erroObjetos } = await supabase.storage.from('anexos').remove(caminhos)
-    if (erroObjetos) throw new Error(MENSAGEM_GENERICA)
+    const { data: removidos, error: erroObjetos } = await supabase.storage.from('anexos').remove(caminhos)
+    if (erroObjetos || (removidos?.length ?? 0) !== caminhos.length) throw new Error(MENSAGEM_GENERICA)
   }
 
   const { error } = await supabase.rpc('descartar_rascunho', { p_evolucao_id: evolucaoId })

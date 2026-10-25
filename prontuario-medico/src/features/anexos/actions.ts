@@ -18,8 +18,8 @@ export async function removerAnexo(anexoId: string): Promise<{ erro?: string }> 
   if (erroBusca) return { erro: MENSAGEM_GENERICA }
   if (!anexo) return { erro: 'Anexo não encontrado.' }
 
-  const { error: erroObjeto } = await supabase.storage.from('anexos').remove([anexo.storage_path])
-  if (erroObjeto) return { erro: MENSAGEM_GENERICA }
+  const { data: removidos, error: erroObjeto } = await supabase.storage.from('anexos').remove([anexo.storage_path])
+  if (erroObjeto || (removidos?.length ?? 0) !== 1) return { erro: MENSAGEM_GENERICA }
 
   const { error } = await supabase.rpc('remover_anexo', { p_anexo_id: anexoId })
   if (error) return { erro: error.code === 'P0001' ? error.message : MENSAGEM_GENERICA }

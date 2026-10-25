@@ -170,7 +170,7 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
     <section className="grid gap-4" aria-label="Anexos de exames">
       <h3 className="text-base font-bold">Anexos</h3>
 
-      <div role="radiogroup" aria-label="Tipo do anexo" className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label="Tipo do anexo" className="-mx-4 flex flex-nowrap gap-2 overflow-x-auto px-4 pb-1">
         {TIPOS_ANEXO.map((t) => {
           const marcado = tipo === t
           return (
@@ -180,7 +180,7 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
               role="radio"
               aria-checked={marcado}
               onClick={() => setTipo(t)}
-              className={`${CLASSE_CHIP} ${marcado ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card'}`}
+              className={`${CLASSE_CHIP} shrink-0 ${marcado ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card'}`}
             >
               {ROTULO_TIPO_ANEXO[t]}
             </button>
@@ -245,7 +245,7 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
             <li
               key={e.chave}
               data-testid="anexo-envio"
-              className="flex items-center gap-3 rounded-lg border border-border bg-card p-3"
+              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
             >
               <div aria-hidden="true" className="size-16 shrink-0 rounded-md bg-muted" />
               <div className="grid min-w-0 flex-1 gap-0.5">
@@ -276,7 +276,7 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
           {estado.anexos.map((a) => {
             const ehPdf = a.mime === 'application/pdf'
             return (
-              <li key={a.id} data-testid="anexo-item" className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
+              <li key={a.id} data-testid="anexo-item" className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
                 {ehPdf ? (
                   <div
                     data-testid="icone-pdf"
@@ -311,7 +311,7 @@ export function BlocoAnexos({ estado }: { estado: EstadoAnexos }) {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="min-h-11 shrink-0 px-3 font-semibold text-destructive hover:text-destructive"
+                  className="-mt-2 min-h-11 shrink-0 px-3 font-semibold text-destructive hover:text-destructive"
                   onClick={() => setARemover(a)}
                 >
                   Remover

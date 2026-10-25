@@ -387,7 +387,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
               variant="ghost"
               size="sm"
               className="min-h-11 px-3 font-semibold text-destructive hover:text-destructive"
-              disabled={enviando}
+              disabled={enviando || anexosEvolucao.enviando}
               onClick={() => setDialogo('descartar')}
             >
               Descartar rascunho
@@ -514,7 +514,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             <Copy aria-hidden="true" className="sm:hidden" />
             <span className="hidden sm:inline">Copiar anterior</span>
           </Button>
-          <Button type="button" variant="secondary" disabled={!hidratado || enviando || salvando} onClick={salvarAgora} className="h-11 px-3 text-sm">
+          <Button type="button" variant="secondary" disabled={!hidratado || enviando || salvando || anexosEvolucao.enviando} onClick={salvarAgora} className="h-11 px-3 text-sm">
             Salvar
           </Button>
           {podeFinalizar && (
