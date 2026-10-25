@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(30);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
@@ -50,6 +50,22 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, da
   ('66600000-0000-0000-0000-000000000007', '88800000-0000-0000-0000-000000000004', 'medica', current_setting('tst.residente')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo F7","conduta":"Cond F7"}', 'Texto F7', now(), current_setting('tst.medico_a')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('f', 64), now()),
   ('66600000-0000-0000-0000-000000000008', '88800000-0000-0000-0000-000000000004', 'medica', current_setting('tst.residente')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo A8","conduta":"Cond A8"}', 'Texto A8', null, null, null, null, null, null, now()),
   ('66600000-0000-0000-0000-000000000009', '88800000-0000-0000-0000-000000000005', 'fisioterapia', current_setting('tst.multi')::uuid, 'FINALIZADA', '{"modelo_versao":"simples@1","texto":"Evo F9","plano":"Plano F9"}', 'Texto F9', now(), current_setting('tst.medico_a')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('f', 64), now());
+
+-- I6 ALTA com rascunho comum (não adendo) do médico A, para finalizar recusado
+insert into public.pacientes (id, nome, data_nascimento, convenio)
+values ('99900000-0000-0000-0000-000000000006', 'Paciente Adendo 6', '1950-01-01', 'SUS');
+
+insert into public.internacoes (id, paciente_id, equipe_id, medico_responsavel_id, leito_ala, status, alta_em, alta_por, motivo_alta)
+values ('88800000-0000-0000-0000-000000000006', '99900000-0000-0000-0000-000000000006',
+        '77700000-0000-0000-0000-000000000001', current_setting('tst.medico_a')::uuid,
+        'AD-6', 'ALTA', now(), current_setting('tst.medico_a')::uuid, 'Melhora');
+
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre) values
+  ('66600000-0000-0000-0000-000000000010', '88800000-0000-0000-0000-000000000006', 'medica', current_setting('tst.medico_a')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo R10","conduta":"Cond R10"}', 'Texto R10');
+
+-- A11: adendo já finalizado (de F2, residente, I2) para testar adendo de adendo
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, adendo_de, finalizada_em, validada_por, validada_em, snapshot_autor, snapshot_validador, conteudo_hash) values
+  ('66600000-0000-0000-0000-000000000011', '88800000-0000-0000-0000-000000000002', 'medica', current_setting('tst.residente')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo A11","conduta":"Cond A11"}', 'Texto A11', '66600000-0000-0000-0000-000000000002', now(), current_setting('tst.medico_a')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('a', 64));
 
 -- ===== criar_adendo =====
 
@@ -274,6 +290,52 @@ select ok(
 select ok(
   exists (select 1 from public.evolucoes where id = current_setting('tst.adendo_multi', true)::uuid and status = 'RASCUNHO'),
   'adendo de multiprofissional segue RASCUNHO'
+);
+
+-- ===== vínculo do adendo e finalização em alta =====
+
+-- 24. adendo de um adendo: criado pelo autor do adendo (residente), vínculo na original
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select lives_ok(
+  $$select set_config('tst.adendo_neto', public.criar_adendo('66600000-0000-0000-0000-000000000011')::text, true)$$,
+  'criar adendo de um adendo'
+);
+
+-- 25. adendo de um adendo aponta para a original
+reset role;
+select ok(
+  exists (
+    select 1 from public.evolucoes
+    where id = current_setting('tst.adendo_neto', true)::uuid
+      and adendo_de = '66600000-0000-0000-0000-000000000002'
+      and status = 'RASCUNHO'
+  ),
+  'adendo de um adendo aponta para a original'
+);
+
+-- 26. adendo de um adendo: autorização pela evolução clicada (médico de outra equipe nega)
+select tests.autenticar(current_setting('tst.medico_b')::uuid);
+select throws_ok(
+  $$select public.criar_adendo('66600000-0000-0000-0000-000000000011')$$,
+  'P0001', 'Acesso negado.',
+  'adendo de um adendo: médico de outra equipe é negado'
+);
+
+-- 27. vínculo do adendo não muda por update direto (postgres)
+reset role;
+select throws_ok(
+  $$update public.evolucoes set adendo_de = null where id = current_setting('tst.adendo_res1', true)::uuid$$,
+  'P0001', 'Vínculo do adendo não pode ser alterado.',
+  'vínculo do adendo não pode ser alterado por update'
+);
+
+-- 28. finalizar rascunho comum em internação com alta é recusado
+select tests.autenticar(current_setting('tst.medico_a')::uuid);
+select throws_ok(
+  $$select public.finalizar_evolucao('66600000-0000-0000-0000-000000000010')$$,
+  'P0001', 'Internação com alta: evolução não pode ser alterada.',
+  'finalizar rascunho comum em internação com alta é recusado'
 );
 
 select * from finish();

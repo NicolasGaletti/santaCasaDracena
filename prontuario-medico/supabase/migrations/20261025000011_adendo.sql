@@ -11,6 +11,10 @@ begin
   if old.status = 'FINALIZADA' then
     raise exception 'Evolução finalizada não pode ser alterada.' using errcode = 'P0001';
   end if;
+  -- vínculo do adendo é fixo: nem o próprio update muda adendo_de
+  if tg_op = 'UPDATE' and new.adendo_de is distinct from old.adendo_de then
+    raise exception 'Vínculo do adendo não pode ser alterado.' using errcode = 'P0001';
+  end if;
   if old.adendo_de is null and exists (
     select 1 from public.internacoes i
     where i.id = old.internacao_id and i.status = 'ALTA'
@@ -200,8 +204,9 @@ begin
     v_dados := jsonb_build_object('modelo_versao', v_modelo, 'texto', '', 'plano', '');
   end if;
 
+  -- adendo sempre aponta para a original: se o clicado é adendo, usa o vínculo dele
   insert into public.evolucoes (internacao_id, categoria, autor_id, dados, texto_livre, adendo_de)
-  values (v_orig.internacao_id, v_categoria, auth.uid(), v_dados, '', p_evolucao_id)
+  values (v_orig.internacao_id, v_categoria, auth.uid(), v_dados, '', coalesce(v_orig.adendo_de, p_evolucao_id))
   returning id into v_id;
 
   return v_id;
