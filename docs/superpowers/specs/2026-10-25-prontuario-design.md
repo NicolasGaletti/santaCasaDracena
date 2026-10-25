@@ -76,6 +76,7 @@ A escolha do A é decisão do Claude, a pedido do usuário ("me sugerir a melhor
 10. **Os dados atuais são todos fictícios:** o schema é recriado do zero, sem migração de dados.
 11. **Anexos de exames:** laboratório e imagem aceitam arquivos de imagem enviados junto com a evolução, para acompanhamento.
 12. **Netlify Free no começo**, com teste real de alguns dias assim que houver uma fatia funcional.
+13. **Pedidos do PO (2026-10-25):** equipe responsável no lugar de médico responsável (atendem pacientes de outros médicos); convênio como filtro da lista, junto com a equipe; internos (acadêmicos) atualizam evoluções **sem CRM**, com validação de um médico da equipe e assinatura do médico no papel; botão "Salvar" explícito além do autosave ("Salvar e fechar" = Finalizar). Convênio = filtro da lista e remoção total do médico responsável: confirmados pelo usuário em 2026-10-25.
 
 ## 6. Design
 
@@ -87,6 +88,7 @@ Perfil é atributo do usuário (`perfis`), equipe é vínculo (`membros_equipe`,
 |---|---|
 | `medico` | admitir, evoluir (finaliza direto), validar/devolver evoluções da sua equipe, dar alta, imprimir |
 | `residente` | evoluir; a evolução vai para validação |
+| `academico` (interno) | evoluir **sem conselho/CRM**; a evolução vai para validação de um médico da equipe |
 | `multiprofissional` (com `categoria`: enfermagem, fisioterapia, nutricao, psicologia, fonoaudiologia, servico_social…) | evoluir na própria categoria; vai para validação |
 | `recepcao` | cadastrar paciente, admitir e trocar leito; **sem** acesso ao conteúdo das evoluções |
 | `auditoria` | leitura de tudo; cada abertura registrada |
@@ -181,7 +183,7 @@ RASCUNHO ──finalizar (autor médico)──► FINALIZADA
 ### 6.6.1 Administração (perfil `admin`)
 
 - **Equipes:** criar, renomear, desativar (nunca apagar: as internações antigas apontam para elas).
-- **Profissionais:** convidar por e-mail (nome, perfil, categoria, conselho, número, UF), editar, desativar (bloqueia o login e derruba as sessões), reenviar convite. O profissional define a própria senha pelo link do convite.
+- **Profissionais:** convidar por e-mail (nome, **função escolhida pelo admin numa lista**: médico, residente, enfermagem, fisioterapia, nutrição, psicologia, fonoaudiologia, serviço social, recepção, auditoria, admin; conselho, número, UF — o conselho sugerido muda conforme a função), editar, desativar (bloqueia o login e derruba as sessões), reenviar convite. O profissional define a própria senha pelo link do convite.
 - **Vínculos:** adicionar e remover profissionais de cada equipe (N:N), com a tela por equipe e por profissional.
 - O convite e a desativação usam a Admin API do Supabase, que exige `service_role`. Essa chave fica só numa **Edge Function do Supabase** (`admin-usuarios`), que confere se quem chamou tem perfil `admin`. A chave nunca vai para o Netlify nem para o navegador.
 - Toda ação de admin entra em `auditoria`. O admin não lê nem edita conteúdo clínico.
