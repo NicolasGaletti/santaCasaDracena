@@ -198,6 +198,7 @@ test.describe.serial('tela de validação do médico', () => {
     await expect(page.getByText('Nenhuma evolução aguardando validação.')).toBeVisible();
 
     await page.goto(`/validacao?evolucao=${evolucaoId}`);
+    await expect(page.getByText('This page could not be found.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Validar', exact: true })).toHaveCount(0);
   });
 
@@ -252,5 +253,50 @@ test.describe.serial('tela de validação do médico', () => {
     await expect(page).toHaveURL(/\/validacao$/);
 
     expect(await contadorValidacao(page)).toBe(antes - 1);
+  });
+});
+
+test.describe.serial('validação: anexos e menu', () => {
+  test('médico vê a miniatura do anexo enviado pelo acadêmico', async ({ page }) => {
+    const leito = leitoUnico();
+    const id = await admitirPaciente(page, leito);
+    await page.context().clearCookies();
+    await entrar(page, 'academico@teste.local');
+    await page.goto(`/internacoes/${id}`);
+    await page.getByRole('link', { name: 'Nova evolução' }).click();
+    await expect(page).toHaveURL(/\/evolucao$/);
+    await page.getByLabel('Evolução clínica').fill('Evolução com foto');
+    await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com foto');
+    await page.getByRole('button', { name: 'Exames', exact: true }).click();
+    await page.getByTestId('entrada-foto').setInputFiles(path.join(__dirname, 'fixtures', 'exame.jpg'));
+    await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
+    await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar envio' }).click();
+    await expect(page).toHaveURL(URL_PRONTUARIO);
+
+    await page.context().clearCookies();
+    await entrar(page, 'medico1@teste.local');
+    await page.goto('/validacao');
+    await page.getByRole('link', { name: new RegExp(`Paciente validação ${leito}`) }).click();
+    const miniatura = page.getByRole('img', { name: /Foto do anexo/ });
+    await expect(miniatura).toBeVisible();
+    await expect
+      .poll(() => miniatura.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0), { timeout: 20_000 })
+      .toBe(true);
+  });
+
+  test('menu do médico rola na horizontal e a página não rola em 360 px', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await entrar(page, 'medico1@teste.local');
+    for (const rota of ['/', '/validacao']) {
+      await page.goto(rota);
+      await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible();
+      const medidas = await page.evaluate(() => ({
+        pagina: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
+        nav: getComputedStyle(document.querySelector('nav[aria-label="Principal"]')!).overflowX,
+      }));
+      expect(medidas.pagina[0]).toBe(medidas.pagina[1]);
+      expect(medidas.nav).toBe('auto');
+    }
   });
 });

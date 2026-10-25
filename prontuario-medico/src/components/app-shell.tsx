@@ -60,7 +60,10 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
 
       <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <nav aria-label="Principal" className="flex min-w-0 flex-wrap gap-2">
+          <nav
+            aria-label="Principal"
+            className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+          >
             {navegacao.map((item) => {
               // Página de conteúdo (ex.: prontuário) pode marcar a aba pelo status da internação.
               const ativo = abaMarcada
@@ -73,7 +76,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
                   key={item.href}
                   href={item.href}
                   aria-current={ativo ? 'page' : undefined}
-                  className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-3 font-semibold sm:px-4 transition-colors ${
+                  className={`inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-md px-3 font-semibold sm:px-4 transition-colors ${
                     ativo
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -82,7 +85,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
                   <span className="sm:hidden">{item.rotuloCurto}</span>
                   <span className="hidden sm:inline">{item.rotulo}</span>
                   {item.chave === 'validacao' && pendentesValidacao > 0 && (
-                    <Badge data-testid="contador-validacao" className="ml-2 min-w-6 justify-center px-1.5 text-xs tabular-nums">
+                    <Badge data-testid="contador-validacao" aria-label={`${pendentesValidacao} pendentes`} className="ml-2 min-w-6 justify-center px-1.5 text-xs tabular-nums">
                       {pendentesValidacao}
                     </Badge>
                   )}

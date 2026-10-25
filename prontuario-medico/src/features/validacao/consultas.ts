@@ -85,13 +85,16 @@ export async function contarPendentes(): Promise<number> {
  * (outra equipe, ou não está aguardando validação), para a página responder 404.
  */
 export async function buscarRevisao(evolucaoId: string): Promise<RevisaoValidacao | null> {
+  const profissional = await exigirProfissional()
   const supabase = await createClient()
 
+  // Própria evolução não se valida: some da tela (404), como uma evolução que a RLS esconde.
   const { data: evolucao } = await supabase
     .from('vw_evolucoes_timeline')
     .select('id, internacao_id, status, categoria, autor_id, autor_nome, criado_em, finalizada_em, dados, texto_livre, qtd_anexos')
     .eq('id', evolucaoId)
     .eq('status', 'AGUARDANDO_VALIDACAO')
+    .neq('autor_id', profissional.id)
     .maybeSingle()
   if (!evolucao || !evolucao.id || !evolucao.internacao_id || !evolucao.autor_id) return null
 
