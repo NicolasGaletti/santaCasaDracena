@@ -1,5 +1,5 @@
 begin;
-select plan(55);
+select plan(63);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
@@ -381,6 +381,15 @@ select throws_ok(
   'residente não devolve'
 );
 
+-- 26b. multiprofissional não devolve
+reset role;
+select tests.autenticar(current_setting('tst.multi')::uuid);
+select throws_ok(
+  $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000021', 'Falta conduta')$$,
+  'P0001', 'Apenas médicos da equipe podem devolver.',
+  'multiprofissional não devolve'
+);
+
 -- 27. médico inativo não devolve
 reset role;
 select tests.autenticar(current_setting('tst.medico_inativo')::uuid);
@@ -523,6 +532,55 @@ select throws_ok(
   $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000025', '{"modelo_versao":"medica@1","evolucao_clinica":"x","conduta":"y"}'::jsonb, 'x')$$,
   'P0001', 'Modelo de evolução inválido para sua categoria.',
   'salvar com modelo médico em categoria simples falha'
+);
+
+-- 40. salvar aceita payload sem modelo_versao (cliente antigo)
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select lives_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000027', '{"evolucao_clinica":"Sem modelo"}'::jsonb, 'Sem modelo')$$,
+  'salvar aceita payload sem modelo_versao'
+);
+
+-- 41. salvar repetido mantém uma linha de rascunho (trava não quebra o fluxo normal)
+select lives_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000027', '{"evolucao_clinica":"Sem modelo 2"}'::jsonb, 'Sem modelo 2')$$,
+  'salvar repetido funciona'
+);
+reset role;
+select is(
+  (select count(*)::int from public.evolucoes
+    where internacao_id = '33300000-0000-0000-0000-000000000027'
+      and autor_id = current_setting('tst.residente')::uuid
+      and status = 'RASCUNHO'),
+  1,
+  'salvar repetido mantém uma linha de rascunho'
+);
+
+-- 42. invariante: depois de enviar, salvar é recusado e não existe rascunho aberto ao lado
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select lives_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000026', '{"modelo_versao":"medica@1","evolucao_clinica":"Fluxo","conduta":"Fluxo"}'::jsonb, 'Fluxo')$$,
+  'salvar rascunho para o fluxo de invariante'
+);
+select lives_ok(
+  $$select public.enviar_evolucao((select e.id from public.evolucoes e where e.internacao_id = '33300000-0000-0000-0000-000000000026' and e.status = 'RASCUNHO'))$$,
+  'enviar o rascunho do fluxo'
+);
+select throws_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000026', '{"modelo_versao":"medica@1","evolucao_clinica":"Nova","conduta":"Nova"}'::jsonb, 'Nova')$$,
+  'P0001', 'Você tem uma evolução aguardando validação nesta internação.',
+  'salvar depois de enviar é recusado'
+);
+reset role;
+select is(
+  (select count(*)::int from public.evolucoes
+    where internacao_id = '33300000-0000-0000-0000-000000000026'
+      and autor_id = current_setting('tst.residente')::uuid
+      and status = 'RASCUNHO'),
+  0,
+  'nenhum rascunho aberto ao lado da evolução aguardando validação'
 );
 
 -- ===== finalizar (regressão) =====

@@ -193,6 +193,9 @@ begin
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
 
+  -- trava por (autor, internação): serializa com enviar_evolucao e devolver_evolucao
+  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text || ':' || p_internacao_id::text, 0));
+
   v_perfil := app.perfil_atual();
   if v_perfil in ('medico','residente','academico') then
     v_categoria := 'medica';
@@ -265,10 +268,19 @@ declare
   v_ev public.evolucoes%rowtype;
   v_perfil public.perfil_profissional;
   v_prof public.profissionais%rowtype;
+  v_autor uuid;
+  v_int uuid;
 begin
   if not app.profissional_ativo() then
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
+
+  -- trava por (autor, internação) antes da linha: serializa com salvar_rascunho
+  select e.autor_id, e.internacao_id into v_autor, v_int from public.evolucoes e where e.id = p_evolucao_id;
+  if not found then
+    raise exception 'Evolução não encontrada.' using errcode = 'P0001';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(v_autor::text || ':' || v_int::text, 0));
 
   select e.* into v_ev from public.evolucoes e where e.id = p_evolucao_id for update;
   if not found then
@@ -385,10 +397,19 @@ declare
   v_equipe uuid;
   v_prof public.profissionais%rowtype;
   v_motivo text;
+  v_autor uuid;
+  v_int uuid;
 begin
   if not app.profissional_ativo() then
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
+
+  -- trava por (autor da evolução, internação) antes da linha: serializa com salvar_rascunho
+  select e.autor_id, e.internacao_id into v_autor, v_int from public.evolucoes e where e.id = p_evolucao_id;
+  if not found then
+    raise exception 'Evolução não encontrada.' using errcode = 'P0001';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended(v_autor::text || ':' || v_int::text, 0));
 
   select e.* into v_ev from public.evolucoes e where e.id = p_evolucao_id for update;
   if not found then
