@@ -1,6 +1,6 @@
 # Prontuário de internação — Santa Casa de Dracena
 
-Sistema de prontuário de internação: lista de internados, admissão, evolução médica com autosave, PDF A4 e impressão com controle de vias.
+Sistema de prontuário de internação: lista de internados, admissão, evolução médica com autosave, anexos de exames (galeria por internação, no PDF e na impressão), PDF A4 e impressão com controle de vias. Inclui também equipe responsável, filtro de convênio e botão Salvar.
 
 Projeto Next.js dentro de `prontuario-medico/`. Visão geral do repositório no [README da raiz](../README.md).
 

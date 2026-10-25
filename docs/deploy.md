@@ -45,6 +45,14 @@ Regras:
 
 - Nunca editar uma migration que já foi aplicada em algum ambiente.
 - Para mudar o banco, criar uma migration nova.
+- Banco e código andam juntos. As migrations até `20261025000008` (anexos, equipe responsável, finalizar v2) precisam estar no staging junto com o código. As migrations `0005` e `0006` mudam assinaturas de funções (`registrar_impressoes`, `admitir_paciente`): aplicar o código sem o banco, ou o banco sem o código, quebra o fluxo.
+
+## Anexos e Storage
+
+- O bucket `anexos` é criado pela migration `20261025000007_anexos.sql` (privado, 20 MB por arquivo, JPEG, PNG, WebP e PDF). Não há nada a configurar à mão no painel.
+- Anexos nunca são públicos. O acesso é só por URL assinada, com validade de 5 minutos.
+- Storage do plano Free do Supabase: 1 GB, cerca de 3 mil fotos comprimidas. Migrar para o plano Pro (100 GB) antes do uso real.
+- Os backups do Supabase não incluem os arquivos do Storage. O backup diário do Storage para o R2 entra no Plano 4.
 
 ## Netlify
 
