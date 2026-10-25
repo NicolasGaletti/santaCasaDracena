@@ -34,6 +34,7 @@
 **Interfaces:**
 - Produces:
   - `alter table internacoes alter column medico_responsavel_id drop not null;`
+  - Correção herdada do Plano 1 (revisão final): `alter default privileges for role postgres revoke execute on functions from public;` (sem `IN SCHEMA`; o `IN SCHEMA` da 0005 não remove o padrão global). pgTAP: criar função de teste dentro do teste e afirmar `not has_function_privilege('anon', 'public.<fn>()', 'execute')`; substituir o teste vácuo de `005_endurecimento.test.sql` (~l.125) por essa checagem.
   - `drop function admitir_paciente(text, date, text, uuid, text, text, text, text, uuid);` e `create function admitir_paciente(p_nome text, p_data_nascimento date, p_convenio text, p_equipe_id uuid, p_leito_ala text, p_diagnostico_inicial text, p_comorbidades text, p_muc text) returns uuid` — mesmas regras da versão atual (perfis `medico`/`recepcao`, validações, `internacoes_clinico`, `leitos_historico`), sem médico responsável; `security definer`, `search_path = ''`, revoke `public, anon`, grant `authenticated`.
 
 - [ ] **Step 1:** pgTAP que falha: `admitir sem médico responsável cria internação com equipe`; `assinatura antiga não existe mais` (`hasnt_function('public','admitir_paciente', array['text','date','text','uuid','text','text','text','text','uuid'])`).
