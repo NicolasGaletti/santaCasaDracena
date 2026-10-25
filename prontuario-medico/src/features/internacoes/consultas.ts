@@ -10,10 +10,15 @@ export async function listarInternacoes(f: {
   const supabase = await createClient()
   let consulta = supabase.from('vw_internacoes_lista').select('*').eq('status', f.status)
   if (f.equipeId) consulta = consulta.eq('equipe_id', f.equipeId)
-  const { data, error } = await consulta.order('leito_ala').order('nome')
+  const { data, error } = await consulta
   if (error) throw new Error(error.message)
-  return data ?? []
+  return (data ?? []).sort(
+    (a, b) => ordenadorLeito.compare(a.leito_ala, b.leito_ala) || a.nome.localeCompare(b.nome, 'pt-BR'),
+  )
 }
+
+// Ordem natural do leito: "A-2" vem antes de "A-10".
+const ordenadorLeito = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' })
 
 export async function listarEquipes(): Promise<{ id: string; nome: string }[]> {
   const supabase = await createClient()
@@ -32,6 +37,7 @@ export async function listarMedicos(): Promise<{ id: string; nome: string }[]> {
     .from('vw_profissionais_publico')
     .select('id, nome')
     .eq('perfil', 'medico')
+    .eq('ativo', true)
     .order('nome')
   if (error) throw new Error(error.message)
   return (data ?? []).map((m) => ({ id: m.id, nome: m.nome }))

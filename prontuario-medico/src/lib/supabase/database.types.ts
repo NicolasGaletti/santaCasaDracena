@@ -719,6 +719,7 @@ export type Database = {
       };
       vw_profissionais_publico: {
         Row: {
+          ativo: boolean;
           categoria: Database["public"]["Enums"]["categoria_evolucao"] | null;
           conselho: string | null;
           id: string;
@@ -729,6 +730,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          ativo?: boolean | null;
           categoria?: Database["public"]["Enums"]["categoria_evolucao"] | null;
           conselho?: string | null;
           id?: string | null;
@@ -738,6 +740,7 @@ export type Database = {
           uf_conselho?: string | null;
         };
         Update: {
+          ativo?: boolean | null;
           categoria?: Database["public"]["Enums"]["categoria_evolucao"] | null;
           conselho?: string | null;
           id?: string | null;

@@ -13,7 +13,7 @@ export default async function PaginaInternados({
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Internados</h1>
+      <h1 className="sr-only">Internados</h1>
       <ListaInternacoes
         internacoes={internacoes}
         equipes={equipes}

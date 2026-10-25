@@ -24,35 +24,27 @@ export function CartaoInternacao({
       <Link
         href={`/internacoes/${linha.internacao_id}`}
         data-testid="cartao-internacao"
-        className="block h-full min-h-11 rounded-lg border border-border bg-card p-4 text-card-foreground transition-colors hover:border-primary"
+        className="flex min-h-24 items-stretch gap-3 rounded-lg border border-border bg-card p-3 text-card-foreground transition-colors hover:border-primary"
       >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-bold leading-snug">{linha.nome}</h2>
-          {mostrarStatusHoje && (
-            <Badge className={`shrink-0 ${status.classe}`}>{status.texto}</Badge>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          D.N. {formatarData(linha.data_nascimento)} ({anos} {anos === 1 ? 'ano' : 'anos'})
-        </p>
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Leito</dt>
-            <dd className="font-semibold">{linha.leito_ala}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Equipe</dt>
-            <dd className="font-semibold">{linha.equipe_nome}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Convênio</dt>
-            <dd className="font-semibold">{linha.convenio}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Médico responsável</dt>
-            <dd className="font-semibold">{linha.medico_responsavel_nome ?? '—'}</dd>
-          </div>
-        </dl>
+        <span className="flex w-16 shrink-0 items-center justify-center rounded-tag bg-accent text-lg font-bold text-accent-foreground tabular-nums">
+          {linha.leito_ala}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
+          <span className="flex items-center justify-between gap-2">
+            <h2 className="min-w-0 truncate text-base font-bold leading-snug" title={linha.nome}>
+              {linha.nome}
+            </h2>
+            {mostrarStatusHoje && (
+              <Badge className={`shrink-0 px-2 text-xs ${status.classe}`}>{status.texto}</Badge>
+            )}
+          </span>
+          <span className="truncate text-sm text-muted-foreground">
+            D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
+          </span>
+          <span className="truncate text-sm text-muted-foreground">
+            {linha.equipe_nome} · {linha.convenio}
+          </span>
+        </span>
       </Link>
     </li>
   )

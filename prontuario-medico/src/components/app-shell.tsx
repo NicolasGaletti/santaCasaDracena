@@ -16,8 +16,8 @@ const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const ROTULO_PERFIL: Record<string, string> = { medico: 'Médico(a)', recepcao: 'Recepção' }
 
 const NAVEGACAO = [
-  { href: '/', rotulo: 'Internados' },
-  { href: '/anteriores', rotulo: 'Internações anteriores' },
+  { href: '/', rotulo: 'Internados', rotuloCurto: 'Internados' },
+  { href: '/anteriores', rotulo: 'Internações anteriores', rotuloCurto: 'Anteriores' },
 ] as const
 
 export function AppShell({ profissional, children }: Props) {
@@ -44,7 +44,7 @@ export function AppShell({ profissional, children }: Props) {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
+      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <nav aria-label="Principal" className="flex gap-2">
             {NAVEGACAO.map((item) => {
@@ -54,24 +54,25 @@ export function AppShell({ profissional, children }: Props) {
                   key={item.href}
                   href={item.href}
                   aria-current={ativo ? 'page' : undefined}
-                  className={`inline-flex min-h-11 items-center rounded-md px-4 font-semibold transition-colors ${
+                  className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-md px-4 font-semibold transition-colors ${
                     ativo
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
-                  {item.rotulo}
+                  <span className="sm:hidden">{item.rotuloCurto}</span>
+                  <span className="hidden sm:inline">{item.rotulo}</span>
                 </Link>
               )
             })}
           </nav>
-          {podeAdmitir && (
+          {podeAdmitir && pathname === '/' && (
             <Button asChild size="lg" className="w-full lg:w-auto">
               <Link href="/internacoes/nova">Admitir paciente</Link>
             </Button>
           )}
         </div>
-        <main className="flex flex-1 flex-col gap-4">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col gap-4">{children}</main>
       </div>
     </div>
   )

@@ -14,7 +14,7 @@ export default async function PaginaAnteriores({
   return (
     <>
       <div>
-        <h1 className="text-2xl font-bold">Internações anteriores</h1>
+        <h1 className="sr-only">Internações anteriores</h1>
         <p className="text-sm text-muted-foreground">
           Internações encerradas. Somente leitura.
         </p>

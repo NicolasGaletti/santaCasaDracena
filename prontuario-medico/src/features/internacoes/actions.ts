@@ -32,7 +32,12 @@ export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<Es
     p_medico_responsavel_id: valores.medico,
   })
 
-  if (error || !data) return { erro: error?.message ?? 'Não foi possível admitir o paciente.', valores }
+  if (error || !data) {
+    // Só mensagens P0001 são pt-BR escritas para o usuário; o resto é erro técnico.
+    const erro =
+      error?.code === 'P0001' ? error.message : 'Não foi possível concluir a admissão. Tente novamente.'
+    return { erro, valores }
+  }
 
   redirect(`/internacoes/${data}`)
 }

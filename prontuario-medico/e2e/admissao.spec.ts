@@ -69,14 +69,23 @@ test('filtro Nefrologia esconde pacientes da Cardiologia', async ({ page }) => {
   await expect(page.getByText('Paciente Fictício 01')).toHaveCount(0);
 });
 
-test('anteriores mostra só ALTA, sem botão de evoluir', async ({ page }) => {
+test('anteriores mostra só ALTA, sem ações de admissão ou evolução', async ({ page }) => {
   await entrar(page, 'medico1@teste.local');
-  await page.getByRole('link', { name: 'Internações anteriores' }).click();
+  await page
+    .getByRole('navigation', { name: 'Principal' })
+    .getByRole('link', { name: /anteriores/i })
+    .click();
   await expect(page).toHaveURL(/\/anteriores$/);
 
-  await expect(page.getByText('Paciente Fictício 07')).toBeVisible();
-  await expect(page.getByText('Paciente Fictício 08')).toBeVisible();
-  await expect(page.getByText('Paciente Fictício 01')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /evoluir/i })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /evoluir/i })).toHaveCount(0);
+  // Seed: exatamente duas internações ALTA (07 e 08); nenhuma INTERNADO (01-06).
+  const cartoes = page.getByTestId('cartao-internacao');
+  await expect(cartoes).toHaveCount(2);
+  await expect(cartoes.filter({ hasText: 'Paciente Fictício 07' })).toHaveCount(1);
+  await expect(cartoes.filter({ hasText: 'Paciente Fictício 08' })).toHaveCount(1);
+  for (const n of ['01', '02', '03', '04', '05', '06']) {
+    await expect(page.getByText(`Paciente Fictício ${n}`)).toHaveCount(0);
+  }
+
+  await expect(page.getByText('Sem evolução')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Admitir paciente' })).toHaveCount(0);
 });

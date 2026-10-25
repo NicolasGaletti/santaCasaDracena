@@ -199,7 +199,7 @@ create trigger auditar_equipes after insert or update or delete on public.equipe
 
 -- View pública: nome e conselho de todos os ativos; quem não está ativo não vê nada
 create view public.vw_profissionais_publico as
-  select id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho
+  select id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho, ativo
   from public.profissionais
   where app.profissional_ativo();
 
