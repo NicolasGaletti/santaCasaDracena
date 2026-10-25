@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { Copy } from 'lucide-react'
+import { toast } from 'sonner'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -40,6 +42,8 @@ type CampoExame = keyof DadosMedica['exame_fisico']
 const FUSO_SP = 'America/Sao_Paulo'
 const MENSAGEM_SEM_CONEXAO =
   'Sem conexão: a evolução não foi finalizada. Ela continua salva neste aparelho; tente de novo quando a conexão voltar.'
+
+const MENSAGEM_SALVAR_SEM_CONEXAO = 'Sem conexão: o rascunho continua salvo neste aparelho.'
 
 const MENSAGEM_RESIDENTE = 'Rascunho salvo. O envio para validação do médico chega em breve.'
 
@@ -155,6 +159,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
   const [erros, setErros] = useState<string[]>([])
   const [dialogo, setDialogo] = useState<null | 'finalizar' | 'descartar'>(null)
   const [enviando, setEnviando] = useState(false)
+  const [salvando, setSalvando] = useState(false)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
   const travaFinalizacao = useRef(false)
 
@@ -224,6 +229,19 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
     const lido = lerNumero(texto)
     const valor = campo === 'pa' ? texto.trim() : lido.ok ? lido.valor : null
     alterar({ ...dados, sinais: { ...dados.sinais, [campo]: valor } as DadosMedica['sinais'] })
+  }
+
+  /** Envio imediato do rascunho (sem esperar o autosave). Falha não deixa o botão travado. */
+  async function salvarAgora() {
+    setSalvando(true)
+    try {
+      await fila.forcar()
+      toast.success('Rascunho salvo.')
+    } catch {
+      toast.error(fila.estado === 'erro' ? (fila.mensagemErro ?? MENSAGEM_SALVAR_SEM_CONEXAO) : MENSAGEM_SALVAR_SEM_CONEXAO)
+    } finally {
+      setSalvando(false)
+    }
   }
 
   function copiarAnterior() {
@@ -446,7 +464,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         </Accordion>
       </form>
 
-      <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:left-auto lg:mx-auto lg:max-w-6xl">
+      <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:left-auto lg:mx-auto lg:max-w-6xl">
         <p role="status" aria-live="polite" className="min-w-0 shrink text-xs font-semibold text-muted-foreground">
           {indicador}
         </p>
@@ -454,12 +472,17 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
           <Button
             type="button"
             variant="outline"
-            disabled={!anterior || enviando}
+            disabled={!anterior || enviando || salvando}
             title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
+            aria-label="Copiar anterior"
             onClick={copiarAnterior}
             className="h-11 px-3 text-sm"
           >
-            Copiar anterior
+            <Copy aria-hidden="true" className="sm:hidden" />
+            <span className="hidden sm:inline">Copiar anterior</span>
+          </Button>
+          <Button type="button" variant="secondary" disabled={enviando || salvando} onClick={salvarAgora} className="h-11 px-3 text-sm">
+            Salvar
           </Button>
           {podeFinalizar && (
             <Button type="button" disabled={enviando} onClick={pedirFinalizacao} className="h-11 px-4">

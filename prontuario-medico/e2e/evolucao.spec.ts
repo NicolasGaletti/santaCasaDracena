@@ -63,6 +63,36 @@ test('médico escreve, recarrega e o texto continua', async ({ page }) => {
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Paciente estável, sem queixas novas');
 });
 
+test('botão Salvar grava na hora', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  await page.getByLabel('Evolução clínica').fill('Texto salvo pelo botão');
+  // Antes do autosave (3 s): o clique precisa gravar sozinho.
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 5_000 });
+
+  await page.reload();
+  await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto salvo pelo botão');
+});
+
+test('salvar offline mostra sem conexão', async ({ page, context }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  await context.setOffline(true);
+  await page.getByLabel('Evolução clínica').fill('Texto salvo offline pelo botão');
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText('Sem conexão: o rascunho continua salvo neste aparelho.')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Salvar', exact: true })).toBeEnabled();
+
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
+});
+
 test('copiar anterior preenche conduta', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
