@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Prontuário de internação — Santa Casa de Dracena
 
-## Getting Started
+Sistema de prontuário de internação: lista de internados, admissão, evolução médica com autosave, PDF A4 e impressão com controle de vias.
 
-First, run the development server:
+Projeto Next.js dentro de `prontuario-medico/`. Visão geral do repositório no [README da raiz](../README.md).
+
+## Stack
+
+- Next.js 16 (App Router) + React 19 + TypeScript
+- Tailwind CSS 4 + shadcn/ui (Radix)
+- Supabase (Postgres, Auth, RLS) via `@supabase/ssr`
+- Zod, date-fns, `@react-pdf/renderer` e `pdf-lib`
+- Testes: Vitest + Testing Library (unidade), pgTAP via Supabase CLI (banco), Playwright (e2e)
+
+## Rodar localmente
+
+Pré-requisitos: Node 20+, Docker (o Supabase local roda em containers).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd prontuario-medico
+npm ci
+
+# 1. Subir o Supabase local (aplica migrations e seed)
+npx supabase start
+npx supabase db reset   # reaplica migrations + seed do zero, quando necessário
+
+# 2. Criar .env.development.local com a URL e a publishable key locais
+#    (valores em: npx supabase status -o env)
+
+# 3. Subir o app
+npm run dev             # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Não commitar `.env*` com chaves reais.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usuários de teste
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Dados fictícios, criados pelo `supabase/seed.sql`. Senha de todos: `Teste@123`.
 
-## Learn More
+| E-mail | Perfil |
+|---|---|
+| medico1@teste.local | Médico (com CRM) |
+| medico2@teste.local | Médico (com CRM) |
+| medico.semcrm@teste.local | Médico sem CRM |
+| recepcao@teste.local | Recepção |
+| inativo@teste.local | Usuário inativo (acesso negado) |
 
-To learn more about Next.js, take a look at the following resources:
+## Testes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run test          # unidade (Vitest)
+npm run test:db       # banco: pgTAP em supabase/tests (exige supabase start)
+npm run test:e2e      # Playwright (sobe o app com npm run dev, se necessário)
+npm run typecheck     # tsc --noEmit
+npm run lint          # ESLint
+npm run build         # build de produção
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Verificação completa da fatia:
 
-## Deploy on Vercel
+```bash
+npx supabase db reset && npm run test:db && npm run test && npm run typecheck && npm run lint && npm run build && npm run test:e2e
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Banco de dados
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Migrations em `supabase/migrations`. Nunca editar uma migration já aplicada em algum ambiente; criar uma nova.
+- Tipos do banco: `npm run db:types` (gera `src/lib/supabase/database.types.ts` a partir do banco local).
+
+## Branches e deploy
+
+Fluxo: `develop` → `staging` → `main`. Trabalho do dia a dia em `develop`; staging é deployado no Netlify a partir da branch `staging`.
+
+Detalhes de ambientes, migrations em staging e configuração do Netlify em [`docs/deploy.md`](../docs/deploy.md).
+
+## Documentação
+
+- Spec: [`docs/superpowers/specs/2026-10-25-prontuario-design.md`](../docs/superpowers/specs/2026-10-25-prontuario-design.md)
+- Plano da fatia 1: [`docs/superpowers/plans/2026-10-25-plano-1-fatia-testavel.md`](../docs/superpowers/plans/2026-10-25-plano-1-fatia-testavel.md)
