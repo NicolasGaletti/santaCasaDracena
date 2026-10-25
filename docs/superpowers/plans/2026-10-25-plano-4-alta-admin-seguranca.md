@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fechar a v1: alta médica com folha de alta; área de administração (equipes, profissionais com função escolhida, vínculos, convites e desativação); recuperação de senha; MFA para médico/admin/auditoria; expiração por inatividade; tela de auditoria; PWA; headers de segurança; CI e backup diário.
+**Goal:** Fechar a v1: alta médica com folha de alta; área de administração (equipes, profissionais com função escolhida, vínculos, convites e desativação); recuperação de senha; MFA para admin; notificações (sino + push de pendências); expiração por inatividade; tela de auditoria; PWA; headers de segurança; CI e backup diário.
 
 **Architecture:** Alta e administração por funções Postgres (`security definer`) com checagem de perfil. Convite/desativação de usuários via **Edge Function `admin-usuarios`** (a única peça com `service_role`, que nunca sai do Supabase). MFA TOTP do Supabase Auth com exigência de `aal2` no app e no banco para perfis sensíveis. PWA mínimo (manifest + service worker só para o shell). GitHub Actions para CI e para `pg_dump` criptografado no Cloudflare R2.
 
@@ -19,7 +19,8 @@
 - Admin (`admin`) gerencia equipes, profissionais e vínculos; **não lê conteúdo clínico** (RLS já garante) e toda ação dele vai para `auditoria`.
 - Funções na tela de convite (decisão 13 / spec 6.6.1): Médico, Residente, Interno (acadêmico), Enfermagem, Fisioterapia, Nutrição, Psicologia, Fonoaudiologia, Serviço social, Recepção, Auditoria, Admin. Mapeamento → `perfil` + `categoria`: médico→`medico`/null; residente→`residente`/null; interno→`academico`/null; enfermagem…serviço social→`multiprofissional`/categoria correspondente; recepção→`recepcao`; auditoria→`auditoria`; admin→`admin`. Conselho sugerido: médico/residente CRM; enfermagem COREN; fisioterapia CREFITO; nutrição CRN; psicologia CRP; fonoaudiologia CRFa; serviço social CRESS; interno/recepção/auditoria/admin sem conselho.
 - `service_role` só dentro da Edge Function (variável automática do Supabase). Nunca no Netlify, nunca no navegador, nunca no repositório.
-- MFA TOTP obrigatório para `medico`, `admin`, `auditoria`: sem fator → tela de cadastro obrigatória; com fator e sessão `aal1` → tela de código. No banco: `app.exige_aal2()` usado pelas funções de escrita desses perfis (`auth.jwt()->>'aal' = 'aal2'`).
+- MFA TOTP obrigatório **só para `admin`** (decisão do usuário): sem fator → tela de cadastro obrigatória; com fator e sessão `aal1` → tela de código. No banco: `app.exige_aal2()` (perfil `admin` com `aal` ≠ `aal2` → P0001) usado pelas funções `admin_*`. Demais perfis podem cadastrar MFA opcionalmente em `/conta/seguranca`.
+- Notificações (decisão do usuário): tabela `notificacoes`; **push só para pendências** — `evolução aguardando validação` (médicos da equipe) e `evolução devolvida` (autor); `validada`, `nova evolução finalizada na equipe` e `paciente admitido na equipe` só no sino. Texto do push sem nome de paciente nem conteúdo clínico (ex.: `Nova evolução aguardando sua validação · Leito A-02`). Preferências por usuário.
 - Inatividade: 30 min sem interação → logout e volta ao login com `Sua sessão expirou por inatividade.` Logout (manual ou por inatividade) apaga as cópias locais de rascunho do IndexedDB.
 - Headers em todas as respostas: CSP (`default-src 'self'`; `connect-src 'self' https://*.supabase.co wss://*.supabase.co`; `img-src 'self' data: blob: https://*.supabase.co`; `frame-ancestors 'none'`), `Strict-Transport-Security: max-age=63072000; includeSubDomains`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(), geolocation=()`, `X-Content-Type-Options: nosniff`; páginas autenticadas e rotas de PDF com `Cache-Control: no-store`.
 - PWA: nome "Prontuário Santa Casa", `display: standalone`, ícones 192/512 e maskable; o service worker faz cache **apenas** do shell estático e da página offline (`Sem conexão. Abra o app quando a rede voltar.`); nenhuma rota de dados, PDF ou Storage em cache.
@@ -29,7 +30,7 @@
 
 1. **Admin tenta ler evolução ou anexo:** continua negado (regressão das RLS). Teste: Task 3 `admin não lê conteúdo clínico`.
 2. **Profissional desativado com sessão aberta no celular:** próxima requisição já bloqueada (`exigirProfissional` + `app.profissional_ativo()`), e a Edge Function revoga as sessões. Teste: Task 4 `desativar revoga sessões`.
-3. **Médico sem MFA chamando a API direto (fora do app):** funções de escrita recusam `aal1`. Teste: Task 7 `médico aal1 não finaliza`.
+3. **Admin sem MFA chamando a API direto (fora do app):** funções `admin_*` recusam `aal1`. Teste: Task 7 `admin aal1 não cria equipe`.
 4. **Alta com data futura ou antes da admissão:** recusada. Teste: Task 1.
 5. **Convite para e-mail já cadastrado / função sem conselho exigido:** mensagem clara, nada duplicado. Teste: Task 4.
 
@@ -107,15 +108,34 @@
 
 ---
 
-### Task 7: MFA obrigatório para perfis sensíveis
+### Task 7: MFA obrigatório para admin
 
 **Files:** Create `supabase/migrations/20261025000014_aal2.sql`, `supabase/tests/014_aal2.test.sql`, `src/app/mfa/cadastrar/page.tsx`, `src/app/mfa/verificar/page.tsx`, `src/features/mfa/*`, `e2e/mfa.spec.ts`; Modify `src/lib/auth.ts` (`exigirProfissional` checa `aal` para perfis sensíveis), `supabase/config.toml` (`[auth.mfa.totp] enroll_enabled = true, verify_enabled = true`)
 
-**Interfaces:** `app.exige_aal2()` (raise P0001 `Confirme o código do autenticador para continuar.` quando perfil ∈ {medico, admin, auditoria} e `aal` ≠ `aal2`), chamado no início de `finalizar_evolucao`, `validar_evolucao`, `devolver_evolucao`, `dar_alta`, `admin_*`, `criar_adendo` (recriar com `create or replace` mantendo as regras atuais). Telas: cadastro com QR code (`mfa.enroll` → `qr_code`), confirmação do primeiro código, verificação a cada login (`mfa.challengeAndVerify`). Seed/testes: helper para gerar TOTP no e2e (`otplib` como devDependency) a partir do secret do enroll.
+**Interfaces:** `app.exige_aal2()` (raise P0001 `Confirme o código do autenticador para continuar.` quando perfil = `admin` e `aal` ≠ `aal2`), chamado no início das funções `admin_*` (recriar com `create or replace` mantendo as regras atuais). Página opcional `/conta/seguranca` para qualquer perfil cadastrar MFA. Telas: cadastro com QR code (`mfa.enroll` → `qr_code`), confirmação do primeiro código, verificação a cada login (`mfa.challengeAndVerify`). Seed/testes: helper para gerar TOTP no e2e (`otplib` como devDependency) a partir do secret do enroll.
 
-- [ ] Steps: pgTAP (`médico aal1 não finaliza`; `médico aal2 finaliza`; `enfermagem não precisa de aal2`) + E2E (`médico sem fator é levado ao cadastro`; `com fator pede código no login`) → FAIL → implementar → PASS (atualizar e2e existentes de médico para logar com TOTP via helper) → commit `feat(auth): MFA obrigatório para médico, admin e auditoria`.
+- [ ] Steps: pgTAP (`admin aal1 não cria equipe`; `admin aal2 cria equipe`; `médico aal1 finaliza normalmente`) + E2E (`admin sem fator é levado ao cadastro`; `admin com fator pede código no login`; `médico entra só com senha`) → FAIL → implementar → PASS → commit `feat(auth): MFA obrigatório para admin`.
 
 ---
+
+### Task 7b: Notificações — banco e envio
+
+**Files:** Create `supabase/migrations/20261025000015_notificacoes.sql`, `supabase/tests/015_notificacoes.test.sql`, `supabase/functions/enviar-push/index.ts`; Modify `supabase/config.toml`
+
+**Interfaces:**
+- `notificacoes (id, destinatario_id, tipo text check in ('validacao_pendente','evolucao_devolvida','evolucao_validada','evolucao_equipe','admissao_equipe'), internacao_id, evolucao_id, texto text, lida_em timestamptz, criada_em)`; RLS: destinatário lê/atualiza `lida_em` das próprias (função `marcar_lida(p_id)` / `marcar_todas_lidas()`); nenhum outro acesso.
+- `preferencias_notificacao (profissional_id pk, push_validacao boolean default true, push_devolvida boolean default true)`; `push_assinaturas (id, profissional_id, endpoint unique, p256dh, auth, criada_em)` com funções `registrar_assinatura_push(...)` / `remover_assinatura_push(endpoint)`.
+- Geração: dentro de `enviar_evolucao` (→ `validacao_pendente` para cada médico ativo da equipe, exceto o autor), `devolver_evolucao` (→ `evolucao_devolvida` ao autor), `app.finalizar_core` (→ `evolucao_validada` ao autor quando validador ≠ autor; `evolucao_equipe` aos médicos da equipe exceto validador), `admitir_paciente` (→ `admissao_equipe` aos médicos da equipe) — `create or replace` mantendo regras.
+- Push: Database Webhook (ou `pg_net`) em INSERT de `notificacoes` com tipo ∈ {validacao_pendente, evolucao_devolvida} chama a Edge Function `enviar-push` (Web Push com VAPID; chaves em secrets do Supabase); assinaturas inválidas (410) são removidas.
+- Steps: pgTAP (geração de cada tipo; destinatário só lê as suas; recepção não recebe) → FAIL → migration + função → PASS → commit `feat(notificacoes): geração e envio de push`.
+
+### Task 7c: Notificações — interface
+
+**Files:** Create `src/features/notificacoes/*` (sino com contador no `app-shell`, lista em `/notificacoes`, preferências em `/conta/notificacoes`, registro do service worker push), `e2e/notificacoes.spec.ts`
+
+**Interfaces:** sino com contador de não lidas (Supabase Realtime na tabela `notificacoes` filtrada pelo usuário); lista com link para a internação/evolução e "marcar todas como lidas"; ativar push pede permissão do navegador e registra a assinatura (explicar que no iPhone exige app instalado na tela inicial); preferências liga/desliga push de validação e de devolução.
+
+- Steps: E2E (`acadêmico envia e o médico vê o contador subir`; `marcar como lida zera o contador`; `preferências salvam`) → FAIL → implementar (frontend-design) → PASS → commit `feat(notificacoes): sino e preferências`.
 
 ### Task 8: Sessão por inatividade e limpeza local
 

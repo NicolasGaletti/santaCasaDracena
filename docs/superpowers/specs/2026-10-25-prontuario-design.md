@@ -77,6 +77,7 @@ A escolha do A é decisão do Claude, a pedido do usuário ("me sugerir a melhor
 11. **Anexos de exames:** laboratório e imagem aceitam arquivos de imagem enviados junto com a evolução, para acompanhamento.
 12. **Netlify Free no começo**, com teste real de alguns dias assim que houver uma fatia funcional.
 13. **Pedidos do PO (2026-10-25):** equipe responsável no lugar de médico responsável (atendem pacientes de outros médicos); convênio como filtro da lista, junto com a equipe; internos (acadêmicos) atualizam evoluções **sem CRM**, com validação de um médico da equipe e assinatura do médico no papel; botão "Salvar" explícito além do autosave ("Salvar e fechar" = Finalizar). Convênio = filtro da lista e remoção total do médico responsável: confirmados pelo usuário em 2026-10-25.
+14. **Plano 4 (respostas do usuário, 2026-10-25):** notificações push só para pendências (evolução aguardando validação → médicos da equipe; devolvida → autor); demais eventos só no sino do app; MFA obrigatório só para admin; logout por inatividade em 30 min; o primeiro admin é o próprio usuário (e-mail informado na hora de rodar o script, nunca gravado no repositório).
 
 ## 6. Design
 
@@ -177,7 +178,7 @@ RASCUNHO ──finalizar (autor médico)──► FINALIZADA
 ### 6.6 Autenticação e sessão
 
 - E-mail/senha via Supabase Auth; SSO Google/Azure só se o hospital usar Google Workspace/Microsoft 365 (o esboço atual fica desligado até confirmar). Cadastro público desligado; usuários são convidados pelo admin.
-- MFA (TOTP) obrigatório para `medico`, `admin` e `auditoria`; opcional para os demais. **Decisão do Claude.**
+- MFA (TOTP) obrigatório **apenas para `admin`**; opcional para os demais. **Decisão do usuário (2026-10-25).**
 - Sessão expira após 30 min de inatividade no app; o refresh token tem vida limitada. O admin pode revogar as sessões de um usuário (aparelho perdido) e desativar a conta.
 
 ### 6.6.1 Administração (perfil `admin`)
@@ -187,7 +188,7 @@ RASCUNHO ──finalizar (autor médico)──► FINALIZADA
 - **Vínculos:** adicionar e remover profissionais de cada equipe (N:N), com a tela por equipe e por profissional.
 - O convite e a desativação usam a Admin API do Supabase, que exige `service_role`. Essa chave fica só numa **Edge Function do Supabase** (`admin-usuarios`), que confere se quem chamou tem perfil `admin`. A chave nunca vai para o Netlify nem para o navegador.
 - Toda ação de admin entra em `auditoria`. O admin não lê nem edita conteúdo clínico.
-- Primeiro admin: criado uma vez por script/SQL no painel do Supabase.
+- Primeiro admin: o próprio usuário, criado por `supabase/scripts/primeiro-admin.sql` com o e-mail passado na hora (`psql -v email=...`), nunca gravado no repositório.
 
 ### 6.7 Segurança e conformidade
 
