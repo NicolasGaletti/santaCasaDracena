@@ -22,7 +22,7 @@ export function ListaInternacoes({
     <div className="flex min-w-0 flex-col gap-4">
       <nav
         aria-label="Filtrar por equipe"
-        className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {[{ id: undefined, nome: 'Todas as equipes' }, ...equipes].map((e) => {
           const ativo = e.id === equipeAtual

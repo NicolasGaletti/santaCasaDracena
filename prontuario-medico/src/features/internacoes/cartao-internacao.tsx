@@ -29,20 +29,20 @@ export function CartaoInternacao({
         <span className="flex w-16 shrink-0 items-center justify-center rounded-tag bg-accent text-lg font-bold text-accent-foreground tabular-nums">
           {linha.leito_ala}
         </span>
-        <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
-          <span className="flex items-center justify-between gap-2">
-            <h2 className="min-w-0 truncate text-base font-bold leading-snug" title={linha.nome}>
-              {linha.nome}
-            </h2>
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+          <h2 className="line-clamp-2 break-words text-base font-bold leading-snug">
+            {linha.nome}
+          </h2>
+          <span className="text-sm text-muted-foreground">
+            D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
+          </span>
+          <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <span className="min-w-0 text-sm text-muted-foreground">
+              {linha.equipe_nome} · {linha.convenio}
+            </span>
             {mostrarStatusHoje && (
               <Badge className={`shrink-0 px-2 text-xs ${status.classe}`}>{status.texto}</Badge>
             )}
-          </span>
-          <span className="truncate text-sm text-muted-foreground">
-            D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
-          </span>
-          <span className="truncate text-sm text-muted-foreground">
-            {linha.equipe_nome} · {linha.convenio}
           </span>
         </span>
       </Link>
