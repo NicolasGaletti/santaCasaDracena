@@ -47,14 +47,19 @@ create table public.internacoes (
   equipe_id uuid not null references public.equipes(id) on delete restrict,
   medico_responsavel_id uuid not null references public.profissionais(id) on delete restrict,
   leito_ala text not null,
-  diagnostico_inicial text not null,
-  comorbidades text not null,
-  muc text not null,
   status status_internacao not null default 'INTERNADO',
   admitido_em timestamptz not null default now(),
   alta_em timestamptz,
   motivo_alta text,
   alta_por uuid references public.profissionais(id) on delete restrict
+);
+
+-- Dados clínicos da internação: separados para restringir leitura a perfis clínicos
+create table public.internacoes_clinico (
+  internacao_id uuid primary key references public.internacoes(id) on delete restrict,
+  diagnostico_inicial text,
+  comorbidades text,
+  muc text
 );
 
 create table public.evolucoes (
@@ -167,7 +172,7 @@ begin
   insert into public.auditoria (tabela, registro_id, operacao, antes, depois, por)
   values (
     tg_table_name,
-    coalesce(r->>'id', (r->>'profissional_id') || '/' || (r->>'equipe_id')),
+    coalesce(r->>'id', r->>'internacao_id', (r->>'profissional_id') || '/' || (r->>'equipe_id')),
     tg_op,
     case when tg_op in ('UPDATE','DELETE') then to_jsonb(old) end,
     case when tg_op in ('INSERT','UPDATE') then to_jsonb(new) end,
@@ -181,17 +186,22 @@ create trigger auditar_pacientes after insert or update or delete on public.paci
   for each row execute function app.auditar();
 create trigger auditar_internacoes after insert or update or delete on public.internacoes
   for each row execute function app.auditar();
+create trigger auditar_internacoes_clinico after insert or update or delete on public.internacoes_clinico
+  for each row execute function app.auditar();
 create trigger auditar_evolucoes after insert or update or delete on public.evolucoes
   for each row execute function app.auditar();
 create trigger auditar_profissionais after insert or update or delete on public.profissionais
   for each row execute function app.auditar();
 create trigger auditar_membros_equipe after insert or update or delete on public.membros_equipe
   for each row execute function app.auditar();
+create trigger auditar_equipes after insert or update or delete on public.equipes
+  for each row execute function app.auditar();
 
--- View pública: nome e conselho de todos; profissionais só mostra o próprio registro
+-- View pública: nome e conselho de todos os ativos; quem não está ativo não vê nada
 create view public.vw_profissionais_publico as
   select id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho
-  from public.profissionais;
+  from public.profissionais
+  where app.profissional_ativo();
 
 -- RLS em todas as tabelas
 alter table public.profissionais enable row level security;
@@ -199,6 +209,7 @@ alter table public.equipes enable row level security;
 alter table public.membros_equipe enable row level security;
 alter table public.pacientes enable row level security;
 alter table public.internacoes enable row level security;
+alter table public.internacoes_clinico enable row level security;
 alter table public.evolucoes enable row level security;
 alter table public.impressoes enable row level security;
 alter table public.acessos enable row level security;
@@ -210,18 +221,39 @@ create policy pacientes_select on public.pacientes for select to authenticated
   using (app.profissional_ativo());
 create policy internacoes_select on public.internacoes for select to authenticated
   using (app.profissional_ativo());
+create policy internacoes_clinico_select on public.internacoes_clinico for select to authenticated
+  using (app.eh_clinico());
 create policy equipes_select on public.equipes for select to authenticated
   using (app.profissional_ativo());
 create policy membros_equipe_select on public.membros_equipe for select to authenticated
   using (app.profissional_ativo());
 create policy evolucoes_select on public.evolucoes for select to authenticated
-  using (app.eh_clinico() and (status = 'FINALIZADA' or autor_id = auth.uid()));
+  using (
+    app.eh_clinico() and (
+      status = 'FINALIZADA'
+      or autor_id = auth.uid()
+      or (
+        status = 'AGUARDANDO_VALIDACAO'
+        and app.eh_medico()
+        and app.membro_equipe((select i.equipe_id from public.internacoes i where i.id = evolucoes.internacao_id))
+      )
+    )
+  );
+create policy impressoes_select on public.impressoes for select to authenticated
+  using (app.eh_clinico());
+create policy leitos_historico_select on public.leitos_historico for select to authenticated
+  using (app.profissional_ativo());
+create policy acessos_select on public.acessos for select to authenticated
+  using (app.perfil_atual() = 'auditoria');
+create policy auditoria_select on public.auditoria for select to authenticated
+  using (app.perfil_atual() = 'auditoria');
 create policy profissionais_select_proprio on public.profissionais for select to authenticated
   using (id = auth.uid());
 
 -- Privilégios: anon não acessa nada; authenticated só SELECT
 revoke all on all tables in schema public from anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon;
+alter default privileges in schema public revoke insert, update, delete on tables from authenticated;
 grant select on all tables in schema public to authenticated;
 grant select on public.vw_profissionais_publico to authenticated;
 revoke all on public.vw_profissionais_publico from anon, public;

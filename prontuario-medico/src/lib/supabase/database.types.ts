@@ -291,14 +291,11 @@ export type Database = {
           admitido_em: string;
           alta_em: string | null;
           alta_por: string | null;
-          comorbidades: string;
-          diagnostico_inicial: string;
           equipe_id: string;
           id: string;
           leito_ala: string;
           medico_responsavel_id: string;
           motivo_alta: string | null;
-          muc: string;
           paciente_id: string;
           status: Database["public"]["Enums"]["status_internacao"];
         };
@@ -307,14 +304,11 @@ export type Database = {
           admitido_em?: string;
           alta_em?: string | null;
           alta_por?: string | null;
-          comorbidades: string;
-          diagnostico_inicial: string;
           equipe_id: string;
           id?: string;
           leito_ala: string;
           medico_responsavel_id: string;
           motivo_alta?: string | null;
-          muc: string;
           paciente_id: string;
           status?: Database["public"]["Enums"]["status_internacao"];
         };
@@ -322,14 +316,11 @@ export type Database = {
           admitido_em?: string;
           alta_em?: string | null;
           alta_por?: string | null;
-          comorbidades?: string;
-          diagnostico_inicial?: string;
           equipe_id?: string;
           id?: string;
           leito_ala?: string;
           medico_responsavel_id?: string;
           motivo_alta?: string | null;
-          muc?: string;
           paciente_id?: string;
           status?: Database["public"]["Enums"]["status_internacao"];
         };
@@ -374,6 +365,36 @@ export type Database = {
             columns: ["paciente_id"];
             isOneToOne: false;
             referencedRelation: "pacientes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      internacoes_clinico: {
+        Row: {
+          comorbidades: string | null;
+          diagnostico_inicial: string | null;
+          internacao_id: string;
+          muc: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          comorbidades?: string | null;
+          diagnostico_inicial?: string | null;
+          internacao_id: string;
+          muc?: string | null;
+        };
+        Update: {
+          comorbidades?: string | null;
+          diagnostico_inicial?: string | null;
+          internacao_id?: string;
+          muc?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "internacoes_clinico_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: true;
+            referencedRelation: "internacoes";
             referencedColumns: ["id"];
           },
         ];
