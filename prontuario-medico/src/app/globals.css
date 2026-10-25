@@ -1,26 +1,138 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tokens de design (Santa Casa Dracena).
+ * Paleta: papel frio + tinta petróleo. Sem teal do protótipo.
+ * Contrastes WCAG AA verificados: texto >= 6:1, borda de controle 4.2:1.
+ * Só modo claro: o uso noturno vem do brilho do dispositivo, não de um tema escuro.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Superfícies e texto */
+  --background: #f4f6f4;
+  --foreground: #17232b;
+  --card: #ffffff;
+  --card-foreground: #17232b;
+  --popover: #ffffff;
+  --popover-foreground: #17232b;
+  --muted: #edf1f2;
+  --muted-foreground: #4b5b64;
+
+  /* Ação principal: petróleo */
+  --primary: #1d4f63;
+  --primary-foreground: #ffffff;
+  --secondary: #e6ebed;
+  --secondary-foreground: #17232b;
+  --accent: #dce8ec;
+  --accent-foreground: #123845;
+
+  /* Erro */
+  --destructive: #9b1c1c;
+  --destructive-soft: #fbe4e4;
+  --destructive-soft-foreground: #7f1717;
+
+  /* Bordas, controles e foco */
+  --border: #d3dbdf;
+  --input: #6f7d86;
+  --ring: #a34700;
+
+  /* Status clínico: sempre texto + cor, nunca só cor */
+  --status-feito-bg: #ddefe0;
+  --status-feito-fg: #1e5631;
+  --status-rascunho-bg: #fcebc4;
+  --status-rascunho-fg: #6b4300;
+  --status-nenhum-bg: #e6ebed;
+  --status-nenhum-fg: #34414a;
+
+  /* Raios: controles 8px, cartões 12px, etiquetas 4px */
+  --radius: 0.5rem;
+  --radius-card: 0.75rem;
+  --radius-tag: 0.25rem;
+
+  /* Tipografia: Atkinson Hyperlegible, pensada para leitura rápida */
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-status-feito-bg: var(--status-feito-bg);
+  --color-status-feito-fg: var(--status-feito-fg);
+  --color-status-rascunho-bg: var(--status-rascunho-bg);
+  --color-status-rascunho-fg: var(--status-rascunho-fg);
+  --color-status-nenhum-bg: var(--status-nenhum-bg);
+  --color-status-nenhum-fg: var(--status-nenhum-fg);
+
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-card);
+  --radius-xl: calc(var(--radius-card) * 1.25);
+  --radius-tag: var(--radius-tag);
+
+  --font-sans: var(--font-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    font-size: 17px;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foco sempre visível, em todos os elementos interativos. */
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role="button"],
+  select {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Movimento só como resposta a ação do usuário; desligado quando o sistema pede. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
