@@ -1,9 +1,11 @@
 begin;
-select plan(37);
+select plan(55);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
 select set_config('tst.medico_b', tests.criar_profissional('medico')::text, true);
+select set_config('tst.medico_sem_conselho', tests.criar_profissional('medico', false)::text, true);
+select set_config('tst.medico_inativo', tests.criar_profissional('medico')::text, true);
 select set_config('tst.residente', tests.criar_profissional('residente', true, 'medica')::text, true);
 select set_config('tst.residente_sem_conselho', tests.criar_profissional('residente', false, 'medica')::text, true);
 select set_config('tst.academico', tests.criar_profissional('academico', false)::text, true);
@@ -15,16 +17,21 @@ insert into public.equipes (id, nome) values
 
 insert into public.membros_equipe (profissional_id, equipe_id) values
   (current_setting('tst.medico_a')::uuid, '11100000-0000-0000-0000-000000000001'),
+  (current_setting('tst.medico_sem_conselho')::uuid, '11100000-0000-0000-0000-000000000001'),
+  (current_setting('tst.medico_inativo')::uuid, '11100000-0000-0000-0000-000000000001'),
   (current_setting('tst.residente')::uuid, '11100000-0000-0000-0000-000000000001'),
   (current_setting('tst.residente_sem_conselho')::uuid, '11100000-0000-0000-0000-000000000001'),
   (current_setting('tst.academico')::uuid, '11100000-0000-0000-0000-000000000001'),
   (current_setting('tst.multi')::uuid, '11100000-0000-0000-0000-000000000001'),
   (current_setting('tst.medico_b')::uuid, '11100000-0000-0000-0000-000000000002');
 
--- 20 pacientes e 20 internações (todas na Clínica Médica, médico A responsável)
+-- o médico inativo sai do ar depois de ser criado (postgres, transaction-local)
+update public.profissionais set ativo = false where id = current_setting('tst.medico_inativo')::uuid;
+
+-- 30 pacientes e 30 internações (todas na Clínica Médica, médico A responsável)
 insert into public.pacientes (id, nome, data_nascimento, convenio)
 select ('22200000-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'Paciente ' || g, '1950-01-01', 'SUS'
-from generate_series(1, 20) g;
+from generate_series(1, 30) g;
 
 insert into public.internacoes (id, paciente_id, equipe_id, medico_responsavel_id, leito_ala)
 select ('33300000-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid,
@@ -32,7 +39,7 @@ select ('33300000-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid,
        '11100000-0000-0000-0000-000000000001',
        current_setting('tst.medico_a')::uuid,
        'L-' || g
-from generate_series(1, 20) g;
+from generate_series(1, 30) g;
 
 -- Evoluções (autor e status por número; internação de mesmo número, exceto 19 que usa a 18)
 -- 1 RASCUNHO residente | 2 RASCUNHO acadêmico | 3 RASCUNHO residente sem conselho
@@ -43,6 +50,8 @@ from generate_series(1, 20) g;
 -- 14 RASCUNHO residente (anexo não enviado) | 16 AGUARDANDO acadêmico
 -- 17 AGUARDANDO residente (anexo confirmado sem arquivo) | 18 AGUARDANDO residente
 -- 19 RASCUNHO residente na internação 18
+-- 21 AGUARDANDO residente (recusas de validar/devolver) | 22 RASCUNHO residente (enviar por não autor)
+-- 23 RASCUNHO multi simples@1 completo | 24 RASCUNHO residente com modelo simples@1 (tie)
 insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, enviada_em) values
   ('44400000-0000-0000-0000-000000000001', '33300000-0000-0000-0000-000000000001', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', null),
   ('44400000-0000-0000-0000-000000000002', '33300000-0000-0000-0000-000000000002', 'medica', current_setting('tst.academico')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', null),
@@ -60,7 +69,11 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, da
   ('44400000-0000-0000-0000-000000000016', '33300000-0000-0000-0000-000000000016', 'medica', current_setting('tst.academico')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', now()),
   ('44400000-0000-0000-0000-000000000017', '33300000-0000-0000-0000-000000000017', 'medica', current_setting('tst.residente')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', now()),
   ('44400000-0000-0000-0000-000000000018', '33300000-0000-0000-0000-000000000018', 'medica', current_setting('tst.residente')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', now()),
-  ('44400000-0000-0000-0000-000000000019', '33300000-0000-0000-0000-000000000018', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', null);
+  ('44400000-0000-0000-0000-000000000019', '33300000-0000-0000-0000-000000000018', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', null),
+  ('44400000-0000-0000-0000-000000000021', '33300000-0000-0000-0000-000000000021', 'medica', current_setting('tst.residente')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', now()),
+  ('44400000-0000-0000-0000-000000000022', '33300000-0000-0000-0000-000000000022', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'Texto', null),
+  ('44400000-0000-0000-0000-000000000023', '33300000-0000-0000-0000-000000000023', 'fisioterapia', current_setting('tst.multi')::uuid, 'RASCUNHO', '{"modelo_versao":"simples@1","texto":"Evo fisio","plano":"Plano fisio"}', 'Texto', null),
+  ('44400000-0000-0000-0000-000000000024', '33300000-0000-0000-0000-000000000024', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"simples@1","texto":"Evo","plano":"Plano"}', 'Texto', null);
 
 -- 9: finalizada (fixture; campos de finalização preenchidos)
 insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, finalizada_em, validada_por, validada_em, snapshot_autor, snapshot_validador, conteudo_hash) values
@@ -71,6 +84,8 @@ insert into public.anexos (id, evolucao_id, internacao_id, tipo, descricao, data
   ('55500000-0000-0000-0000-000000000013', '44400000-0000-0000-0000-000000000013', '33300000-0000-0000-0000-000000000013', 'OUTRO', 'Pendente', '2026-10-24', 'internacoes/33300000-0000-0000-0000-000000000013/55500000-0000-0000-0000-000000000013', 'application/pdf', 1000, repeat('1', 64), false, current_setting('tst.residente')::uuid),
   ('55500000-0000-0000-0000-000000000014', '44400000-0000-0000-0000-000000000014', '33300000-0000-0000-0000-000000000014', 'OUTRO', 'Pendente', '2026-10-24', 'internacoes/33300000-0000-0000-0000-000000000014/55500000-0000-0000-0000-000000000014', 'application/pdf', 1000, repeat('2', 64), false, current_setting('tst.residente')::uuid),
   ('55500000-0000-0000-0000-000000000017', '44400000-0000-0000-0000-000000000017', '33300000-0000-0000-0000-000000000017', 'OUTRO', 'Sem arquivo', '2026-10-24', 'internacoes/33300000-0000-0000-0000-000000000017/55500000-0000-0000-0000-000000000017', 'application/pdf', 1000, repeat('3', 64), true, current_setting('tst.residente')::uuid);
+
+-- ===== enviar =====
 
 -- 1. residente envia para validação
 reset role;
@@ -139,7 +154,66 @@ select throws_ok(
   'enviar com anexo não enviado falha'
 );
 
--- 6. médico da equipe valida e grava snapshots autor/validador
+-- 6. modelo deve acompanhar a categoria: residente (medica) com simples@1 é recusado
+select throws_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000024')$$,
+  'P0001', 'Modelo de evolução inválido para sua categoria.',
+  'enviar com modelo de outra categoria falha'
+);
+
+-- 7. multiprofissional com simples@1 envia com sucesso
+reset role;
+select tests.autenticar(current_setting('tst.multi')::uuid);
+select lives_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000023')$$,
+  'multiprofissional com simples@1 envia'
+);
+reset role;
+select ok(
+  exists (
+    select 1 from public.evolucoes
+    where id = '44400000-0000-0000-0000-000000000023' and status = 'AGUARDANDO_VALIDACAO'
+  ),
+  'multiprofissional envia: status vira AGUARDANDO_VALIDACAO'
+);
+
+-- 8. não autor não envia
+reset role;
+select tests.autenticar(current_setting('tst.academico')::uuid);
+select throws_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000022')$$,
+  'P0001', 'Acesso negado.',
+  'não autor não envia'
+);
+
+-- 9. enviar em evolução já aguardando validação falha
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select throws_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000021')$$,
+  'P0001', 'Somente rascunhos podem ser enviados para validação.',
+  'enviar em evolução aguardando validação falha'
+);
+
+-- 10. enviar em evolução finalizada falha
+select throws_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000009')$$,
+  'P0001', 'Somente rascunhos podem ser enviados para validação.',
+  'enviar em evolução finalizada falha'
+);
+
+-- 11. médico não envia (perfil não autorizado a enviar)
+reset role;
+select tests.autenticar(current_setting('tst.medico_a')::uuid);
+select throws_ok(
+  $$select public.enviar_evolucao('44400000-0000-0000-0000-000000000012')$$,
+  'P0001', 'Acesso negado.',
+  'médico não envia para validação'
+);
+
+-- ===== validar =====
+
+-- 12. médico da equipe valida e grava snapshots autor/validador
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select lives_ok(
@@ -162,7 +236,7 @@ select ok(
   'validar grava snapshots de autor e validador e hash v2'
 );
 
--- 7. validar evolução de acadêmico grava snapshot do autor sem conselho
+-- 13. validar evolução de acadêmico grava snapshot do autor sem conselho
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select lives_ok(
@@ -183,7 +257,7 @@ select ok(
   'validação de acadêmico grava snapshot do autor sem conselho'
 );
 
--- 8. médico de outra equipe não valida
+-- 14. médico de outra equipe não valida
 reset role;
 select tests.autenticar(current_setting('tst.medico_b')::uuid);
 select throws_ok(
@@ -192,7 +266,7 @@ select throws_ok(
   'médico de outra equipe não valida'
 );
 
--- 9. autor não valida a própria evolução
+-- 15. autor não valida a própria evolução
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select throws_ok(
@@ -201,14 +275,14 @@ select throws_ok(
   'autor não valida a própria evolução'
 );
 
--- 10. validar evolução já finalizada falha
+-- 16. validar evolução já finalizada falha
 select throws_ok(
   $$select public.validar_evolucao('44400000-0000-0000-0000-000000000009')$$,
   'P0001', 'Evolução finalizada não pode ser alterada.',
   'validar evolução já finalizada falha'
 );
 
--- 11. validar apaga anexo não confirmado da evolução
+-- 17. validar apaga anexo não confirmado da evolução
 select lives_ok(
   $$select public.validar_evolucao('44400000-0000-0000-0000-000000000013')$$,
   'validar com anexo não confirmado funciona'
@@ -220,7 +294,7 @@ select is(
   'validar apaga o anexo não confirmado'
 );
 
--- 12. validar com anexo confirmado sem arquivo falha e não muda o status
+-- 18. validar com anexo confirmado sem arquivo falha e não muda o status
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select throws_ok(
@@ -235,7 +309,45 @@ select is(
   'validação falha mantém evolução aguardando'
 );
 
--- 13. devolver exige motivo
+-- 19. residente não valida
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select throws_ok(
+  $$select public.validar_evolucao('44400000-0000-0000-0000-000000000021')$$,
+  'P0001', 'Apenas médicos da equipe podem validar.',
+  'residente não valida'
+);
+
+-- 20. multiprofissional não valida
+reset role;
+select tests.autenticar(current_setting('tst.multi')::uuid);
+select throws_ok(
+  $$select public.validar_evolucao('44400000-0000-0000-0000-000000000021')$$,
+  'P0001', 'Apenas médicos da equipe podem validar.',
+  'multiprofissional não valida'
+);
+
+-- 21. médico inativo não valida
+reset role;
+select tests.autenticar(current_setting('tst.medico_inativo')::uuid);
+select throws_ok(
+  $$select public.validar_evolucao('44400000-0000-0000-0000-000000000021')$$,
+  'P0001', 'Acesso negado.',
+  'médico inativo não valida'
+);
+
+-- 22. validador sem conselho não valida
+reset role;
+select tests.autenticar(current_setting('tst.medico_sem_conselho')::uuid);
+select throws_ok(
+  $$select public.validar_evolucao('44400000-0000-0000-0000-000000000021')$$,
+  'P0001', 'Complete seu registro profissional antes de validar.',
+  'validador sem conselho não valida'
+);
+
+-- ===== devolver =====
+
+-- 23. devolver exige motivo
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select throws_ok(
@@ -244,14 +356,14 @@ select throws_ok(
   'devolver exige motivo'
 );
 
--- 14. motivo acima de 500 caracteres falha
+-- 24. motivo acima de 500 caracteres falha
 select throws_ok(
   $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000010', repeat('x', 501))$$,
   'P0001', 'Motivo da devolução deve ter no máximo 500 caracteres.',
   'motivo acima de 500 caracteres falha'
 );
 
--- 15. médico de outra equipe não devolve
+-- 25. médico de outra equipe não devolve
 reset role;
 select tests.autenticar(current_setting('tst.medico_b')::uuid);
 select throws_ok(
@@ -260,7 +372,34 @@ select throws_ok(
   'médico de outra equipe não devolve'
 );
 
--- 16. devolver com rascunho aberto na mesma internação falha
+-- 26. residente não devolve
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select throws_ok(
+  $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000021', 'Falta conduta')$$,
+  'P0001', 'Apenas médicos da equipe podem devolver.',
+  'residente não devolve'
+);
+
+-- 27. médico inativo não devolve
+reset role;
+select tests.autenticar(current_setting('tst.medico_inativo')::uuid);
+select throws_ok(
+  $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000021', 'Falta conduta')$$,
+  'P0001', 'Acesso negado.',
+  'médico inativo não devolve'
+);
+
+-- 28. validador sem conselho não devolve
+reset role;
+select tests.autenticar(current_setting('tst.medico_sem_conselho')::uuid);
+select throws_ok(
+  $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000021', 'Falta conduta')$$,
+  'P0001', 'Complete seu registro profissional antes de devolver.',
+  'devolver sem conselho é recusado'
+);
+
+-- 29. devolver com rascunho aberto na mesma internação falha
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select throws_ok(
@@ -269,7 +408,7 @@ select throws_ok(
   'devolver com rascunho aberto na mesma internação falha'
 );
 
--- 17. devolver volta a rascunho com motivo
+-- 30. devolver volta a rascunho com motivo
 select lives_ok(
   $$select public.devolver_evolucao('44400000-0000-0000-0000-000000000010', 'Falta a conduta')$$,
   'devolver volta a rascunho'
@@ -284,7 +423,28 @@ select ok(
   'devolução grava motivo e status rascunho'
 );
 
--- 18. reenviar limpa o motivo
+-- 31. autor edita o rascunho devolvido: salvar_rascunho atualiza a mesma linha
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select lives_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000010', '{"modelo_versao":"medica@1","evolucao_clinica":"Editado","conduta":"Editado"}'::jsonb, 'Editado')$$,
+  'autor edita rascunho devolvido'
+);
+reset role;
+select ok(
+  (select count(*) from public.evolucoes
+    where internacao_id = '33300000-0000-0000-0000-000000000010'
+      and autor_id = current_setting('tst.residente')::uuid
+      and status = 'RASCUNHO') = 1
+  and exists (
+    select 1 from public.evolucoes
+    where id = '44400000-0000-0000-0000-000000000010'
+      and status = 'RASCUNHO' and dados->>'evolucao_clinica' = 'Editado'
+  ),
+  'salvar atualiza a mesma linha do rascunho devolvido'
+);
+
+-- 32. reenviar limpa o motivo
 reset role;
 select tests.autenticar(current_setting('tst.residente')::uuid);
 select lives_ok(
@@ -301,19 +461,26 @@ select ok(
   'reenviar limpa o motivo da devolução'
 );
 
--- 19. autor não edita enquanto aguarda validação (salvar_rascunho não toca a evolução enviada)
+-- ===== salvar_rascunho =====
+
+-- 33. autor não cria novo rascunho enquanto tem evolução aguardando validação
 reset role;
 select tests.autenticar(current_setting('tst.residente')::uuid);
-select lives_ok(
-  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000011', '{"modelo_versao":"medica@1","evolucao_clinica":"Alterada","conduta":"Alterada"}'::jsonb, 'Alterada')$$,
-  'salvar_rascunho com evolução aguardando validação não falha'
+select throws_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000011', '{"modelo_versao":"medica@1","evolucao_clinica":"Nova","conduta":"Nova"}'::jsonb, 'Nova')$$,
+  'P0001', 'Você tem uma evolução aguardando validação nesta internação.',
+  'salvar_rascunho com evolução aguardando validação falha'
 );
 reset role;
 select is(
-  (select dados->>'evolucao_clinica' from public.evolucoes where id = '44400000-0000-0000-0000-000000000011'),
-  'Evo',
-  'salvar_rascunho não altera evolução aguardando validação'
+  (select count(*)::int from public.evolucoes
+    where internacao_id = '33300000-0000-0000-0000-000000000011'
+      and autor_id = current_setting('tst.residente')::uuid),
+  1,
+  'nenhuma linha extra é criada enquanto aguarda validação'
 );
+
+-- 34. update direto de evolução aguardando validação é negado
 reset role;
 select tests.autenticar(current_setting('tst.residente')::uuid);
 select throws_ok(
@@ -322,7 +489,7 @@ select throws_ok(
   'update direto de evolução aguardando validação é negado'
 );
 
--- 20. acadêmico salva rascunho como médica
+-- 35. acadêmico salva rascunho como médica
 reset role;
 select tests.autenticar(current_setting('tst.academico')::uuid);
 select lives_ok(
@@ -340,7 +507,27 @@ select ok(
   'acadêmico salva rascunho com categoria medica'
 );
 
--- 21. finalizar_evolucao continua funcionando para médico (regressão)
+-- 36. salvar com modelo de outra categoria falha (residente com simples@1)
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select throws_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000024', '{"modelo_versao":"simples@1","texto":"x","plano":"y"}'::jsonb, 'x')$$,
+  'P0001', 'Modelo de evolução inválido para sua categoria.',
+  'salvar com modelo simples em categoria médica falha'
+);
+
+-- 37. salvar com modelo médico em categoria de enfermagem falha (multi categoria fisioterapia)
+reset role;
+select tests.autenticar(current_setting('tst.multi')::uuid);
+select throws_ok(
+  $$select public.salvar_rascunho('33300000-0000-0000-0000-000000000025', '{"modelo_versao":"medica@1","evolucao_clinica":"x","conduta":"y"}'::jsonb, 'x')$$,
+  'P0001', 'Modelo de evolução inválido para sua categoria.',
+  'salvar com modelo médico em categoria simples falha'
+);
+
+-- ===== finalizar (regressão) =====
+
+-- 38. finalizar_evolucao continua funcionando para médico
 reset role;
 select tests.autenticar(current_setting('tst.medico_a')::uuid);
 select lives_ok(
@@ -359,7 +546,9 @@ select ok(
   'finalizar_evolucao grava snapshots e hash v2'
 );
 
--- 22. grants: core não exposto; validar exposto a authenticated
+-- ===== grants =====
+
+-- 39. core não exposto; validar exposto a authenticated
 select ok(
   not has_function_privilege('authenticated', 'app.finalizar_core(uuid,uuid)', 'execute'),
   'finalizar_core não executável por authenticated'

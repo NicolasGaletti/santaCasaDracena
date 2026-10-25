@@ -187,6 +187,7 @@ declare
   v_int public.internacoes%rowtype;
   v_id uuid;
   v_at timestamptz;
+  v_modelo text;
 begin
   if not app.profissional_ativo() then
     raise exception 'Acesso negado.' using errcode = 'P0001';
@@ -204,6 +205,13 @@ begin
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
 
+  -- modelo acompanha a categoria; payload sem modelo (cliente antigo) é aceito
+  v_modelo := coalesce(p_dados, '{}'::jsonb)->>'modelo_versao';
+  if v_modelo is not null
+     and v_modelo <> (case when v_categoria = 'medica' then 'medica@1' else 'simples@1' end) then
+    raise exception 'Modelo de evolução inválido para sua categoria.' using errcode = 'P0001';
+  end if;
+
   select i.* into v_int from public.internacoes i where i.id = p_internacao_id for share;
   if not found then
     raise exception 'Internação não encontrada.' using errcode = 'P0001';
@@ -213,6 +221,16 @@ begin
   end if;
   if not (app.eh_medico() or app.membro_equipe(v_int.equipe_id)) then
     raise exception 'Acesso negado.' using errcode = 'P0001';
+  end if;
+
+  -- uma evolução aberta por autor e internação: enquanto a enviada aguarda validação, não há novo rascunho
+  if exists (
+    select 1 from public.evolucoes e
+    where e.autor_id = auth.uid()
+      and e.internacao_id = p_internacao_id
+      and e.status = 'AGUARDANDO_VALIDACAO'
+  ) then
+    raise exception 'Você tem uma evolução aguardando validação nesta internação.' using errcode = 'P0001';
   end if;
 
   -- o conflito é só com RASCUNHO: evolução enviada ou finalizada nunca é alterada aqui
@@ -276,15 +294,22 @@ begin
     raise exception 'Complete seu registro profissional antes de enviar.' using errcode = 'P0001';
   end if;
 
-  if v_ev.dados->>'modelo_versao' = 'simples@1' then
-    if nullif(trim(coalesce(v_ev.dados->>'texto', '')), '') is null
-       or nullif(trim(coalesce(v_ev.dados->>'plano', '')), '') is null then
-      raise exception 'Preencha a evolução e o plano antes de enviar.' using errcode = 'P0001';
+  -- modelo acompanha a categoria: medica -> medica@1; demais -> simples@1
+  if v_ev.categoria = 'medica' then
+    if v_ev.dados->>'modelo_versao' is distinct from 'medica@1' then
+      raise exception 'Modelo de evolução inválido para sua categoria.' using errcode = 'P0001';
     end if;
-  else
     if nullif(trim(coalesce(v_ev.dados->>'evolucao_clinica', '')), '') is null
        or nullif(trim(coalesce(v_ev.dados->>'conduta', '')), '') is null then
       raise exception 'Preencha a evolução clínica e a conduta antes de enviar.' using errcode = 'P0001';
+    end if;
+  else
+    if v_ev.dados->>'modelo_versao' is distinct from 'simples@1' then
+      raise exception 'Modelo de evolução inválido para sua categoria.' using errcode = 'P0001';
+    end if;
+    if nullif(trim(coalesce(v_ev.dados->>'texto', '')), '') is null
+       or nullif(trim(coalesce(v_ev.dados->>'plano', '')), '') is null then
+      raise exception 'Preencha a evolução e o plano antes de enviar.' using errcode = 'P0001';
     end if;
   end if;
 
@@ -358,6 +383,7 @@ as $$
 declare
   v_ev public.evolucoes%rowtype;
   v_equipe uuid;
+  v_prof public.profissionais%rowtype;
   v_motivo text;
 begin
   if not app.profissional_ativo() then
@@ -378,6 +404,13 @@ begin
   end if;
   if v_ev.status <> 'AGUARDANDO_VALIDACAO' then
     raise exception 'Somente evoluções aguardando validação podem ser devolvidas.' using errcode = 'P0001';
+  end if;
+
+  select p.* into v_prof from public.profissionais p where p.id = auth.uid();
+  if nullif(trim(v_prof.conselho), '') is null
+     or nullif(trim(v_prof.numero_conselho), '') is null
+     or nullif(trim(v_prof.uf_conselho), '') is null then
+    raise exception 'Complete seu registro profissional antes de devolver.' using errcode = 'P0001';
   end if;
 
   v_motivo := nullif(trim(coalesce(p_motivo, '')), '');
