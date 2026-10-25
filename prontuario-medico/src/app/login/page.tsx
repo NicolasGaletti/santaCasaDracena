@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { entrar } from './actions'
 import type { EstadoForm } from '@/lib/forms'
 
-const ESTADO_INICIAL: EstadoForm = {}
+const ESTADO_INICIAL: EstadoForm & { email?: string } = {}
 
 export default function LoginPage() {
   return (
@@ -47,6 +47,7 @@ function LoginForm() {
               name="email"
               type="email"
               required
+              defaultValue={state.email}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-slate-800"
               placeholder="medico@santacasa.com.br"
             />

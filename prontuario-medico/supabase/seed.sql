@@ -19,6 +19,9 @@ insert into auth.users (
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
   ('a0000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'recepcao@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+  ('a0000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'inativo@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
@@ -42,6 +45,9 @@ insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_
   ('a0000000-0000-0000-0000-000000000002', 'Dr. Felipe Ramos (teste)', 'medico', null, 'CRM', '208117', 'SP'),
   ('a0000000-0000-0000-0000-000000000003', 'Dr. Sem Registro (teste)', 'medico', null, null, null, null),
   ('a0000000-0000-0000-0000-000000000004', 'Recepção Teste', 'recepcao', null, null, null, null);
+
+insert into public.profissionais (id, nome, perfil, ativo) values
+  ('a0000000-0000-0000-0000-000000000005', 'Dr. Inativo (teste)', 'medico', false);
 
 insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001'),

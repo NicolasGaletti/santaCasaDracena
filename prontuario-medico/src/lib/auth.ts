@@ -17,7 +17,10 @@ export async function exigirProfissional(): Promise<Profissional> {
     .eq('id', userId)
     .maybeSingle()
 
-  if (!profissional || !profissional.ativo) redirect('/login?error=sem_cadastro')
+  if (!profissional || !profissional.ativo) {
+    await supabase.auth.signOut()
+    redirect('/login?error=sem_cadastro')
+  }
 
   return profissional
 }
