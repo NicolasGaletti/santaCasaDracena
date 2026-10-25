@@ -207,6 +207,28 @@ test('sem conexão mostra mensagem e permite tentar de novo', async ({ page }) =
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
 
+test('descarta rascunho mesmo se o objeto já sumiu do Storage', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await abrirExamesDeRascunho(page, id);
+  await anexarFoto(page);
+  await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
+
+  const medico = await clienteComo('medico1@teste.local');
+  const rascunho = primeira((await medico.from('evolucoes').select('id').eq('internacao_id', id).eq('status', 'RASCUNHO')).data);
+  const anexo = primeira((await medico.from('anexos').select('id, storage_path').eq('evolucao_id', rascunho.id)).data);
+  // Objeto apagado direto no Storage pelo próprio autor do rascunho.
+  const { data: apagados } = await medico.storage.from('anexos').remove([anexo.storage_path]);
+  expect(apagados).toHaveLength(1);
+  expect(objetoExiste(anexo.storage_path)).toBe(false);
+
+  await page.getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
+
+  await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
+  await expect(alertas(page)).toHaveCount(0);
+  expect(linhaExiste(anexo.id)).toBe(false);
+});
+
 test('descarta rascunho com foto anexada e limpa linha e objeto', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await abrirExamesDeRascunho(page, id);

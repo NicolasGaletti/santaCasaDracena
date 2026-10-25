@@ -1,6 +1,7 @@
 'use server'
 
 import { exigirProfissional } from '@/lib/auth'
+import { removerObjetosAnexo } from './remover-objetos'
 import { createClient } from '@/lib/supabase/server'
 
 const MENSAGEM_GENERICA = 'Não foi possível remover o anexo. Tente novamente.'
@@ -18,8 +19,7 @@ export async function removerAnexo(anexoId: string): Promise<{ erro?: string }> 
   if (erroBusca) return { erro: MENSAGEM_GENERICA }
   if (!anexo) return { erro: 'Anexo não encontrado.' }
 
-  const { data: removidos, error: erroObjeto } = await supabase.storage.from('anexos').remove([anexo.storage_path])
-  if (erroObjeto || (removidos?.length ?? 0) !== 1) return { erro: MENSAGEM_GENERICA }
+  if (!(await removerObjetosAnexo(supabase, [anexo.storage_path]))) return { erro: MENSAGEM_GENERICA }
 
   const { error } = await supabase.rpc('remover_anexo', { p_anexo_id: anexoId })
   if (error) return { erro: error.code === 'P0001' ? error.message : MENSAGEM_GENERICA }

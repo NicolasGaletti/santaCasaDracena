@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { exigirProfissional } from '@/lib/auth'
+import { removerObjetosAnexo } from '@/features/anexos/remover-objetos'
 import { createClient } from '@/lib/supabase/server'
 
 const MENSAGEM_GENERICA = 'Não foi possível concluir a operação. Tente novamente.'
@@ -47,10 +48,7 @@ export async function descartar(evolucaoId: string): Promise<void> {
     .eq('evolucao_id', evolucaoId)
   if (erroAnexos) throw new Error(MENSAGEM_GENERICA)
   const caminhos = (anexos ?? []).map((a) => a.storage_path)
-  if (caminhos.length > 0) {
-    const { data: removidos, error: erroObjetos } = await supabase.storage.from('anexos').remove(caminhos)
-    if (erroObjetos || (removidos?.length ?? 0) !== caminhos.length) throw new Error(MENSAGEM_GENERICA)
-  }
+  if (!(await removerObjetosAnexo(supabase, caminhos))) throw new Error(MENSAGEM_GENERICA)
 
   const { error } = await supabase.rpc('descartar_rascunho', { p_evolucao_id: evolucaoId })
   if (error) throw new Error(mensagemDeErro(error))
