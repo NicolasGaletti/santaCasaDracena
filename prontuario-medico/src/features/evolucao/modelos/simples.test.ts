@@ -40,6 +40,14 @@ describe('modelo simples v1', () => {
     expect(validarParaEnviarSimples(d)).toEqual(['Evolução é obrigatória.']);
   });
 
+  it('lerDadosSimples zera só o sinal inválido e mantém os válidos', () => {
+    const d = lerDadosSimples({ sinais: { fc: 999, pa: '12/8', temp: 36.5, sato2: 97 } });
+    expect(d.sinais.fc).toBeNull();
+    expect(d.sinais.pa).toBe('');
+    expect(d.sinais.temp).toBe(36.5);
+    expect(d.sinais.sato2).toBe(97);
+  });
+
   it('lerDadosSimples tolera dados ausentes ou incompletos', () => {
     const d = lerDadosSimples({ texto: 'Evolução antiga', sinais: { fc: 'abc', pa: '120/80' } });
     expect(d.modelo_versao).toBe('simples@1');

@@ -29,16 +29,13 @@ export function lerDadosSimples(json: unknown): DadosSimples {
   const base = rascunhoSimplesVazio();
   const obj = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>;
   const sinaisObj = (obj.sinais && typeof obj.sinais === 'object' ? obj.sinais : {}) as Record<string, unknown>;
-  const numero = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-  const sinais: Sinais = {
-    pa: typeof sinaisObj.pa === 'string' ? sinaisObj.pa : base.sinais.pa,
-    fc: numero(sinaisObj.fc),
-    fr: numero(sinaisObj.fr),
-    temp: numero(sinaisObj.temp),
-    sato2: numero(sinaisObj.sato2),
-    dextro: numero(sinaisObj.dextro),
-    diurese: numero(sinaisObj.diurese),
-  };
+  // Cada sinal é validado sozinho: valor guardado inválido vira vazio, sem derrubar os demais.
+  const sinais = Object.fromEntries(
+    (Object.keys(base.sinais) as (keyof Sinais)[]).map((chave) => {
+      const lido = sinaisSchema.shape[chave].safeParse(sinaisObj[chave]);
+      return [chave, lido.success ? lido.data : base.sinais[chave]];
+    }),
+  ) as Sinais;
   return {
     modelo_versao: 'simples@1',
     texto: typeof obj.texto === 'string' ? obj.texto : '',

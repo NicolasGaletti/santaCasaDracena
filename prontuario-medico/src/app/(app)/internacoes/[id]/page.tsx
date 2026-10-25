@@ -6,7 +6,7 @@ import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { Timeline } from '@/features/evolucao/timeline'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
-import { exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
+import { categoriaAusente, exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirProfissional } from '@/lib/auth'
@@ -71,7 +71,11 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
 
       {podeEvoluir && (
         <div className="flex flex-col gap-2">
-          {rascunhoProprio ? (
+          {categoriaAusente(profissional.perfil, profissional.categoria) ? (
+            <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+              Complete sua categoria profissional com o administrador para registrar evoluções.
+            </p>
+          ) : rascunhoProprio ? (
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
             </Button>

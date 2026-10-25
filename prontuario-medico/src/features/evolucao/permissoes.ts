@@ -32,3 +32,8 @@ export async function podeEvoluirNaInternacao(
     .maybeSingle()
   return Boolean(data)
 }
+
+/** Multiprofissional sem categoria não consegue registrar evolução (o banco recusa). */
+export function categoriaAusente(perfil: string, categoria: string | null): boolean {
+  return perfil === 'multiprofissional' && !categoria
+}

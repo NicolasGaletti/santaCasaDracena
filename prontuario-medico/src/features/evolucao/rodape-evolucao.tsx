@@ -15,7 +15,7 @@ export function RodapeEvolucao({
   acaoPrincipal?: ReactNode
 }) {
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:left-auto lg:mx-auto lg:max-w-6xl">
+    <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:inset-x-0 lg:mx-auto lg:w-full lg:max-w-6xl">
       <p role="status" aria-live="polite" className="min-w-0 shrink text-xs font-semibold text-muted-foreground">
         {indicador}
       </p>

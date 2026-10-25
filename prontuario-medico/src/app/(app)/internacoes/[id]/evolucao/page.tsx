@@ -3,7 +3,7 @@ import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { FormMedica } from '@/features/evolucao/form-medica'
 import { FormSimples } from '@/features/evolucao/form-simples'
 import { lerDadosMedica } from '@/features/evolucao/cartao-evolucao'
-import { exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
+import { categoriaAusente, exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { lerDadosSimples } from '@/features/evolucao/modelos/simples'
 import { exigirProfissional } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
@@ -26,7 +26,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
 
   // Multiprofissional escreve com o modelo da própria categoria; médico, residente e acadêmico com o médico.
   const formularioMedico = profissional.perfil !== 'multiprofissional'
-  if (!formularioMedico && !profissional.categoria) redirect(`/internacoes/${id}`)
+  if (!formularioMedico && categoriaAusente(profissional.perfil, profissional.categoria)) redirect(`/internacoes/${id}`)
 
   const supabase = await createClient()
   const { data: linha } = await supabase
