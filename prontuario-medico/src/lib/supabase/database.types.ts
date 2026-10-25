@@ -867,6 +867,7 @@ export type Database = {
         Returns: string;
       };
       confirmar_anexo: { Args: { p_anexo_id: string }; Returns: undefined };
+      criar_adendo: { Args: { p_evolucao_id: string }; Returns: string };
       criar_anexo: {
         Args: {
           p_data_exame: string;
