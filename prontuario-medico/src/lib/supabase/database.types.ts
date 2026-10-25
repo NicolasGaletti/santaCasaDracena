@@ -590,7 +590,32 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      admitir_paciente: {
+        Args: {
+          p_comorbidades: string;
+          p_convenio: string;
+          p_data_nascimento: string;
+          p_diagnostico_inicial: string;
+          p_equipe_id: string;
+          p_leito_ala: string;
+          p_medico_responsavel_id: string;
+          p_muc: string;
+          p_nome: string;
+        };
+        Returns: string;
+      };
+      descartar_rascunho: { Args: { p_evolucao_id: string }; Returns: undefined };
+      finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
+      registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
+      registrar_impressao: { Args: { p_evolucao_id: string }; Returns: number };
+      salvar_rascunho: {
+        Args: { p_dados: Json; p_internacao_id: string; p_texto_livre: string };
+        Returns: {
+          atualizado_em: string;
+          id: string;
+        }[];
+      };
+      trocar_leito: { Args: { p_internacao_id: string; p_leito_ala: string }; Returns: undefined };
     };
     Enums: {
       categoria_evolucao:
