@@ -198,7 +198,7 @@ test.describe.serial('tela de validação do médico', () => {
     await expect(page.getByText('Nenhuma evolução aguardando validação.')).toBeVisible();
 
     await page.goto(`/validacao?evolucao=${evolucaoId}`);
-    await expect(page.getByText('This page could not be found.')).toBeVisible();
+    await expect(page.getByText('Esta evolução já foi validada ou devolvida.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Validar', exact: true })).toHaveCount(0);
   });
 
@@ -338,4 +338,30 @@ test('médico vê a original do adendo na validação', async ({ page }) => {
   const projeto = test.info().project.name === 'mobile' ? 'mobile' : 'desktop';
   if (projeto === 'mobile') await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: path.join(pasta, `final-fix-validacao-adendo-${projeto}.png`), fullPage: true });
+});
+
+test('link de evolução já validada mostra aviso e volta à lista', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.context().clearCookies();
+  await academicoEnvia(page, id, 'Evolução validada por outro', 'Conduta validada por outro');
+  const evolucaoId = sqlLocal(
+    `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+  );
+  const medico = await clienteComo('medico1@teste.local');
+  const { error } = await medico.rpc('validar_evolucao', { p_evolucao_id: evolucaoId });
+  expect(error).toBeNull();
+
+  await page.context().clearCookies();
+  await entrar(page, 'medico1@teste.local');
+  await page.goto(`/validacao?evolucao=${evolucaoId}`);
+  await expect(page.getByText('Esta evolução já foi validada ou devolvida.')).toBeVisible();
+  await page.getByRole('link', { name: 'Voltar para a lista' }).click();
+  await expect(page).toHaveURL(/\/validacao$/);
+});
+
+test('rota inexistente mostra página não encontrada em português', async ({ page }) => {
+  await entrar(page, 'medico1@teste.local');
+  await page.goto('/rota-que-nao-existe');
+  await expect(page.getByText('Página não encontrada.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ir para o início' })).toBeVisible();
 });

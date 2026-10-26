@@ -17,12 +17,22 @@ export default async function PaginaValidacao({ searchParams }: { searchParams: 
   if (evolucao !== undefined) {
     if (!UUID.test(evolucao)) notFound()
     const revisao = await buscarRevisao(evolucao)
-    if (!revisao) notFound()
+    const voltar = (
+      <Link href="/validacao" className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline">
+        Voltar para a lista
+      </Link>
+    )
+    if (!revisao) {
+      return (
+        <section className="flex flex-col gap-4">
+          <p className="text-lg font-semibold">Esta evolução já foi validada ou devolvida.</p>
+          {voltar}
+        </section>
+      )
+    }
     return (
       <>
-        <Link href="/validacao" className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline">
-          Voltar para a lista
-        </Link>
+        {voltar}
         <CabecalhoPaciente linha={revisao.internacao} />
         <RevisaoEvolucao revisao={revisao} />
       </>
