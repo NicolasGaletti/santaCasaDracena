@@ -52,6 +52,9 @@ jobs:
       - name: Supabase local (só o necessário para os testes de banco)
         run: npx supabase start -x studio,imgproxy,edge-runtime,realtime,mailpit,postgres-meta,logflare,vector,supavisor
 
+      - name: Lint do banco (falha em nível error)
+        run: npx supabase db lint --fail-on error
+
       - name: Testes de banco (pgTAP)
         run: npx supabase test db
 
