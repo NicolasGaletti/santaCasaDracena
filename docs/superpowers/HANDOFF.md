@@ -18,7 +18,7 @@ Leia isto primeiro ao iniciar uma sessão nova. Depois leia só o ledger do plan
 - Planos 1, 1b, 2 e 3: concluídos, revisados e no staging (`staging` = `53eef06`; migrations 0001–0013 aplicadas no staging, todas imutáveis).
 - **Próximo: Plano 4, Task 1** (nada iniciado). Ledger já criado com a pré-verificação e rulings: `.superpowers/sdd/2026-10-25-plano-4-alta-admin-seguranca/progress.md` — **ler antes de despachar**. Principais rulings: numeração das migrations deslocada (alta 0014, admin 0015, aal2 0016, notificações 0017); 7b copia as definições MAIS RECENTES (finalizar_core da 0013) e adiciona `devolvida_por`; um único service worker (push + Serwist); CSP compatível com Next (nonce) e com o Supabase local; flakiness do e2e de login sob carga corrigida na Task 12; Task 2 remove print gerado em `validacao.spec.ts:328-331`.
 - Plano 3 encerrado: ledger antigo em `.superpowers/sdd/2026-10-25-plano-3-multiprofissional/` pode ser apagado depois de copiar os rulings para cá se precisar.
-- Staging: `enfermeira@teste.local` e `academico@teste.local` ainda não existem lá; o usuário recebeu um SQL idempotente para rodar no SQL Editor do Supabase.
+- Staging: `enfermeira@teste.local` e `academico@teste.local` criados (login conferido em 2026-10-25).
 - Configurado pelo usuário: SMTP Resend no Supabase do staging (sem domínio próprio → só envia para o e-mail do usuário; domínio entra no go-live) e buckets R2 + token novo (credenciais só em `gh secret set` na Task 12).
 - Plano 4 precisará do usuário no deploy final: `npx supabase db push`, `npx supabase functions deploy`, secrets (SITE_URL, VAPID), webhook de push, e-mail do primeiro admin.
 
