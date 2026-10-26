@@ -310,3 +310,31 @@ test('PDF de adendo tem título com data e código da original', async ({ page }
   expect(texto).toMatch(new RegExp(`ADENDO À EVOLUÇÃO DE \\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} \\(CÓDIGO ${codigo}\\)`))
   expect(texto).toContain('Complemento para o PDF do adendo')
 })
+
+test.describe('cartão com botões de impressão em viewport estreito', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('ações ficam no rodapé e o cartão não estoura a largura', async ({ page }) => {
+    const internacao = await admitirPaciente(page, leitoUnico())
+    await finalizarComAnexos(page, internacao, 'Evolução com layout estreito')
+
+    await page.goto(`/internacoes/${internacao}`)
+    const cartao = page.getByTestId('cartao-evolucao').first()
+    const botao = cartao.getByRole('link', { name: 'Imprimir com imagens' })
+    await expect(botao).toBeVisible()
+    await expect(cartao.locator('footer').getByRole('link', { name: 'Imprimir com imagens' })).toBeVisible()
+
+    const medidas = await cartao.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      direita: el.getBoundingClientRect().right,
+    }))
+    expect(medidas.scrollWidth).toBeLessThanOrEqual(medidas.clientWidth)
+    expect(medidas.direita).toBeLessThanOrEqual(390)
+    const larguraPagina = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      janela: window.innerWidth,
+    }))
+    expect(larguraPagina.scroll).toBeLessThanOrEqual(larguraPagina.janela)
+  })
+})

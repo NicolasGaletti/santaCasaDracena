@@ -136,7 +136,7 @@ export function CartaoEvolucao({
     <article
       data-testid="cartao-evolucao"
       aria-labelledby={`evolucao-${evolucao.id}`}
-      className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground"
     >
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
@@ -156,15 +156,6 @@ export function CartaoEvolucao({
           {finalizada ? (
             <>
               <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
-              {!ocultarAcoes && (
-                <>
-                  <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
-                  {(evolucao.qtd_anexos ?? 0) > 0 && (
-                    <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />
-                  )}
-                  {evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
-                </>
-              )}
             </>
           ) : evolucao.status === 'AGUARDANDO_VALIDACAO' ? (
             <Badge className="shrink-0 bg-status-nenhum-bg px-2 text-xs text-status-nenhum-fg">Aguardando validação</Badge>
@@ -196,6 +187,14 @@ export function CartaoEvolucao({
         <p className="text-sm text-muted-foreground">
           {evolucao.texto_livre.trim() ? evolucao.texto_livre : 'Sem registros nesta evolução.'}
         </p>
+      )}
+
+      {finalizada && !ocultarAcoes && (
+        <footer className="flex flex-wrap gap-2">
+          <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
+          {(evolucao.qtd_anexos ?? 0) > 0 && <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />}
+          {evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
+        </footer>
       )}
     </article>
   )
