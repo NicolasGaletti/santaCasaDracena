@@ -7,8 +7,15 @@ const PREFIXOS_PUBLICOS = ['/auth/']
 // PDF não é página: sem sessão responde 401 em vez de redirecionar para o login.
 const ROTA_PDF = /^\/evolucoes\/[^/]+\/pdf$/
 
-export async function atualizarSessao(request: NextRequest) {
-  let response = NextResponse.next({ request })
+export async function atualizarSessao(request: NextRequest, requestHeaders: Headers, csp: string) {
+  const proximo = () => NextResponse.next({ request: { headers: requestHeaders } })
+  // CSP em toda resposta do proxy; no-store em tudo que não é página pública (autenticado ou redirect).
+  const finalizar = <T extends NextResponse>(resp: T, noStore: boolean): T => {
+    resp.headers.set('Content-Security-Policy', csp)
+    if (noStore) resp.headers.set('Cache-Control', 'no-store')
+    return resp
+  }
+  let response = proximo()
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +27,7 @@ export async function atualizarSessao(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          response = NextResponse.next({ request })
+          response = proximo()
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           )
@@ -36,7 +43,7 @@ export async function atualizarSessao(request: NextRequest) {
 
   if (!data?.claims && !publica) {
     if (ROTA_PDF.test(pathname)) {
-      return NextResponse.json({ erro: 'Não autenticado.' }, { status: 401 })
+      return finalizar(NextResponse.json({ erro: 'Não autenticado.' }, { status: 401 }), true)
     }
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -44,8 +51,8 @@ export async function atualizarSessao(request: NextRequest) {
     url.searchParams.set('next', pathname + search)
     const redirect = NextResponse.redirect(url)
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
-    return redirect
+    return finalizar(redirect, true)
   }
 
-  return response
+  return finalizar(response, !publica)
 }

@@ -21,7 +21,7 @@ export default defineConfig({
     {
       // PWA/offline só funciona contra build de produção (em dev o shell não é pré-cacheado).
       name: 'pwa',
-      testMatch: /pwa\.spec\.ts/,
+      testMatch: /(pwa|headers)\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:3100' },
     },
   ],
