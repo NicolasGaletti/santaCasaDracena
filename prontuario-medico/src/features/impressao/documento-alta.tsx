@@ -1,7 +1,8 @@
-import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { rotuloTipoAlta } from '@/features/alta/tipos'
 import { formatarData, idade } from '@/lib/datas'
 import { formatarDataHoraSP } from './documento-evolucao'
+import { ALTURA_LOGO, logoSantaCasa, PROPORCAO_LOGO } from './logo'
 
 Font.registerHyphenationCallback((palavra) => [palavra])
 
@@ -35,6 +36,9 @@ const cinza = '#444444'
 const estilos = StyleSheet.create({
   pagina: { paddingTop: 92, paddingBottom: 70, paddingHorizontal: 42, fontSize: 10.5, color: '#000000', backgroundColor: '#ffffff' },
   cabecalho: { position: 'absolute', top: 28, left: 42, right: 42, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 6 },
+  linhaCabecalho: { flexDirection: 'row', alignItems: 'center' },
+  logo: { height: ALTURA_LOGO, width: ALTURA_LOGO * PROPORCAO_LOGO },
+  textoCabecalho: { flexGrow: 1, marginLeft: 10 },
   hospital: { fontSize: 13, fontWeight: 'bold' },
   titulo: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
   identificacao: { fontSize: 10, marginTop: 2 },
@@ -69,11 +73,17 @@ export function DocumentoAlta({ folha }: { folha: FolhaAlta }) {
     <Document title="Folha de alta" author="Santa Casa de Dracena">
       <Page size="A4" style={estilos.pagina} wrap>
         <View fixed style={estilos.cabecalho}>
-          <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
-          <Text style={estilos.titulo}>FOLHA DE ALTA</Text>
-          <Text style={estilos.identificacao}>
-            {`Paciente: ${paciente.nome} · D.N. ${nascimento} · Leito ${folha.leito_ala.trim() || '—'}`}
-          </Text>
+          <View style={estilos.linhaCabecalho}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF do react-pdf não tem alt */}
+            <Image style={estilos.logo} src={logoSantaCasa()} />
+            <View style={estilos.textoCabecalho}>
+              <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
+              <Text style={estilos.titulo}>FOLHA DE ALTA</Text>
+              <Text style={estilos.identificacao}>
+                {`Paciente: ${paciente.nome} · D.N. ${nascimento} · Leito ${folha.leito_ala.trim() || '—'}`}
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={estilos.grade}>

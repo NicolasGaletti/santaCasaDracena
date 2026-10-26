@@ -4,6 +4,12 @@ import { montarCspEstatica } from "./src/lib/csp";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // A logo é lida do disco (fs) nas rotas de PDF; o trace do Netlify precisa incluí-la.
+  outputFileTracingIncludes: {
+    '/evolucoes/[id]/pdf': ['./src/assets/logo-santa-casa.png'],
+    '/evolucoes/lote/pdf': ['./src/assets/logo-santa-casa.png'],
+    '/internacoes/[id]/alta/pdf': ['./src/assets/logo-santa-casa.png'],
+  },
   // O e2e de PWA usa build de produção em outro diretório para não colidir com `next dev`.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   async rewrites() {

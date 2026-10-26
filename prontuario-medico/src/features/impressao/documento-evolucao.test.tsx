@@ -289,3 +289,33 @@ describe('DocumentoEvolucao', () => {
     expect(await textoDoPdf(buffer)).toContain('Hash v2 a1b2c3d4e5f6')
   })
 })
+
+describe('logo da Santa Casa no PDF', () => {
+  const temImagem = (buffer: Buffer) => buffer.toString('latin1').includes('/Subtype /Image')
+
+  it('evolução sem anexos embute a logo (XObject de imagem)', async () => {
+    const buffer = await renderToBuffer(<DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico())]} />)
+    expect(temImagem(buffer)).toBe(true)
+  })
+
+  it('folha de alta embute a logo', async () => {
+    const { DocumentoAlta } = await import('./documento-alta')
+    const buffer = await renderToBuffer(
+      <DocumentoAlta
+        folha={{
+          internacaoId: 'e0000000-0000-0000-0000-000000000001',
+          paciente: { nome: 'Maria', data_nascimento: '1950-01-01', convenio: 'SUS' },
+          leito_ala: '12',
+          equipe_nome: 'Clínica',
+          admitido_em: '2026-10-01T10:00:00Z',
+          alta_em: '2026-10-10T10:00:00Z',
+          tipo_alta: 'melhorado',
+          resumo: 'Resumo.',
+          equipe: [],
+          medico: null,
+        }}
+      />,
+    )
+    expect(temImagem(buffer)).toBe(true)
+  })
+})

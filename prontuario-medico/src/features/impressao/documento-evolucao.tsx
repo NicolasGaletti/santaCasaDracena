@@ -4,6 +4,7 @@ import type { DadosMedica } from '@/features/evolucao/modelos/medica'
 import type { DadosSimples } from '@/features/evolucao/modelos/simples'
 import { ROTULO_CATEGORIA } from '@/features/evolucao/rotulos'
 import { formatarData, idade } from '@/lib/datas'
+import { ALTURA_LOGO, logoSantaCasa, PROPORCAO_LOGO } from './logo'
 
 const FUSO_SP = 'America/Sao_Paulo'
 
@@ -220,6 +221,8 @@ const estilos = StyleSheet.create({
     paddingBottom: 6,
   },
   cabecalhoLinha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  logo: { height: ALTURA_LOGO, width: ALTURA_LOGO * PROPORCAO_LOGO },
+  textoCabecalho: { flexGrow: 1, marginLeft: 10 },
   hospital: { fontSize: 13, fontWeight: 'bold' },
   via: { fontSize: 12, fontWeight: 'bold' },
   titulo: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
@@ -300,11 +303,17 @@ function CabecalhoDocumento({ item }: { item: EvolucaoImpressao }) {
   return (
     <View fixed style={estilos.cabecalho}>
       <View style={estilos.cabecalhoLinha}>
-        <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
-        {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- PDF do react-pdf não tem alt */}
+        <Image style={estilos.logo} src={logoSantaCasa()} />
+        <View style={estilos.textoCabecalho}>
+          <View style={estilos.cabecalhoLinha}>
+            <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
+            {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
+          </View>
+          <Text style={estilos.titulo}>{tituloDocumento(evolucao)}</Text>
+          <Text style={estilos.identificacao}>{identificacaoPaciente(item)}</Text>
+        </View>
       </View>
-      <Text style={estilos.titulo}>{tituloDocumento(evolucao)}</Text>
-      <Text style={estilos.identificacao}>{identificacaoPaciente(item)}</Text>
     </View>
   )
 }
