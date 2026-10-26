@@ -1,5 +1,6 @@
 'use client'
 
+import { UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
@@ -68,9 +69,14 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             {!admin && usuarioId && <Sino usuarioId={usuarioId} inicial={naoLidas} />}
-            <Button asChild variant="ghost">
-              <Link href="/conta/seguranca">Segurança</Link>
-            </Button>
+            <Link
+              href="/conta/seguranca"
+              aria-label="Conta e segurança"
+              className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md px-2.5 text-foreground transition-colors hover:bg-muted"
+            >
+              <UserRound aria-hidden className="size-6" />
+              <span className="hidden text-sm font-medium lg:inline">Segurança</span>
+            </Link>
             <form action={sair}>
               <Button type="submit" variant="outline">
                 Sair

@@ -49,7 +49,12 @@ export function Sino({ usuarioId, inicial }: Props) {
   }, [usuarioId])
 
   // Ao navegar (ex.: depois de marcar como lida) confere de novo, caso o evento tenha se perdido.
+  const primeira = useRef(true)
   useEffect(() => {
+    if (primeira.current) {
+      primeira.current = false
+      return
+    }
     const cliente = (supabase.current ??= createBrowserSupabase())
     void cliente
       .from('notificacoes')
