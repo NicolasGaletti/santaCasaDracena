@@ -110,6 +110,7 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
   await page.getByRole('link', { name: 'Continuar rascunho' }).click();
   await expect(page).toHaveURL(/\/evolucao$/);
   await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
+  await expect(page.getByText(/Devolvida por \S+/)).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Evolução para devolver');
 
   // Corrige, reenvia: o motivo some do rascunho e a evolução volta a aguardar validação.

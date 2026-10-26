@@ -25,7 +25,7 @@ type Props = {
   userId: string
   categoria: string
   paciente: { nome: string; leito: string }
-  rascunho: { id: string; dados: DadosSimples; textoLivre: string; devolvidaMotivo: string | null } | null
+  rascunho: { id: string; dados: DadosSimples; textoLivre: string; devolvidaMotivo: string | null; devolvidaPorNome?: string | null } | null
   anexos: AnexoRascunho[]
   /** Evolução original quando o rascunho é um adendo. */
   adendo: EvolucaoTimeline | null
@@ -168,6 +168,9 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
       {rascunho?.devolvidaMotivo && (
         <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {`Devolvida pelo médico: ${rascunho.devolvidaMotivo}`}
+          {rascunho.devolvidaPorNome && (
+            <span className="mt-1 block text-sm font-normal">{`Devolvida por ${rascunho.devolvidaPorNome}`}</span>
+          )}
         </p>
       )}
 

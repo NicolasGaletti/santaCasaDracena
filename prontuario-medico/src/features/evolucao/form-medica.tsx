@@ -25,7 +25,7 @@ type Props = {
   userId: string
   perfil: string
   paciente: { nome: string; leito: string }
-  rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null } | null
+  rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null; devolvidaPorNome?: string | null } | null
   anterior: DadosMedica | null
   anexos: AnexoRascunho[]
   /** Evolução original quando o rascunho é um adendo. */
@@ -208,6 +208,9 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       {rascunho?.devolvidaMotivo && (
         <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {`Devolvida pelo médico: ${rascunho.devolvidaMotivo}`}
+          {rascunho.devolvidaPorNome && (
+            <span className="mt-1 block text-sm font-normal">{`Devolvida por ${rascunho.devolvidaPorNome}`}</span>
+          )}
         </p>
       )}
 

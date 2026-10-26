@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { sair } from '@/app/login/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Sino } from '@/features/notificacoes/sino'
 import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
 import { rotuloIdentificacao } from '@/lib/rotulos-perfil'
@@ -14,6 +15,9 @@ type Props = {
   profissional: Pick<Profissional, 'nome' | 'perfil' | 'categoria' | 'conselho' | 'numero_conselho' | 'uf_conselho'>
   /** Evoluções aguardando a validação deste médico (zero para os demais perfis). */
   pendentesValidacao?: number
+  /** Id do usuário (filtro do Realtime) e notificações não lidas no carregamento. */
+  usuarioId?: string
+  naoLidas?: number
   children: ReactNode
 }
 
@@ -39,7 +43,7 @@ const ITEM_ADMIN: ItemNavegacao = {
 
 const ITEM_IMPRIMIR: ItemNavegacao = { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' }
 
-export function AppShell({ profissional, pendentesValidacao = 0, children }: Props) {
+export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoLidas = 0, children }: Props) {
   const pathname = usePathname()
   const abaMarcada = useAbaAtiva()
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
@@ -62,7 +66,8 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
             <p className="truncate font-bold text-foreground">{profissional.nome}</p>
             <p className="text-sm text-muted-foreground">{identificacao}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {!admin && usuarioId && <Sino usuarioId={usuarioId} inicial={naoLidas} />}
             <Button asChild variant="ghost">
               <Link href="/conta/seguranca">Segurança</Link>
             </Button>
