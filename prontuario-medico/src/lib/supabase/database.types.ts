@@ -528,6 +528,7 @@ export type Database = {
           diagnostico_inicial: string | null;
           internacao_id: string;
           muc: string | null;
+          resumo_alta: string | null;
           snapshot_alta: Json | null;
         };
         ComputedFields: never;
@@ -536,6 +537,7 @@ export type Database = {
           diagnostico_inicial?: string | null;
           internacao_id: string;
           muc?: string | null;
+          resumo_alta?: string | null;
           snapshot_alta?: Json | null;
         };
         Update: {
@@ -543,6 +545,7 @@ export type Database = {
           diagnostico_inicial?: string | null;
           internacao_id?: string;
           muc?: string | null;
+          resumo_alta?: string | null;
           snapshot_alta?: Json | null;
         };
         Relationships: [

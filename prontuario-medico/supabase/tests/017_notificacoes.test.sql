@@ -1,5 +1,5 @@
 begin;
-select plan(39);
+select plan(43);
 
 select set_config('tst.m1', tests.criar_profissional('medico')::text, true);
 select set_config('tst.m2', tests.criar_profissional('medico')::text, true);
@@ -56,6 +56,10 @@ select is((select devolvida_por from public.evolucoes where id = '17300000-0000-
 select is((select devolvida_por from public.vw_evolucoes_timeline where id = '17300000-0000-0000-0000-000000000001'),
   current_setting('tst.m1')::uuid, 'view expõe devolvida_por');
 
+select is((select count(*) from public.notificacoes where tipo = 'validacao_pendente'
+  and evolucao_id = '17300000-0000-0000-0000-000000000001' and lida_em is null), 0::bigint,
+  'devolver marca validacao_pendente como lida para todos');
+
 -- reenvio limpa devolvida_por
 reset role;
 select tests.autenticar(current_setting('tst.res')::uuid);
@@ -70,6 +74,9 @@ select lives_ok($$select public.validar_evolucao('17300000-0000-0000-0000-000000
 reset role;
 select is((select count(*) from public.notificacoes where tipo = 'evolucao_validada'
   and destinatario_id = current_setting('tst.res')::uuid), 1::bigint, 'validada notifica autor');
+select is((select count(*) from public.notificacoes where tipo = 'validacao_pendente'
+  and evolucao_id = '17300000-0000-0000-0000-000000000001' and lida_em is null), 0::bigint,
+  'finalizar marca validacao_pendente como lida para todos');
 select is((select texto from public.notificacoes where tipo = 'evolucao_validada'), 'Sua evolução foi validada · Leito A-02', 'texto validada');
 select is((select array_agg(destinatario_id order by destinatario_id) from public.notificacoes where tipo = 'evolucao_equipe'),
   array[current_setting('tst.m1')::uuid], 'evolucao_equipe: só m1 (exclui validador m2)');
@@ -102,13 +109,13 @@ select is((select count(*) from public.notificacoes), 0::bigint, 'recepção nã
 reset role;
 select tests.autenticar(current_setting('tst.m1')::uuid);
 select public.marcar_lida((select id from public.notificacoes where tipo = 'admissao_equipe' limit 1));
-select is((select count(*) from public.notificacoes where lida_em is not null), 1::bigint, 'marcar_lida marca a própria');
+select is((select count(*) from public.notificacoes where tipo = 'admissao_equipe' and lida_em is not null), 1::bigint, 'marcar_lida marca a própria');
 reset role;
 select tests.autenticar(current_setting('tst.m2')::uuid);
-select public.marcar_lida((select id from public.notificacoes where destinatario_id = current_setting('tst.m1')::uuid limit 1));
+select public.marcar_lida((select id from public.notificacoes where destinatario_id = current_setting('tst.m1')::uuid and tipo = 'evolucao_equipe' limit 1));
 reset role;
-select is((select count(*) from public.notificacoes where destinatario_id = current_setting('tst.m1')::uuid and lida_em is not null), 1::bigint,
-  'm2 não marca de m1 (ainda só 1 lida)');
+select is((select count(*) from public.notificacoes where destinatario_id = current_setting('tst.m1')::uuid and tipo = 'evolucao_equipe' and lida_em is not null), 0::bigint,
+  'm2 não marca notificação de m1');
 
 -- 8. todas lidas, assinaturas e preferências
 reset role;
@@ -145,6 +152,23 @@ select is((select count(*) from public.notificacoes where tipo = 'admissao_equip
   and destinatario_id = current_setting('tst.m1')::uuid), 0::bigint, 'médico que admite não recebe a própria admissão');
 select is((select count(*) from public.notificacoes where tipo = 'admissao_equipe' and texto like '%A-03'
   and destinatario_id = current_setting('tst.m2')::uuid), 1::bigint, 'outro médico da equipe recebe');
+
+-- 11. descartar rascunho devolvido: FK em cascata remove as notificações da evolução
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre) values
+  ('17300000-0000-0000-0000-000000000003', current_setting('tst.int')::uuid, 'medica', current_setting('tst.res')::uuid, 'RASCUNHO',
+   '{"modelo_versao":"medica@1","evolucao_clinica":"Evo","conduta":"Cond"}', 'T');
+reset role;
+select tests.autenticar(current_setting('tst.res')::uuid);
+select public.enviar_evolucao('17300000-0000-0000-0000-000000000003');
+reset role;
+select tests.autenticar(current_setting('tst.m1')::uuid);
+select public.devolver_evolucao('17300000-0000-0000-0000-000000000003', 'Ajustar');
+reset role;
+select tests.autenticar(current_setting('tst.res')::uuid);
+select lives_ok($$select public.descartar_rascunho('17300000-0000-0000-0000-000000000003')$$, 'autor descarta rascunho devolvido');
+reset role;
+select is((select count(*) from public.notificacoes where evolucao_id = '17300000-0000-0000-0000-000000000003'), 0::bigint,
+  'notificações da evolução descartada somem');
 
 select * from finish();
 rollback;

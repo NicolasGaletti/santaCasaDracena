@@ -1,5 +1,5 @@
 begin;
-select plan(24);
+select plan(28);
 
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
 select set_config('tst.medico_fora', tests.criar_profissional('medico')::text, true);
@@ -118,10 +118,14 @@ select ok(
   exists (
     select 1 from public.internacoes
     where id = '14200000-0000-0000-0000-000000000001'
-      and status = 'ALTA' and tipo_alta = 'CURADA' and motivo_alta = 'Resumo da alta'
+      and status = 'ALTA' and tipo_alta = 'CURADA' and motivo_alta is null
       and alta_em is not null and alta_por = current_setting('tst.medico')::uuid
   ),
-  'alta grava status, tipo, resumo, data e autor'
+  'alta grava status, tipo, data e autor; motivo_alta fica nulo'
+);
+select is(
+  (select resumo_alta from public.internacoes_clinico where internacao_id = '14200000-0000-0000-0000-000000000001'),
+  'Resumo da alta', 'resumo da alta fica em internacoes_clinico'
 );
 select ok(
   not exists (select 1 from public.leitos_historico where internacao_id = '14200000-0000-0000-0000-000000000001' and ate is null),
@@ -201,6 +205,22 @@ select tests.autenticar(current_setting('tst.recepcao')::uuid);
 select is(
   (select count(*)::int from public.internacoes_clinico where snapshot_alta is not null),
   0, 'recepção não lê snapshot_alta'
+);
+select is(
+  (select count(*)::int from public.internacoes_clinico where resumo_alta is not null),
+  0, 'recepção não lê resumo da alta'
+);
+select is(
+  (select count(*)::int from public.internacoes where motivo_alta is not null and id = '14200000-0000-0000-0000-000000000001'),
+  0, 'recepção não encontra o resumo em internacoes.motivo_alta'
+);
+
+reset role;
+select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
+select tests.autenticar(current_setting('tst.admin')::uuid);
+select is(
+  (select count(*)::int from public.internacoes_clinico where resumo_alta is not null),
+  0, 'admin não lê resumo da alta'
 );
 
 select * from finish();

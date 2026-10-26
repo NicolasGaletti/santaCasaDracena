@@ -1,5 +1,6 @@
 -- Alta médica (Plano 4, Task 1).
--- motivo_alta guarda o resumo da alta; alta_em e alta_por já existem desde 0001.
+-- O resumo da alta é texto clínico: fica em internacoes_clinico.resumo_alta (RLS eh_clinico).
+-- internacoes.motivo_alta (legível por recepção/admin) permanece NULL; alta_em e alta_por já existem desde 0001.
 
 create type public.tipo_alta as enum ('MELHORADA','CURADA','A_PEDIDO','TRANSFERENCIA','EVASAO','OBITO');
 
@@ -8,6 +9,7 @@ alter table public.internacoes add column tipo_alta public.tipo_alta;
 -- Snapshot do médico e da equipe no momento da alta (como snapshot_autor em evolucoes).
 -- Fica em internacoes_clinico (RLS eh_clinico): recepção/admin não leem.
 alter table public.internacoes_clinico add column snapshot_alta jsonb;
+alter table public.internacoes_clinico add column resumo_alta text;
 
 -- dar_alta: médico ativo da equipe da internação. Rascunhos pendentes ficam congelados
 -- (a trava de ALTA já impede alterá-los; só adendo é permitido).
@@ -100,13 +102,14 @@ begin
     ), '[]'::jsonb)
   );
 
-  insert into public.internacoes_clinico (internacao_id, snapshot_alta)
-  values (p_internacao_id, v_snapshot)
-  on conflict (internacao_id) do update set snapshot_alta = excluded.snapshot_alta;
+  insert into public.internacoes_clinico (internacao_id, snapshot_alta, resumo_alta)
+  values (p_internacao_id, v_snapshot, v_resumo)
+  on conflict (internacao_id) do update
+    set snapshot_alta = excluded.snapshot_alta, resumo_alta = excluded.resumo_alta;
 
   update public.internacoes
   set status = 'ALTA', alta_em = p_alta_em, alta_por = auth.uid(),
-      tipo_alta = p_tipo, motivo_alta = v_resumo
+      tipo_alta = p_tipo
   where id = p_internacao_id;
 
   update public.leitos_historico set ate = p_alta_em

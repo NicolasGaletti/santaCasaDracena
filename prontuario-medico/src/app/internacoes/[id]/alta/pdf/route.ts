@@ -20,7 +20,7 @@ function pessoa(v: unknown): Pessoa | null {
     : null;
 }
 
-/** snapshot_alta = { medico, equipe[] } (gravado por dar_alta). */
+/** resumo_alta e snapshot_alta ficam em internacoes_clinico (RLS clínica). snapshot_alta = { medico, equipe[] } (gravado por dar_alta). */
 function lerSnapshot(valor: unknown): { medico: Pessoa | null; equipe: Pessoa[] } {
   const o = valor && typeof valor === "object" ? (valor as Record<string, unknown>) : {};
   const equipe = Array.isArray(o.equipe)
@@ -57,7 +57,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const [
     { data: linha, error: erroLinha },
-    { data: bruta, error: erroBruta },
     { data: clinico, error: erroClinico },
   ] = await Promise.all([
     supabase
@@ -67,22 +66,20 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       )
       .eq("internacao_id", id)
       .maybeSingle(),
-    supabase.from("internacoes").select("motivo_alta").eq("id", id).maybeSingle(),
     supabase
       .from("internacoes_clinico")
-      .select("snapshot_alta")
+      .select("snapshot_alta, resumo_alta")
       .eq("internacao_id", id)
       .maybeSingle(),
   ]);
-  if (erroLinha || erroBruta || erroClinico) return erro(500, FALHA);
+  if (erroLinha || erroClinico) return erro(500, FALHA);
   if (
     !linha ||
-    !bruta ||
     linha.status !== "ALTA" ||
     !linha.alta_em ||
     !linha.tipo_alta ||
     !linha.nome ||
-    !bruta.motivo_alta
+    !clinico?.resumo_alta
   ) {
     return erro(404, NAO_ENCONTRADA);
   }
@@ -101,7 +98,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     admitido_em: linha.admitido_em ?? linha.alta_em,
     alta_em: linha.alta_em,
     tipo_alta: linha.tipo_alta,
-    resumo: bruta.motivo_alta,
+    resumo: clinico.resumo_alta,
     equipe: snapshot.equipe,
     medico: snapshot.medico,
   };

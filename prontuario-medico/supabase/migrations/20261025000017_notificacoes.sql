@@ -8,7 +8,8 @@ create table public.notificacoes (
   destinatario_id uuid not null references public.profissionais(id),
   tipo text not null check (tipo in ('validacao_pendente','evolucao_devolvida','evolucao_validada','evolucao_equipe','admissao_equipe')),
   internacao_id uuid references public.internacoes(id),
-  evolucao_id uuid references public.evolucoes(id),
+  -- cascade: descartar um rascunho devolvido apaga também as notificações dele
+  evolucao_id uuid references public.evolucoes(id) on delete cascade,
   texto text not null,
   lida_em timestamptz,
   criada_em timestamptz not null default now()
@@ -253,6 +254,10 @@ begin
     hash_versao = 2
   where id = p_evolucao_id;
 
+  -- pendências desta evolução deixam de valer para todos os destinatários (sino não fica velho)
+  update public.notificacoes set lida_em = now()
+  where evolucao_id = p_evolucao_id and tipo = 'validacao_pendente' and lida_em is null;
+
   -- notificações (Plano 4, Task 7b): autor se validador <> autor; médicos da equipe exceto validador e autor
   select i.* into v_int from public.internacoes i where i.id = v_ev.internacao_id;
   if v_ev.autor_id <> p_validador then
@@ -426,6 +431,10 @@ begin
     devolvida_motivo = v_motivo,
     devolvida_por = auth.uid()
   where id = p_evolucao_id;
+
+  -- a pendência deixa de valer para os médicos da equipe
+  update public.notificacoes set lida_em = now()
+  where evolucao_id = p_evolucao_id and tipo = 'validacao_pendente' and lida_em is null;
 
   -- notificações (Plano 4, Task 7b): avisa o autor
   select i.* into v_internacao from public.internacoes i where i.id = v_ev.internacao_id;
