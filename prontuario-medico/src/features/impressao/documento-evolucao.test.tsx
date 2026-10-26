@@ -5,6 +5,7 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { PDFParse } from 'pdf-parse'
 import { describe, expect, it } from 'vitest'
 import { rascunhoMedicaVazio, type DadosMedica } from '@/features/evolucao/modelos/medica'
+import { rascunhoSimplesVazio, type DadosSimples } from '@/features/evolucao/modelos/simples'
 import {
   DocumentoEvolucao,
   codigoCurto,
@@ -24,7 +25,9 @@ function dadosSemExameFisico(): DadosMedica {
   }
 }
 
-function impressao(dados: DadosMedica, via = 1, anexos: AnexoImpressao[] = []): EvolucaoImpressao {
+type Opcoes = Partial<EvolucaoImpressao['evolucao']> & { categoria?: string }
+
+function impressao(dados: DadosMedica | DadosSimples, via = 1, anexos: AnexoImpressao[] = [], extra: Opcoes = {}): EvolucaoImpressao {
   return {
     evolucao: {
       id: 'd0000000-0000-0000-0000-000000000001',
@@ -36,6 +39,11 @@ function impressao(dados: DadosMedica, via = 1, anexos: AnexoImpressao[] = []): 
       hash_versao: 2,
       snapshot_autor: { nome: 'Dra. Marina Lopes (teste)', conselho: 'CRM', numero: '145892', uf: 'SP' },
       snapshot_validador: { nome: 'Dra. Marina Lopes (teste)', conselho: 'CRM', numero: '145892', uf: 'SP' },
+      autor_id: 'c0000000-0000-0000-0000-000000000001',
+      validada_por: 'c0000000-0000-0000-0000-000000000001',
+      autor_perfil: 'medico',
+      adendo_de: null,
+      ...extra,
     },
     internacao: {
       leito_ala: 'A-01',
@@ -72,6 +80,10 @@ async function textoDoPdf(buffer: Buffer): Promise<string> {
   const resultado = await parser.getText()
   await parser.destroy()
   return resultado.text
+}
+
+function simplesDados(): DadosSimples {
+  return { ...rascunhoSimplesVazio(), texto: 'Paciente deambulando', plano: 'Manter exercícios' }
 }
 
 describe('secoesVisiveis', () => {
@@ -185,6 +197,77 @@ describe('DocumentoEvolucao', () => {
     expect(texto).toContain('Outro · 24/10/2026 · Foto do exame')
     expect(texto).toContain('Evolução D0000000')
     expect(texto).toContain('Página 2 de 2')
+  })
+
+  it('título de enfermagem', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao
+        evolucoes={[
+          impressao(simplesDados(), 1, [], {
+            categoria: 'enfermagem',
+            autor_id: 'c0000000-0000-0000-0000-000000000007',
+            autor_perfil: 'multiprofissional',
+            snapshot_autor: { nome: 'Enfermeira Teste (teste)', conselho: 'COREN', numero: '123456', uf: 'SP' },
+          }),
+        ]}
+      />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('EVOLUÇÃO DE ENFERMAGEM')
+    expect(texto).toContain('Registrado por: Enfermeira Teste (teste) – COREN 123456/SP')
+  })
+
+  it('título de adendo com código da original', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao
+        evolucoes={[
+          impressao(dadosSemExameFisico(), 1, [], {
+            adendo_de: { id: 'b0000000-0000-0000-0000-000000000009', finalizada_em: '2026-10-24T13:30:00.000Z' },
+          }),
+        ]}
+      />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('ADENDO À EVOLUÇÃO DE 24/10/2026 10:30 (CÓDIGO B0000000)')
+    expect(texto).not.toContain('EVOLUÇÃO MÉDICA DIÁRIA')
+  })
+
+  it('linha Registrado por para acadêmico', async () => {
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao
+        evolucoes={[
+          impressao(dadosSemExameFisico(), 1, [], {
+            categoria: 'medica',
+            autor_id: 'c0000000-0000-0000-0000-000000000008',
+            autor_perfil: 'academico',
+            snapshot_autor: { nome: 'Acadêmico Teste (teste)', conselho: null, numero: null, uf: null },
+          }),
+        ]}
+      />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('Registrado por: Acadêmico Teste (teste) – Acadêmico(a) de Medicina')
+    expect(texto).toContain('Validado por Dra. Marina Lopes (teste) – CRM 145892/SP')
+    expect(texto.match(/Assinatura e carimbo do médico/g)).toHaveLength(1)
+  })
+
+  it('sem Registrado por quando autor é o validador', async () => {
+    const buffer = await renderToBuffer(<DocumentoEvolucao evolucoes={[impressao(dadosSemExameFisico())]} />)
+    expect(await textoDoPdf(buffer)).not.toContain('Registrado por')
+  })
+
+  it('modelo simples imprime Evolução, Sinais vitais e Plano', async () => {
+    const dados: DadosSimples = { ...simplesDados(), sinais: { ...simplesDados().sinais, fc: 80 } }
+    const buffer = await renderToBuffer(
+      <DocumentoEvolucao evolucoes={[impressao(dados, 1, [], { categoria: 'fisioterapia' })]} />,
+    )
+    const texto = await textoDoPdf(buffer)
+    expect(texto).toContain('EVOLUÇÃO DE FISIOTERAPIA')
+    expect(texto).toContain('Paciente deambulando')
+    expect(texto).toContain('Sinais vitais')
+    expect(texto).toContain('80 bpm')
+    expect(texto).toContain('Manter exercícios')
+    expect(texto).not.toContain('Conduta')
   })
 
   it('rodapé traz a versão do hash', async () => {

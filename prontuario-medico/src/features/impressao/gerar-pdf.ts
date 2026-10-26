@@ -1,6 +1,7 @@
 import { renderToBuffer } from '@react-pdf/renderer'
 import { PDFDocument } from 'pdf-lib'
 import { lerDadosMedica } from '@/features/evolucao/cartao-evolucao'
+import { lerDadosSimples } from '@/features/evolucao/modelos/simples'
 import { createClient } from '@/lib/supabase/server'
 import {
   codigoCurto,
@@ -187,12 +188,27 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
   const { data: evolucoes, error: erroEvolucoes } = await supabase
     .from('vw_evolucoes_timeline')
     .select(
-      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, hash_versao, vias_impressas',
+      'id, internacao_id, categoria, status, dados, texto_livre, finalizada_em, validada_em, snapshot_autor, snapshot_validador, autor_id, validada_por, adendo_de, conteudo_hash, hash_versao, vias_impressas',
     )
     .in('id', ids)
   if (erroEvolucoes) return erro(500, 'Não foi possível gerar o PDF.')
 
   const porId = new Map((evolucoes ?? []).map((e) => [e.id, e]))
+  // Adendo: a original (sempre FINALIZADA, visível pelo mesmo cliente) dá a data e o código do título.
+  const origemIds = [...new Set((evolucoes ?? []).map((e) => e.adendo_de).filter((v): v is string => v !== null))]
+  const { data: originais, error: erroOriginais } = origemIds.length
+    ? await supabase.from('vw_evolucoes_timeline').select('id, status, finalizada_em').in('id', origemIds)
+    : { data: [], error: null }
+  if (erroOriginais) return erro(500, 'Não foi possível gerar o PDF.')
+  const originalPorId = new Map((originais ?? []).map((o) => [o.id, o]))
+  // Perfil atual do autor: só para o rótulo de acadêmico sem conselho.
+  const autorIds = [...new Set((evolucoes ?? []).map((e) => e.autor_id))]
+  const { data: autores, error: erroAutores } = await supabase
+    .from('vw_profissionais_publico')
+    .select('id, perfil')
+    .in('id', autorIds)
+  if (erroAutores) return erro(500, 'Não foi possível gerar o PDF.')
+  const perfilAutor = new Map((autores ?? []).map((a) => [a.id, a.perfil]))
   const internacaoIds = [...new Set((evolucoes ?? []).map((e) => e.internacao_id))]
   const { data: internacoes, error: erroInternacoes } = await supabase
     .from('vw_internacoes_lista')
@@ -210,16 +226,27 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
     }
     const internacao = internacaoPorId.get(evolucao.internacao_id)
     if (!internacao || !internacao.nome) return erro(404, MENSAGEM_NAO_ENCONTRADA)
+    let adendoDe: { id: string; finalizada_em: string } | null = null
+    if (evolucao.adendo_de) {
+      const original = originalPorId.get(evolucao.adendo_de)
+      if (!original?.finalizada_em || original.status !== 'FINALIZADA') return erro(404, MENSAGEM_NAO_ENCONTRADA)
+      adendoDe = { id: original.id, finalizada_em: original.finalizada_em }
+    }
     itens.push({
       evolucao: {
         id,
         categoria: evolucao.categoria,
-        dados: lerDadosMedica(evolucao.dados),
+        // Categoria médica (inclusive acadêmico) usa o modelo médico; as demais, o simples.
+        dados: evolucao.categoria === 'medica' ? lerDadosMedica(evolucao.dados) : lerDadosSimples(evolucao.dados),
         texto_livre: evolucao.texto_livre,
         finalizada_em: evolucao.finalizada_em,
         validada_em: evolucao.validada_em,
         snapshot_autor: assinante(evolucao.snapshot_autor),
         snapshot_validador: assinante(evolucao.snapshot_validador),
+        autor_id: evolucao.autor_id,
+        validada_por: evolucao.validada_por,
+        autor_perfil: perfilAutor.get(evolucao.autor_id) ?? null,
+        adendo_de: adendoDe,
         conteudo_hash: evolucao.conteudo_hash,
         hash_versao: evolucao.hash_versao,
       },

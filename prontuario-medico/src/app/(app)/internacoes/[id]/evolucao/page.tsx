@@ -37,9 +37,6 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   if (!linha) notFound()
   // Internação com alta só abre para o rascunho de adendo (checado abaixo).
   if (linha.status !== 'INTERNADO' && linha.status !== 'ALTA') redirect(`/internacoes/${id}`)
-  if (!(await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))) {
-    redirect(`/internacoes/${id}`)
-  }
 
   const [{ data: rascunho }, { data: aguardando }, { data: anterior }] = await Promise.all([
     supabase
@@ -72,6 +69,14 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   // Com evolução aguardando validação não há o que editar: volta ao prontuário.
   if (aguardando) redirect(`/internacoes/${id}`)
   if (linha.status === 'ALTA' && !rascunho?.adendo_de) redirect(`/internacoes/${id}`)
+  // Rascunho de adendo é do próprio autor (a consulta filtra por autor): ele continua mesmo sem estar na equipe.
+  // Demais rascunhos e novas evoluções exigem a regra de equipe.
+  if (
+    !rascunho?.adendo_de &&
+    !(await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
+  ) {
+    redirect(`/internacoes/${id}`)
+  }
 
   const anexosRascunho = rascunho ? await anexosConfirmados(supabase, rascunho.id) : []
   const paciente = { nome: linha.nome, leito: linha.leito_ala }

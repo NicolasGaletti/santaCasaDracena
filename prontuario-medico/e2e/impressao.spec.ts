@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { PDFParse } from 'pdf-parse'
 import { expect, test, type Page } from '@playwright/test'
@@ -7,6 +8,7 @@ const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 const FIXTURES = path.join(__dirname, 'fixtures')
 const FOTO = path.join(FIXTURES, 'exame.jpg')
 const PDF = path.join(FIXTURES, 'laudo.pdf')
+const CONTAINER_DB = 'supabase_db_prontuario-medico'
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
 async function entrar(page: Page, email: string) {
@@ -219,4 +221,92 @@ test('com anexos=1 o PDF tem página da imagem', async ({ page }) => {
   expect(texto).toMatch(/Outro · \d{2}\/\d{2}\/\d{4} · Foto do exame/)
   expect(texto).toContain(`Evolução ${id.slice(0, 8).toUpperCase()}`)
   expect(texto).toContain('Página 1 de 2')
+})
+
+function sqlLocal(sql: string): string {
+  return execFileSync('docker', ['exec', CONTAINER_DB, 'psql', '-U', 'postgres', '-d', 'postgres', '-tAc', sql], {
+    encoding: 'utf8',
+  }).trim()
+}
+
+/** Médico da equipe valida a evolução pendente do leito pela tela de validação. */
+async function medicoValida(page: Page, leito: string) {
+  await page.context().clearCookies()
+  await entrar(page, 'medico1@teste.local')
+  await page.goto('/validacao')
+  await page.getByRole('link', { name: new RegExp(`Paciente Impressão ${leito}`) }).click()
+  await page.getByRole('button', { name: 'Validar', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirmar validação' }).click()
+  await expect(page.getByRole('link', { name: new RegExp(`Paciente Impressão ${leito}`) })).toHaveCount(0)
+}
+
+test('PDF de evolução de acadêmico mostra Acadêmico(a) e validador', async ({ page }) => {
+  const leito = leitoUnico()
+  const internacao = await admitirPaciente(page, leito)
+  await page.context().clearCookies()
+  await entrar(page, 'academico@teste.local')
+  await page.goto(`/internacoes/${internacao}`)
+  await page.getByRole('link', { name: 'Nova evolução' }).click()
+  await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico')
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico')
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirmar envio' }).click()
+  await expect(page).toHaveURL(URL_PRONTUARIO)
+
+  await medicoValida(page, leito)
+  const consultaId = `select id from public.evolucoes where internacao_id = '${internacao}' and status = 'FINALIZADA'`
+  await expect.poll(() => sqlLocal(consultaId)).toMatch(UUID)
+  const id = sqlLocal(consultaId)
+  const resposta = await page.request.get(`/evolucoes/${id}/pdf`)
+  expect(resposta.status()).toBe(200)
+  const texto = await textoDoPdf(await resposta.body())
+  expect(texto).toContain('EVOLUÇÃO MÉDICA DIÁRIA')
+  expect(texto).toContain('Registrado por: Acadêmico Teste (teste) – Acadêmico(a) de Medicina')
+  expect(texto).toContain('Validado por Dra. Marina Lopes (teste) – CRM 145892/SP')
+  expect(texto.match(/Assinatura e carimbo do médico/g)).toHaveLength(1)
+})
+
+test('PDF de enfermagem validado pelo médico: título, Registrado por e Validado por', async ({ page }) => {
+  const leito = leitoUnico()
+  const internacao = await admitirPaciente(page, leito)
+  await page.context().clearCookies()
+  await entrar(page, 'enfermeira@teste.local')
+  await page.goto(`/internacoes/${internacao}`)
+  await page.getByRole('link', { name: 'Nova evolução' }).click()
+  await page.locator('#ev-texto').fill('Paciente sem queixas de dor')
+  await page.locator('#ev-plano').fill('Curativo a cada 24 horas')
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirmar envio' }).click()
+  await expect(page).toHaveURL(URL_PRONTUARIO)
+
+  await medicoValida(page, leito)
+  const id = sqlLocal(`select id from public.evolucoes where internacao_id = '${internacao}' and status = 'FINALIZADA'`)
+  const resposta = await page.request.get(`/evolucoes/${id}/pdf`)
+  expect(resposta.status()).toBe(200)
+  const texto = await textoDoPdf(await resposta.body())
+  expect(texto).toContain('EVOLUÇÃO DE ENFERMAGEM')
+  expect(texto).toContain('Registrado por: Enfermeira Teste (teste) – COREN 123456/SP')
+  expect(texto).toContain('Validado por Dra. Marina Lopes (teste) – CRM 145892/SP')
+  expect(texto).toContain('Paciente sem queixas de dor')
+  expect(texto).toContain('Curativo a cada 24 horas')
+})
+
+test('PDF de adendo tem título com data e código da original', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico())
+  const original = await finalizarEvolucao(page, id, 'Evolução original para adendo PDF')
+
+  await page.getByRole('button', { name: 'Adendo', exact: true }).click()
+  await page.getByLabel('Evolução clínica').fill('Complemento para o PDF do adendo')
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo para PDF')
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await expect(page).toHaveURL(URL_PRONTUARIO)
+
+  const adendo = sqlLocal(`select id from public.evolucoes where adendo_de = '${original}' and status = 'FINALIZADA'`)
+  const resposta = await page.request.get(`/evolucoes/${adendo}/pdf`)
+  expect(resposta.status()).toBe(200)
+  const texto = await textoDoPdf(await resposta.body())
+  const codigo = original.slice(0, 8).toUpperCase()
+  expect(texto).toMatch(new RegExp(`ADENDO À EVOLUÇÃO DE \\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} \\(CÓDIGO ${codigo}\\)`))
+  expect(texto).toContain('Complemento para o PDF do adendo')
 })

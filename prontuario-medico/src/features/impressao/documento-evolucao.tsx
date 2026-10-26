@@ -1,6 +1,7 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import { formatarDataAnexo, ROTULO_TIPO_ANEXO, type TipoAnexo } from '@/features/anexos/rotulos'
 import type { DadosMedica } from '@/features/evolucao/modelos/medica'
+import type { DadosSimples } from '@/features/evolucao/modelos/simples'
 import { ROTULO_CATEGORIA } from '@/features/evolucao/rotulos'
 import { formatarData, idade } from '@/lib/datas'
 
@@ -28,16 +29,26 @@ export type AnexoImpressao = {
   miniaturaIndisponivel: boolean
 }
 
+/** Dados de evolução impressa: modelo médico (`medica@1`) ou simples (`simples@1`), conforme a categoria. */
+export type DadosImpressao = DadosMedica | DadosSimples
+
 export type EvolucaoImpressao = {
   evolucao: {
     id: string
     categoria: string
-    dados: DadosMedica
+    dados: DadosImpressao
     texto_livre?: string
     finalizada_em: string
     validada_em: string | null
     snapshot_autor: Assinante | null
     snapshot_validador: Assinante | null
+    /** Autor e validador (ids) para decidir se a linha "Registrado por" aparece. */
+    autor_id: string
+    validada_por: string | null
+    /** Perfil atual do autor: só usado para o rótulo de acadêmico sem conselho. */
+    autor_perfil: string | null
+    /** Evolução original quando esta é um adendo. */
+    adendo_de: { id: string; finalizada_em: string } | null
     conteudo_hash: string | null
     hash_versao: number
   }
@@ -98,8 +109,18 @@ export function secoesVisiveis(dados: DadosMedica, textoLivre = ''): { titulo: s
     .filter((s) => s.texto !== '')
 }
 
+/** Seções do modelo simples@1, na ordem impressa: Evolução, (sinais vitais), Plano. Seção sem texto some. */
+export function secoesSimplesVisiveis(dados: DadosSimples): { titulo: string; texto: string }[] {
+  return [
+    { titulo: 'Evolução', texto: dados.texto },
+    { titulo: 'Plano', texto: dados.plano },
+  ]
+    .map((s) => ({ titulo: s.titulo, texto: s.texto.trim() }))
+    .filter((s) => s.texto !== '')
+}
+
 /** Sinais vitais informados, com unidade. Vazio quando nenhum foi preenchido. */
-export function sinaisVisiveis(dados: DadosMedica): { rotulo: string; valor: string }[] {
+export function sinaisVisiveis(dados: Pick<DadosMedica, 'sinais'>): { rotulo: string; valor: string }[] {
   const s = dados.sinais
   const decimal = (n: number) => String(n).replace('.', ',')
   const candidatos: ({ rotulo: string; valor: string | null })[] = [
@@ -129,23 +150,53 @@ export function formatarDataHoraSP(iso: string): string {
   return `${valor('day')}/${valor('month')}/${valor('year')} ${valor('hour')}:${valor('minute')}`
 }
 
+/** Registro no conselho como texto: `COREN 123456/SP`, `CRM 145892/SP`. */
+function textoRegistro(assinante: Assinante): string {
+  return [assinante.conselho, assinante.numero && assinante.uf ? `${assinante.numero}/${assinante.uf}` : assinante.numero]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/**
+ * "Registrado por: <nome> – <conselho> <nº>/<UF>", só quando o autor não é o validador.
+ * Acadêmico sem conselho: "– Acadêmico(a) de Medicina". Sem autor identificado, não imprime.
+ */
+export function linhaRegistro(evolucao: EvolucaoImpressao['evolucao']): string | null {
+  const autor = evolucao.snapshot_autor
+  if (!autor?.nome || evolucao.validada_por === null || evolucao.validada_por === evolucao.autor_id) return null
+  const complemento =
+    autor.conselho === null && evolucao.autor_perfil === 'academico'
+      ? 'Acadêmico(a) de Medicina'
+      : textoRegistro(autor)
+  return `Registrado por: ${autor.nome}${complemento ? ` – ${complemento}` : ''}`
+}
+
 /** Linha de validação; nunca usa identidade padrão. */
 export function linhaValidacao(evolucao: EvolucaoImpressao['evolucao']): string {
   const assinante = evolucao.snapshot_validador ?? evolucao.snapshot_autor
   if (!assinante?.nome) return 'Identificação não disponível'
-  const registro = [
-    assinante.conselho,
-    assinante.numero && assinante.uf ? `${assinante.numero}/${assinante.uf}` : assinante.numero,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const registro = textoRegistro(assinante)
   const quando = formatarDataHoraSP(evolucao.validada_em ?? evolucao.finalizada_em)
   return `Validado por ${assinante.nome}${registro ? ` – ${registro}` : ''} em ${quando}`
 }
 
-function tituloDocumento(categoria: string): string {
-  if (categoria === 'medica') return 'EVOLUÇÃO MÉDICA DIÁRIA'
-  return `EVOLUÇÃO · ${(ROTULO_CATEGORIA[categoria] ?? categoria).toUpperCase()}`
+const TITULO_POR_CATEGORIA: Record<string, string> = {
+  medica: 'EVOLUÇÃO MÉDICA DIÁRIA',
+  enfermagem: 'EVOLUÇÃO DE ENFERMAGEM',
+  fisioterapia: 'EVOLUÇÃO DE FISIOTERAPIA',
+  nutricao: 'EVOLUÇÃO DE NUTRIÇÃO',
+  psicologia: 'EVOLUÇÃO DE PSICOLOGIA',
+  fonoaudiologia: 'EVOLUÇÃO DE FONOAUDIOLOGIA',
+  servico_social: 'EVOLUÇÃO DO SERVIÇO SOCIAL',
+}
+
+/** Título do documento: por categoria; adendo: "ADENDO À EVOLUÇÃO DE dd/mm/aaaa hh:mm (CÓDIGO <original>)". */
+export function tituloDocumento(evolucao: Pick<EvolucaoImpressao['evolucao'], 'categoria' | 'adendo_de'>): string {
+  if (evolucao.adendo_de) {
+    const original = evolucao.adendo_de
+    return `ADENDO À EVOLUÇÃO DE ${formatarDataHoraSP(original.finalizada_em)} (CÓDIGO ${codigoCurto(original.id)})`
+  }
+  return TITULO_POR_CATEGORIA[evolucao.categoria] ?? `EVOLUÇÃO · ${(ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria).toUpperCase()}`
 }
 
 const cinza = '#444444'
@@ -252,7 +303,7 @@ function CabecalhoDocumento({ item }: { item: EvolucaoImpressao }) {
         <Text style={estilos.hospital}>Santa Casa de Dracena</Text>
         {via > 1 && <Text style={estilos.via}>{`${via}ª via`}</Text>}
       </View>
-      <Text style={estilos.titulo}>{tituloDocumento(evolucao.categoria)}</Text>
+      <Text style={estilos.titulo}>{tituloDocumento(evolucao)}</Text>
       <Text style={estilos.identificacao}>{identificacaoPaciente(item)}</Text>
     </View>
   )
@@ -311,8 +362,23 @@ function PaginaImagem({ item, anexo }: { item: EvolucaoImpressao; anexo: AnexoIm
 function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
   const { evolucao, internacao, paciente } = item
   const dados = evolucao.dados
+  const simples = dados.modelo_versao === 'simples@1'
   const sinais = sinaisVisiveis(dados)
-  const secoes = secoesVisiveis(dados, evolucao.texto_livre ?? '')
+  const secoes = dados.modelo_versao === 'simples@1' ? secoesSimplesVisiveis(dados) : secoesVisiveis(dados, evolucao.texto_livre ?? '')
+  // Simples: Evolução, Sinais vitais, Plano. Médico: sinais vitais no topo, depois as seções.
+  const secoesAntesSinais = simples ? secoes.filter((s) => s.titulo === 'Evolução') : []
+  const secoesDepoisSinais = simples ? secoes.filter((s) => s.titulo !== 'Evolução') : secoes
+  const linhaSinais = sinais.length > 0 && (
+    <View style={estilos.tabelaSinais}>
+      {sinais.map((s) => (
+        <View key={s.rotulo} style={estilos.celulaSinal}>
+          <Text style={estilos.rotulo}>{s.rotulo}</Text>
+          <Text style={estilos.valor}>{s.valor}</Text>
+        </View>
+      ))}
+    </View>
+  )
+  const registro = linhaRegistro(evolucao)
 
   const campos: [string, string][] = [
     ['Paciente', paciente.nome],
@@ -339,18 +405,22 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
         </View>
       </View>
 
-      {sinais.length > 0 && (
-        <View style={estilos.tabelaSinais}>
-          {sinais.map((s) => (
-            <View key={s.rotulo} style={estilos.celulaSinal}>
-              <Text style={estilos.rotulo}>{s.rotulo}</Text>
-              <Text style={estilos.valor}>{s.valor}</Text>
-            </View>
-          ))}
+      {secoesAntesSinais.map((s) => (
+        <View key={s.titulo} style={estilos.secao}>
+          <Text style={estilos.tituloSecao}>{s.titulo}</Text>
+          <Text style={estilos.textoSecao}>{s.texto}</Text>
+        </View>
+      ))}
+
+      {simples && linhaSinais && (
+        <View style={estilos.secao}>
+          <Text style={estilos.tituloSecao}>Sinais vitais</Text>
+          {linhaSinais}
         </View>
       )}
+      {!simples && linhaSinais}
 
-      {secoes.map((s) => (
+      {secoesDepoisSinais.map((s) => (
         <View key={s.titulo} style={estilos.secao}>
           <Text style={estilos.tituloSecao}>{s.titulo}</Text>
           <Text style={estilos.textoSecao}>{s.texto}</Text>
@@ -360,6 +430,7 @@ function PaginaEvolucao({ item }: { item: EvolucaoImpressao }) {
       <TabelaAnexos anexos={item.anexos} />
 
       <View wrap={false} style={estilos.blocoAssinatura}>
+        {registro && <Text style={estilos.validacao}>{registro}</Text>}
         <Text style={estilos.validacao}>{linhaValidacao(evolucao)}</Text>
         <View style={estilos.caixaAssinatura}>
           <View style={estilos.linhaAssinatura} />
