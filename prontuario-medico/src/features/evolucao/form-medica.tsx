@@ -242,7 +242,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             </AccordionItem>
 
             <AccordionItem value="exames">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Exames</AccordionTrigger>
+              <AccordionTrigger className="min-h-11 text-base font-bold">{anexosEvolucao.anexos.length > 0 ? `Exames (${anexosEvolucao.anexos.length})` : 'Exames'}</AccordionTrigger>
               <AccordionContent className="flex flex-col gap-4 pb-4">
                 <CampoTextual id="ev-ecg" rotulo="ECG" valor={dados.ecg} onChange={(v) => alterarCampo('ecg', v)} linhas={2} />
                 <CampoTextual id="ev-imagem" rotulo="Exames de imagem" valor={dados.exames_imagem} onChange={(v) => alterarCampo('exames_imagem', v)} linhas={2} />

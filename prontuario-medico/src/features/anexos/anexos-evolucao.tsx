@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { Camera, FileText, Paperclip } from 'lucide-react'
+import { Camera, Check, FileText, Paperclip, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -13,6 +13,7 @@ import { formatarDataAnexo, ROTULO_TIPO_ANEXO, TIPOS_ANEXO, type TipoAnexo } fro
 
 const ACEITOS = 'image/jpeg,image/png,image/webp,application/pdf'
 const MENSAGEM_DATA = 'Informe a data do exame.'
+const TEMPO_CONFIRMACAO_MS = 4000
 const MENSAGEM_REMOCAO = 'Não foi possível remover o anexo. Tente novamente.'
 type Metadados = { tipo: TipoAnexo; descricao: string; dataExame: string }
 type Envio = Metadados & { chave: string; arquivo: File; estado: 'enviando' | 'erro'; mensagem?: string }
@@ -40,6 +41,7 @@ export function useAnexosEvolucao({
   const [anexos, setAnexos] = useState<AnexoRascunho[]>(iniciais)
   const [envios, setEnvios] = useState<Envio[]>([])
   const [erro, setErro] = useState<string | null>(null)
+  const [adicionado, setAdicionado] = useState(false)
   const contador = useRef(0)
   const vivo = useRef(true)
   const anexosRef = useRef(anexos)
@@ -56,6 +58,13 @@ export function useAnexosEvolucao({
       anexosRef.current.forEach((a) => revogarPrevia(a.previewUrl))
     }
   }, [])
+
+  // "Anexo adicionado." some sozinho; um novo envio também o apaga (ver `enviar`).
+  useEffect(() => {
+    if (!adicionado) return
+    const t = setTimeout(() => setAdicionado(false), TEMPO_CONFIRMACAO_MS)
+    return () => clearTimeout(t)
+  }, [adicionado])
 
   const enviando = envios.some((e) => e.estado === 'enviando')
   const temFalha = envios.some((e) => e.estado === 'erro')
@@ -81,6 +90,7 @@ export function useAnexosEvolucao({
         return
       }
       setAnexos((lista) => [...lista, anexo])
+      setAdicionado(true)
     } catch (falha) {
       if (!vivo.current) return
       setEnvios((lista) =>
@@ -89,16 +99,19 @@ export function useAnexosEvolucao({
     }
   }
 
-  function enviar(arquivo: File, meta: Metadados) {
+  /** Devolve false quando a validação recusa o envio (nada foi enviado). */
+  function enviar(arquivo: File, meta: Metadados): boolean {
     if (!meta.dataExame) {
       setErro(MENSAGEM_DATA)
-      return
+      return false
     }
     contador.current += 1
     const chave = `envio-${contador.current}`
     setErro(null)
+    setAdicionado(false)
     setEnvios((lista) => [...lista, { ...meta, chave, arquivo, estado: 'enviando' }])
     void executar(chave, arquivo, meta)
+    return true
   }
 
   function tentarNovamente(envio: Envio) {
@@ -155,6 +168,8 @@ export function useAnexosEvolucao({
     anexos,
     envios,
     erro,
+    /** Um envio acabou de dar certo (some em ~4 s ou no próximo envio). */
+    adicionado,
     enviando,
     /** Envio que falhou e não foi refeito nem cancelado: impede a finalização. */
     temFalha,
@@ -176,6 +191,7 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
   const [tipo, setTipo] = useState<TipoAnexo>('OUTRO')
   const [descricao, setDescricao] = useState('')
   const [dataExame, setDataExame] = useState(hojeEmSaoPaulo)
+  const [aberto, setAberto] = useState(false)
   const [aRemover, setARemover] = useState<AnexoRascunho | null>(null)
   const [removendo, setRemovendo] = useState(false)
   const fotoRef = useRef<HTMLInputElement>(null)
@@ -186,7 +202,13 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
     // Limpa o campo para permitir escolher o mesmo arquivo de novo.
     evento.target.value = ''
     if (!arquivo) return
-    estado.enviar(arquivo, { tipo, descricao: descricao.trim(), dataExame })
+    const iniciou = estado.enviar(arquivo, { tipo, descricao: descricao.trim(), dataExame })
+    if (!iniciou) return
+    // O envio em voo guarda os próprios metadados: o formulário já volta ao padrão para o próximo anexo.
+    setTipo('OUTRO')
+    setDescricao('')
+    setDataExame(hojeEmSaoPaulo())
+    setAberto(false)
   }
 
   async function confirmarRemocao() {
@@ -198,7 +220,7 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
   }
 
   return (
-    <section className="grid gap-4" aria-label="Anexos de exames">
+    <section className="grid gap-4 [&_p]:mb-0!" aria-label="Anexos de exames">
       <h3 className="text-base font-bold">Anexos</h3>
 
       {avisoFinalizacao && (
@@ -207,95 +229,42 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
         </p>
       )}
 
-      <div role="radiogroup" aria-label="Tipo do anexo" className="-mx-4 flex flex-nowrap gap-2 overflow-x-auto px-4 pb-1">
-        {TIPOS_ANEXO.map((t) => {
-          const marcado = tipo === t
-          return (
-            <button
-              key={t}
-              type="button"
-              role="radio"
-              aria-checked={marcado}
-              onClick={() => setTipo(t)}
-              className={`${CLASSE_CHIP} shrink-0 ${marcado ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card'}`}
-            >
-              {ROTULO_TIPO_ANEXO[t]}
-            </button>
-          )
-        })}
-      </div>
+      <div className="grid gap-3">
+        <p className="font-semibold">Anexos desta evolução ({estado.anexos.length})</p>
+        <div role="status" className="empty:hidden">
+          {estado.adicionado && (
+            <p className="flex items-center gap-2 rounded-lg bg-accent p-3 font-semibold text-accent-foreground">
+              <Check aria-hidden="true" className="size-5 shrink-0" />
+              Anexo adicionado.
+            </p>
+          )}
+        </div>
+        {estado.erro && !aberto && (
+          <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+            {estado.erro}
+          </p>
+        )}
 
-      <div className="grid gap-2">
-        <Label htmlFor="anexo-descricao">Descrição</Label>
-        <Input
-          id="anexo-descricao"
-          value={descricao}
-          maxLength={200}
-          placeholder="Ex.: hemograma de admissão"
-          onChange={(e) => setDescricao(e.target.value)}
-          className="h-11 text-base"
-        />
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="anexo-data">Data do exame</Label>
-        <Input
-          id="anexo-data"
-          type="date"
-          value={dataExame}
-          max={hojeEmSaoPaulo()}
-          onChange={(e) => setDataExame(e.target.value)}
-          className="h-11 text-base"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" className="h-11" onClick={() => fotoRef.current?.click()}>
-          <Camera aria-hidden="true" />
-          Tirar foto
-        </Button>
-        <Button type="button" variant="outline" className="h-11" onClick={() => arquivoRef.current?.click()}>
-          <Paperclip aria-hidden="true" />
-          Escolher arquivo
-        </Button>
-      </div>
-      <input
-        ref={fotoRef}
-        data-testid="entrada-foto"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        onChange={aoEscolher}
-      />
-      <input ref={arquivoRef} data-testid="entrada-arquivo" type="file" accept={ACEITOS} hidden onChange={aoEscolher} />
-
-      {estado.erro && (
-        <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-          {estado.erro}
-        </p>
-      )}
-
-      {(estado.envios.length > 0 || estado.anexos.length > 0) && (
-        <ul className="grid gap-3">
-          {estado.envios.map((e) => (
-            <li
-              key={e.chave}
-              data-testid="anexo-envio"
-              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
-            >
-              <div aria-hidden="true" className="size-16 shrink-0 rounded-md bg-muted" />
-              <div className="grid min-w-0 flex-1 gap-0.5">
-                <p className="font-semibold">{ROTULO_TIPO_ANEXO[e.tipo]}</p>
-                {e.estado === 'enviando' ? (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    Enviando…
-                  </p>
-                ) : (
-                  <p role="alert" className="text-sm font-semibold text-destructive">
-                    {e.mensagem}
-                  </p>
-                )}
+        {estado.envios.length > 0 || estado.anexos.length > 0 ? (
+          <ul className="grid gap-3">
+            {estado.envios.map((e) => (
+              <li
+                key={e.chave}
+                data-testid="anexo-envio"
+                className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
+              >
+                <div aria-hidden="true" className="size-16 shrink-0 rounded-md bg-muted" />
+                <div className="grid min-w-0 flex-1 gap-0.5">
+                  <p className="font-semibold">{ROTULO_TIPO_ANEXO[e.tipo]}</p>
+                  {e.estado === 'enviando' ? (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      Enviando…
+                    </p>
+                  ) : (
+                    <p role="alert" className="text-sm font-semibold text-destructive">
+                      {e.mensagem}
+                    </p>
+                  )}
               </div>
               {e.estado === 'erro' && (
                 <div className="flex shrink-0 flex-col gap-1">
@@ -336,7 +305,7 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
                 )}
                 <div className="grid min-w-0 flex-1 gap-0.5">
                   <p className="font-semibold">{ROTULO_TIPO_ANEXO[a.tipo]}</p>
-                  <p className="truncate text-sm text-muted-foreground">
+                  <p className="line-clamp-2 break-words text-sm text-muted-foreground">
                     {formatarDataAnexo(a.dataExame)}
                     {a.descricao ? ` · ${a.descricao}` : ''}
                   </p>
@@ -367,9 +336,98 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
             )
           })}
         </ul>
+      ) : (
+        <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+          Nenhum anexo nesta evolução.
+        </p>
       )}
+      </div>
 
-      <Dialog open={aRemover !== null} onOpenChange={(aberto) => !aberto && !removendo && setARemover(null)}>
+      <Button type="button" size="lg" className="h-12 w-full text-base" onClick={() => setAberto(true)}>
+        <Plus aria-hidden="true" />
+        Adicionar anexo
+      </Button>
+
+      <input
+        ref={fotoRef}
+        data-testid="entrada-foto"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={aoEscolher}
+      />
+      <input ref={arquivoRef} data-testid="entrada-arquivo" type="file" accept={ACEITOS} hidden onChange={aoEscolher} />
+
+
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent className="top-auto bottom-0 max-h-[90dvh] max-w-full translate-y-0 gap-5 overflow-y-auto rounded-b-none p-5 sm:top-1/2 sm:bottom-auto sm:max-w-md sm:-translate-y-1/2 sm:rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Adicionar anexo</DialogTitle>
+            <DialogDescription>Escolha o tipo e preencha; depois tire a foto ou escolha o arquivo.</DialogDescription>
+          </DialogHeader>
+          <div role="radiogroup" aria-label="Tipo do anexo" className="-mx-5 flex flex-nowrap gap-2 overflow-x-auto px-5 pb-1">
+            {TIPOS_ANEXO.map((t) => {
+              const marcado = tipo === t
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="radio"
+                  aria-checked={marcado}
+                  onClick={() => setTipo(t)}
+                  className={`${CLASSE_CHIP} shrink-0 ${marcado ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card'}`}
+                >
+                  {ROTULO_TIPO_ANEXO[t]}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="anexo-descricao">Descrição</Label>
+            <Input
+              id="anexo-descricao"
+              value={descricao}
+              maxLength={200}
+              placeholder="Ex.: hemograma de admissão"
+              onChange={(e) => setDescricao(e.target.value)}
+              className="h-11 text-base"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="anexo-data">Data do exame</Label>
+            <Input
+              id="anexo-data"
+              type="date"
+              value={dataExame}
+              max={hojeEmSaoPaulo()}
+              onChange={(e) => setDataExame(e.target.value)}
+              className="h-11 text-base"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" className="h-11" onClick={() => fotoRef.current?.click()}>
+              <Camera aria-hidden="true" />
+              Tirar foto
+            </Button>
+            <Button type="button" variant="outline" className="h-11" onClick={() => arquivoRef.current?.click()}>
+              <Paperclip aria-hidden="true" />
+              Escolher arquivo
+            </Button>
+          </div>
+          {estado.erro && (
+            <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+              {estado.erro}
+            </p>
+          )}
+
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aRemover !== null} onOpenChange={(abertoRemocao) => !abertoRemocao && !removendo && setARemover(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remover anexo?</DialogTitle>

@@ -54,8 +54,8 @@ async function abrirExamesDeRascunho(page: Page, id: string) {
 }
 
 async function abrirSecaoExames(page: Page) {
-  await page.getByRole('button', { name: 'Exames', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeVisible();
+  await page.getByRole('button', { name: /^Exames/ }).click();
+  await expect(page.getByRole('heading', { name: 'Anexos', exact: true })).toBeVisible();
 }
 
 async function anexarFoto(page: Page) {
@@ -123,10 +123,50 @@ test('médico anexa foto e ela aparece na lista', async ({ page }) => {
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
 
+test('anexar mostra confirmação, atualiza a lista e limpa o formulário', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await abrirExamesDeRascunho(page, id);
+
+  await expect(page.getByText('Nenhum anexo nesta evolução.')).toBeVisible();
+  await expect(page.getByText('Anexos desta evolução (0)')).toBeVisible();
+
+  const painel = page.getByRole('dialog', { name: 'Adicionar anexo' });
+  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click();
+  await page.getByRole('radio', { name: 'Laboratório' }).click();
+  await page.getByLabel('Descrição').fill('Hemograma de admissão');
+  await anexarFoto(page);
+
+  // O painel fecha ao escolher o arquivo; a lista mostra o anexo e a confirmação.
+  await expect(painel).toBeHidden();
+  await expect(page.getByRole('status').filter({ hasText: 'Anexo adicionado.' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('Anexos desta evolução (1)')).toBeVisible();
+  await expect(page.getByTestId('anexo-item')).toContainText('Hemograma de admissão');
+  await expect(page.getByRole('button', { name: 'Exames (1)' })).toBeVisible();
+
+  // Reabrir começa limpo: tipo Outro, descrição vazia, data de hoje.
+  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click();
+  await expect(painel).toBeVisible();
+  await expect(page.getByLabel('Descrição')).toHaveValue('');
+  await expect(page.getByRole('radio', { name: 'Outro' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByLabel('Data do exame')).toHaveValue(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()),
+  );
+
+  await page.getByLabel('Descrição').fill('Raio-X de tórax');
+  await page.getByTestId('entrada-arquivo').setInputFiles(PDF);
+  await expect(painel).toBeHidden();
+  await expect(page.getByText('Anexos desta evolução (2)')).toBeVisible({ timeout: 20_000 });
+  const itens = page.getByTestId('anexo-item');
+  await expect(itens).toHaveCount(2);
+  await expect(itens.filter({ hasText: 'Hemograma de admissão' })).toHaveCount(1);
+  await expect(itens.filter({ hasText: 'Raio-X de tórax' })).toHaveCount(1);
+});
+
 test('anexa PDF de laudo', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await abrirExamesDeRascunho(page, id);
 
+  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click();
   await page.getByRole('radio', { name: 'Laboratório' }).click();
   await page.getByLabel('Descrição').fill('Hemograma completo');
   await page.getByTestId('entrada-arquivo').setInputFiles(PDF);
@@ -216,14 +256,14 @@ test('finalizar com anexo não enviado é bloqueado e abre a seção Exames', as
   await expect(page.getByText('Sem conexão. Tente enviar o anexo novamente.')).toBeVisible({ timeout: 20_000 });
 
   // Recolhe a seção Exames: a finalização precisa reabri-la para mostrar o anexo com falha.
-  await page.getByRole('button', { name: 'Exames', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeHidden();
+  await page.getByRole('button', { name: /^Exames/ }).click();
+  await expect(page.getByRole('heading', { name: 'Anexos', exact: true })).toBeHidden();
   await page.getByLabel('Evolução clínica').fill('Evolução com anexo pendente');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta de teste');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
 
   await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de finalizar.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Anexos' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Anexos', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`/internacoes/${id}/evolucao$`));
 });
@@ -276,6 +316,7 @@ async function criarExamesFinalizados(page: Page): Promise<string> {
   await abrirExamesDeRascunho(page, id);
   await anexarFoto(page);
   await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
+  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click();
   await page.getByRole('radio', { name: 'ECG' }).click();
   await page.getByTestId('entrada-arquivo').setInputFiles(PDF);
   await expect(page.getByTestId('anexo-item')).toHaveCount(2, { timeout: 20_000 });

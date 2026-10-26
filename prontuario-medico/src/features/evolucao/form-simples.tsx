@@ -213,7 +213,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
             </AccordionItem>
 
             <AccordionItem value="anexos">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Anexos</AccordionTrigger>
+              <AccordionTrigger className="min-h-11 text-base font-bold">{anexosEvolucao.anexos.length > 0 ? `Anexos (${anexosEvolucao.anexos.length})` : 'Anexos'}</AccordionTrigger>
               <AccordionContent className="pb-4">
                 <BlocoAnexos
                   estado={anexosEvolucao}
