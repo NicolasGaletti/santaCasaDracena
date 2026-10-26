@@ -12,6 +12,10 @@ function memoria(): Armazenamento {
     del: async (chave) => {
       mapa.delete(chave);
     },
+    marcarSincronizado: async (chave, id) => {
+      const v = mapa.get(chave) as { gravacaoId?: string } | undefined;
+      if (v && v.gravacaoId === id) mapa.set(chave, { ...v, sincronizado: true });
+    },
   };
 }
 
@@ -275,5 +279,64 @@ describe('fila de autosave', () => {
     expect(resolverRascunho({ ...base, sincronizado: true }, servidor)?.origem).toBe('servidor');
     expect(resolverRascunho({ ...base, sincronizado: false }, servidor)?.origem).toBe('local');
     expect(resolverRascunho(base, servidor)?.origem).toBe('local');
+  });
+});
+
+describe('fila de autosave: abas concorrentes', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('confirmação da aba A não marca como sincronizada escrita mais nova da aba B', async () => {
+    const mapa = new Map<string, unknown>();
+    const compartilhado: Armazenamento = {
+      get: async (c) => mapa.get(c) as never,
+      set: async (c, v) => void mapa.set(c, v),
+      del: async (c) => void mapa.delete(c),
+      marcarSincronizado: async (c, id) => {
+        const v = mapa.get(c) as { gravacaoId?: string } | undefined;
+        if (v && v.gravacaoId === id) mapa.set(c, { ...v, sincronizado: true });
+      },
+    };
+    const envio = adiado<{ id: string; atualizado_em: string }>();
+    const filaA = criarFilaAutosave({ salvar: () => envio.promessa, armazenamento: compartilhado, chave: CHAVE });
+    const filaB = criarFilaAutosave({ salvar: async () => RETORNO(), armazenamento: compartilhado, chave: CHAVE });
+
+    filaA.agendar(payload('A'));
+    await vi.advanceTimersByTimeAsync(3000); // A em voo
+    filaB.agendar(payload('B mais nova'));
+    await vi.advanceTimersByTimeAsync(0);
+    envio.resolver(RETORNO());
+    await vi.advanceTimersByTimeAsync(0);
+
+    const guardado = (await compartilhado.get(CHAVE))!;
+    expect(guardado.dados.conduta).toBe('B mais nova');
+    expect(guardado.sincronizado).toBe(false);
+    filaB.encerrar();
+  });
+
+  it('reabrir re-arma o timer quando há digitação pendente', async () => {
+    const salvar = vi.fn(async () => RETORNO());
+    const fila = criarFilaAutosave({ salvar, armazenamento: memoria(), chave: CHAVE });
+    fila.agendar(payload('x'));
+    await fila.cancelar();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(salvar).not.toHaveBeenCalled();
+    fila.reabrir();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(salvar).toHaveBeenCalledTimes(1);
+  });
+
+  it('reabrir sem pendência não agenda envio', async () => {
+    const salvar = vi.fn(async () => RETORNO());
+    const fila = criarFilaAutosave({ salvar, armazenamento: memoria(), chave: CHAVE });
+    await fila.cancelar();
+    fila.reabrir();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(salvar).not.toHaveBeenCalled();
   });
 });

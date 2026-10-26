@@ -1,18 +1,21 @@
-import { del, get, set } from 'idb-keyval';
+import { createStore, del, get, set, update } from 'idb-keyval';
 import type { DadosMedica } from './modelos/medica';
 
 export type PayloadRascunho<D = DadosMedica> = { internacaoId: string; dados: D; textoLivre: string };
 
 /**
  * Cópia local do rascunho. `sincronizado: true` só depois que o servidor confirmou esta mesma versão;
+ * `gravacaoId` identifica cada escrita local: só a escrita que o servidor confirmou pode virar sincronizada.
  * ausente (registro antigo) ou false conta como NÃO sincronizado e nunca é apagado na saída da sessão.
  */
-export type CopiaLocal<D = DadosMedica> = PayloadRascunho<D> & { salvoLocalEm: string; sincronizado?: boolean };
+export type CopiaLocal<D = DadosMedica> = PayloadRascunho<D> & { salvoLocalEm: string; sincronizado?: boolean; gravacaoId?: string };
 
 export type Armazenamento<D = DadosMedica> = {
   get(chave: string): Promise<CopiaLocal<D> | undefined>;
   set(chave: string, valor: CopiaLocal<D>): Promise<void>;
   del(chave: string): Promise<void>;
+  /** Atômico: marca `sincronizado: true` só se o registro guardado ainda é a escrita `gravacaoId` (nada mais novo, de nenhuma aba). */
+  marcarSincronizado(chave: string, gravacaoId: string): Promise<void>;
 };
 
 export type EstadoAutosave = 'salvo' | 'pendente' | 'offline' | 'erro';
@@ -60,7 +63,34 @@ export function armazenamentoIdb<D = DadosMedica>(): Armazenamento<D> {
     get: (chave) => get<CopiaLocal<D>>(chave),
     set: (chave, valor) => set(chave, valor),
     del: (chave) => del(chave),
+    marcarSincronizado: (chave, gravacaoId) =>
+      update<CopiaLocal<D> | undefined>(chave, (v) =>
+        v && v.gravacaoId === gravacaoId ? { ...v, sincronizado: true } : v,
+      ),
   };
+}
+
+let lojaPadrao: ReturnType<typeof createStore> | undefined;
+
+/**
+ * Apaga a chave só se o registro ainda está marcado sincronizado, tudo em UMA transação readwrite:
+ * gravação não sincronizada de outra aba nunca cai entre a leitura e o delete. Devolve true se apagou.
+ */
+export function apagarSeSincronizada(chave: string): Promise<boolean> {
+  lojaPadrao ??= createStore('keyval-store', 'keyval');
+  return lojaPadrao('readwrite', (store) => {
+    return new Promise<boolean>((resolve, reject) => {
+      const leitura = store.get(chave);
+      leitura.onerror = () => reject(leitura.error);
+      leitura.onsuccess = () => {
+        const v = leitura.result as { sincronizado?: unknown } | undefined;
+        const apagar = typeof v === 'object' && v !== null && v.sincronizado === true;
+        if (apagar) store.delete(chave);
+        store.transaction.oncomplete = () => resolve(apagar);
+        store.transaction.onabort = store.transaction.onerror = () => reject(store.transaction.error);
+      };
+    });
+  });
 }
 
 export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAutosave<D> {
@@ -75,6 +105,7 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
   let versao = 0; // incrementa a cada agendar
   let versaoSalva = 0; // última versão confirmada pelo servidor
   let cancelado = false;
+  let idGravacao = ''; // gravacaoId da escrita local mais recente desta fila
   let gravacaoLocal: Promise<void> = Promise.resolve();
   // Cadeia única: todo envio entra aqui, então nunca há dois `salvar` simultâneos.
   let fila: Promise<void> = Promise.resolve();
@@ -94,6 +125,7 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
       await gravacaoLocal;
       const enviado = atual;
       const versaoEnviada = versao;
+      const idEnviado = idGravacao;
       try {
         const retorno = await salvar(enviado);
         evolucaoId = retorno.id;
@@ -101,9 +133,8 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
         versaoSalva = versaoEnviada;
         // Se houve digitação depois deste envio, a cópia local e o timer novos continuam valendo.
         if (versaoEnviada === versao) {
-          // Marca como sincronizada na mesma cadeia das gravações locais: nenhuma gravação mais nova é sobrescrita.
-          const marcada: CopiaLocal<D> = { ...enviado, salvoLocalEm: new Date().toISOString(), sincronizado: true };
-          gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, marcada)).catch(() => {});
+          // Atômico e condicional: se outra aba (ou esta) gravou algo mais novo, o registro continua não sincronizado.
+          gravacaoLocal = gravacaoLocal.then(() => armazenamento.marcarSincronizado(chave, idEnviado)).catch(() => {});
           await gravacaoLocal;
           mudar('salvo');
         }
@@ -122,7 +153,13 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
       if (cancelado) return;
       atual = p;
       versao += 1;
-      const copia: CopiaLocal<D> = { ...p, salvoLocalEm: new Date().toISOString(), sincronizado: false };
+      idGravacao = crypto.randomUUID();
+      const copia: CopiaLocal<D> = {
+        ...p,
+        salvoLocalEm: new Date().toISOString(),
+        sincronizado: false,
+        gravacaoId: idGravacao,
+      };
       gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, copia));
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -179,6 +216,13 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
 
     reabrir() {
       cancelado = false;
+      // Havia digitação não enviada quando a saída falhou: o timer foi cancelado e precisa voltar.
+      if (atual && versaoSalva !== versao) {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          void enviarUltimo().catch(() => {});
+        }, esperaMs);
+      }
     },
 
     async apagarCopiaLocal() {

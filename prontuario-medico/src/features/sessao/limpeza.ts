@@ -1,4 +1,5 @@
-import { del, get, keys } from 'idb-keyval'
+import { get, keys } from 'idb-keyval'
+import { apagarSeSincronizada } from '@/features/evolucao/autosave'
 
 export type FilaRegistravel = {
   /** Chave IndexedDB da cópia local desta fila (`rascunho:<internação>:<usuário>`). */
@@ -96,7 +97,7 @@ export async function finalizarSaida(): Promise<boolean> {
 export async function limparCopiasLocais(): Promise<void> {
   try {
     for (const k of await chavesRascunho()) {
-      if (sincronizada(await get(k))) await del(k)
+      await apagarSeSincronizada(k)
     }
   } catch {
     // IndexedDB indisponível: não há cópia a apagar.
