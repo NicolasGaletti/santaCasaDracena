@@ -5,6 +5,10 @@ create type public.tipo_alta as enum ('MELHORADA','CURADA','A_PEDIDO','TRANSFERE
 
 alter table public.internacoes add column tipo_alta public.tipo_alta;
 
+-- Snapshot do médico e da equipe no momento da alta (como snapshot_autor em evolucoes).
+-- Fica em internacoes_clinico (RLS eh_clinico): recepção/admin não leem.
+alter table public.internacoes_clinico add column snapshot_alta jsonb;
+
 -- dar_alta: médico ativo da equipe da internação. Rascunhos pendentes ficam congelados
 -- (a trava de ALTA já impede alterá-los; só adendo é permitido).
 create function public.dar_alta(
@@ -18,6 +22,8 @@ as $$
 declare
   v_int public.internacoes%rowtype;
   v_resumo text := nullif(trim(p_resumo), '');
+  v_prof public.profissionais%rowtype;
+  v_snapshot jsonb;
 begin
   if not (app.profissional_ativo() and app.eh_medico()) then
     raise exception 'Acesso negado.' using errcode = 'P0001';
@@ -66,6 +72,37 @@ begin
   ) then
     raise exception 'Há evoluções aguardando validação nesta internação.' using errcode = 'P0001';
   end if;
+
+  select p.* into v_prof from public.profissionais p where p.id = auth.uid();
+  if nullif(trim(v_prof.conselho), '') is null
+     or nullif(trim(v_prof.numero_conselho), '') is null
+     or nullif(trim(v_prof.uf_conselho), '') is null then
+    raise exception 'Complete seu registro profissional antes de dar alta.' using errcode = 'P0001';
+  end if;
+
+  v_snapshot := jsonb_build_object(
+    'medico', jsonb_build_object(
+      'nome', v_prof.nome,
+      'conselho', v_prof.conselho,
+      'numero', v_prof.numero_conselho,
+      'uf', v_prof.uf_conselho
+    ),
+    'equipe', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'nome', m.nome,
+        'conselho', m.conselho,
+        'numero', m.numero_conselho,
+        'uf', m.uf_conselho
+      ) order by m.nome, m.id)
+      from public.membros_equipe me
+      join public.profissionais m on m.id = me.profissional_id
+      where me.equipe_id = v_int.equipe_id and m.ativo
+    ), '[]'::jsonb)
+  );
+
+  insert into public.internacoes_clinico (internacao_id, snapshot_alta)
+  values (p_internacao_id, v_snapshot)
+  on conflict (internacao_id) do update set snapshot_alta = excluded.snapshot_alta;
 
   update public.internacoes
   set status = 'ALTA', alta_em = p_alta_em, alta_por = auth.uid(),

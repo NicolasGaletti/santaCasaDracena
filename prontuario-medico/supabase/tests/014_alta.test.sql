@@ -1,9 +1,10 @@
 begin;
-select plan(19);
+select plan(24);
 
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
 select set_config('tst.medico_fora', tests.criar_profissional('medico')::text, true);
 select set_config('tst.residente', tests.criar_profissional('residente', true, 'medica')::text, true);
+select set_config('tst.sem_registro', tests.criar_profissional('medico', false)::text, true);
 select set_config('tst.multi', tests.criar_profissional('multiprofissional', true, 'fisioterapia')::text, true);
 
 insert into public.equipes (id, nome) values
@@ -14,7 +15,8 @@ insert into public.membros_equipe (profissional_id, equipe_id) values
   (current_setting('tst.medico')::uuid, '14000000-0000-0000-0000-000000000001'),
   (current_setting('tst.residente')::uuid, '14000000-0000-0000-0000-000000000001'),
   (current_setting('tst.multi')::uuid, '14000000-0000-0000-0000-000000000001'),
-  (current_setting('tst.medico_fora')::uuid, '14000000-0000-0000-0000-000000000002');
+  (current_setting('tst.medico_fora')::uuid, '14000000-0000-0000-0000-000000000002'),
+  (current_setting('tst.sem_registro')::uuid, '14000000-0000-0000-0000-000000000001');
 
 insert into public.pacientes (id, nome, data_nascimento, convenio)
 select ('14100000-0000-0000-0000-' || lpad(g::text, 12, '0'))::uuid, 'Paciente Alta ' || g, '1950-01-01', 'SUS'
@@ -162,6 +164,43 @@ select ok(
   exists (select 1 from public.vw_internacoes_lista
           where internacao_id = '14200000-0000-0000-0000-000000000001' and tipo_alta = 'CURADA' and alta_em is not null),
   'vw_internacoes_lista expõe tipo_alta e alta_em'
+);
+
+-- snapshot_alta: médico + equipe ativa ordenada por nome, congelados na alta
+reset role;
+select ok(
+  (select snapshot_alta->'medico' from public.internacoes_clinico where internacao_id = '14200000-0000-0000-0000-000000000001')
+    = jsonb_build_object('nome', 'Teste medico', 'conselho', 'CRM', 'numero', '123456', 'uf', 'SP'),
+  'snapshot_alta guarda o médico'
+);
+select is(
+  (select jsonb_array_length(snapshot_alta->'equipe') from public.internacoes_clinico where internacao_id = '14200000-0000-0000-0000-000000000001'),
+  4, 'snapshot_alta guarda a equipe (4 membros ativos)'
+);
+update public.profissionais set conselho = 'COREN', numero_conselho = '999', nome = 'Nome Novo'
+where id = current_setting('tst.medico')::uuid;
+delete from public.membros_equipe where profissional_id = current_setting('tst.multi')::uuid;
+select ok(
+  (select snapshot_alta->'medico'->>'conselho' = 'CRM' and snapshot_alta->'medico'->>'nome' = 'Teste medico'
+          and jsonb_array_length(snapshot_alta->'equipe') = 4
+   from public.internacoes_clinico where internacao_id = '14200000-0000-0000-0000-000000000001'),
+  'mudar conselho/equipe depois da alta não altera o snapshot'
+);
+
+-- médico sem registro completo não dá alta
+select tests.autenticar(current_setting('tst.sem_registro')::uuid);
+select throws_ok(
+  $$select public.dar_alta('14200000-0000-0000-0000-000000000003', 'MELHORADA', 'Resumo')$$,
+  'P0001', 'Complete seu registro profissional antes de dar alta.', 'médico sem registro não dá alta'
+);
+
+-- recepção não lê snapshot_alta
+reset role;
+select set_config('tst.recepcao', tests.criar_profissional('recepcao')::text, true);
+select tests.autenticar(current_setting('tst.recepcao')::uuid);
+select is(
+  (select count(*)::int from public.internacoes_clinico where snapshot_alta is not null),
+  0, 'recepção não lê snapshot_alta'
 );
 
 select * from finish();

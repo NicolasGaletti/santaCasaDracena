@@ -511,6 +511,7 @@ export type Database = {
           diagnostico_inicial: string | null;
           internacao_id: string;
           muc: string | null;
+          snapshot_alta: Json | null;
         };
         ComputedFields: never;
         Insert: {
@@ -518,12 +519,14 @@ export type Database = {
           diagnostico_inicial?: string | null;
           internacao_id: string;
           muc?: string | null;
+          snapshot_alta?: Json | null;
         };
         Update: {
           comorbidades?: string | null;
           diagnostico_inicial?: string | null;
           internacao_id?: string;
           muc?: string | null;
+          snapshot_alta?: Json | null;
         };
         Relationships: [
           {
