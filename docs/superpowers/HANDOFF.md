@@ -16,7 +16,7 @@ Leia isto primeiro ao iniciar uma sessão nova. Depois leia só o ledger do plan
 
 ## Estado atual (atualizar ao fim de cada sessão)
 - Planos 1, 1b, 2: concluídos, revisados e no staging (`staging` = `6817c22`).
-- Plano 3: Tasks 1–6 concluídas e revisadas (último commit revisado `c46dd3b`). **Task 7 (PDF por categoria/autor/adendo) em andamento** — se `git log` não mostrar o commit `feat(impressao): PDF multiprofissional e adendo`, despachar a Task 7 de novo a partir de `.superpowers/sdd/2026-10-25-plano-3-multiprofissional/task-7-brief.md` (há trabalho parcial não commitado possível: conferir `git status` antes; descartar ou aproveitar).
+- Plano 3: Tasks 1–6 concluídas e revisadas. **Task 7 implementada (`4b0d9ea`), revisão pendente.** Próximo passo: gerar o pacote (`scripts/review-package` base `c46dd3b` head `4b0d9ea`) e despachar o revisor (sonnet). Na rodada de correção da Task 7, aplicar a decisão registrada no ledger: `criar_adendo` passa a exigir que quem cria possa evoluir na internação (autor E membro da equipe, ou médico membro) — editar a migration 0011 no lugar (ainda não aplicada no staging) e alinhar a guarda da página `internacoes/[id]/evolucao`. Exemplos de PDF em `.superpowers/sdd/2026-10-25-plano-3-multiprofissional/task-7-exemplo-*.pdf` (ler o PDF para conferir o visual).
 - Depois: Plano 3 Task 8 (seed/docs/suíte) → revisão final do Plano 3 (Opus) → deploy no staging → Plano 4.
 - Ação pendente do usuário no próximo deploy: `cd prontuario-medico && npx supabase db push` (migrations 0009–0012) **antes** do push da branch `staging`.
 
