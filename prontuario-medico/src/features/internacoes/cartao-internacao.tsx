@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { formatarDataSP } from '@/features/alta/data-hora'
+import { rotuloTipoAlta } from '@/features/alta/tipos'
 import { formatarData, idade } from '@/lib/datas'
 import type { LinhaInternacao } from './consultas'
 
@@ -36,6 +38,11 @@ export function CartaoInternacao({
           <span className="text-sm text-muted-foreground">
             D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
           </span>
+          {linha.status === 'ALTA' && linha.alta_em && (
+            <span className="text-sm font-semibold">
+              {rotuloTipoAlta(linha.tipo_alta)} · Alta em {formatarDataSP(linha.alta_em)}
+            </span>
+          )}
           <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <span className="min-w-0 text-sm text-muted-foreground">
               {linha.equipe_nome} · {linha.convenio}

@@ -14,6 +14,7 @@ import {
   podeCriarAdendo,
   podeEvoluirNaInternacao,
 } from '@/features/evolucao/permissoes'
+import { DialogAlta } from '@/features/alta/dialog-alta'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirProfissional } from '@/lib/auth'
@@ -87,6 +88,8 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     perfilEvolui && (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
   const podeEvoluir = linha.status === 'INTERNADO' && perfilEvolui && podeEvoluirEquipe
 
+  const podeDarAlta = linha.status === 'INTERNADO' && clinico && profissional.perfil === 'medico' && membroEquipe
+
   return (
     <>
       <MarcarAba status={linha.status} />
@@ -128,6 +131,16 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             </p>
           )}
         </div>
+      )}
+
+      {podeDarAlta && <DialogAlta internacaoId={id} />}
+
+      {linha.status === 'ALTA' && clinico && (
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <a href={`/internacoes/${id}/alta/pdf`} target="_blank" rel="noopener">
+            Folha de alta (PDF)
+          </a>
+        </Button>
       )}
 
       {linha.status === 'ALTA' && (
