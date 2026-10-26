@@ -4,6 +4,11 @@ export const TIPOS_ANEXO = ['LABORATORIO', 'IMAGEM', 'ECG', 'OUTRO'] as const;
 
 export type TipoAnexo = (typeof TIPOS_ANEXO)[number];
 
+/** Tipos de envio novo. OUTRO continua no enum e é exibido (anexos antigos), mas nunca oferecido. */
+export const TIPOS_ANEXO_OFERECIDOS = ['ECG', 'IMAGEM', 'LABORATORIO'] as const;
+
+export type TipoAnexoOferecido = (typeof TIPOS_ANEXO_OFERECIDOS)[number];
+
 export const ROTULO_TIPO_ANEXO: Record<TipoAnexo, string> = {
   LABORATORIO: 'Laboratório',
   IMAGEM: 'Imagem',

@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { expect, test, type APIResponse, type Page } from '@playwright/test'
+import { anexarPeloCampo } from './helpers/anexos'
 
 const SENHA = 'Teste@123'
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -94,8 +95,7 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
   // Upload de anexo.
   await page.getByRole('link', { name: 'Nova evolução' }).click()
   await expect(page.getByLabel('Evolução clínica')).toBeVisible()
-  await page.getByRole('button', { name: /^Exames/ }).click()
-  await page.getByTestId('entrada-foto').setInputFiles(FOTO)
+  await anexarPeloCampo(page, 'IMAGEM', FOTO)
   await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 })
   await expect(page.getByRole('img', { name: /Foto do anexo/ })).toBeVisible()
 

@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
+import { RodapeAcoes } from '@/components/layout/rodape-acoes'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-/** Rodapé fixo das evoluções: status, Salvar e, à direita, ações do perfil (secundária e principal). */
+/** Rodapé da ficha: status do salvamento e ações (secundária, Salvar e principal do perfil). */
 export function RodapeEvolucao({
   indicador,
   acaoSecundaria,
@@ -15,18 +16,21 @@ export function RodapeEvolucao({
   acaoPrincipal?: ReactNode
 }) {
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-20 flex items-center gap-2 border-t border-border bg-card px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:inset-x-0 lg:mx-auto lg:w-full lg:max-w-6xl">
-      <p role="status" aria-live="polite" className="min-w-0 shrink text-xs font-semibold text-muted-foreground">
-        {indicador}
-      </p>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+    <div className="sm:overflow-hidden sm:rounded-b-xl sm:border sm:border-t-0 sm:border-border">
+      <RodapeAcoes
+        info={
+          <p role="status" aria-live="polite" className="font-semibold">
+            {indicador}
+          </p>
+        }
+      >
         {acaoSecundaria}
-        <Button type="button" variant="secondary" disabled={salvar.desabilitado} onClick={salvar.onSalvar} className="h-11 px-3 text-sm">
+        <Button type="button" variant="suave" size="compacto" disabled={salvar.desabilitado} onClick={salvar.onSalvar}>
           Salvar
         </Button>
         {acaoPrincipal}
-      </div>
-    </footer>
+      </RodapeAcoes>
+    </div>
   )
 }
 

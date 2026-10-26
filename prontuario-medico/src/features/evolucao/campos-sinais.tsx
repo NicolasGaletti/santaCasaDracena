@@ -1,19 +1,21 @@
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { sinaisSchema, type Sinais } from './modelos/sinais'
 
 export type CampoSinal = keyof Sinais
 export type BrutosSinais = Record<CampoSinal, string>
 
-const CAMPOS: { chave: CampoSinal; rotulo: string; placeholder: string; modo: 'text' | 'decimal' }[] = [
-  { chave: 'pa', rotulo: 'PA (mmHg)', placeholder: '120/80', modo: 'text' },
-  { chave: 'fc', rotulo: 'FC (bpm)', placeholder: '80', modo: 'decimal' },
-  { chave: 'fr', rotulo: 'FR (irpm)', placeholder: '16', modo: 'decimal' },
-  { chave: 'temp', rotulo: 'Temperatura (°C)', placeholder: '36,5', modo: 'decimal' },
-  { chave: 'sato2', rotulo: 'SatO2 (%)', placeholder: '98', modo: 'decimal' },
-  { chave: 'dextro', rotulo: 'Dextro (mg/dL)', placeholder: '100', modo: 'decimal' },
-  { chave: 'diurese', rotulo: 'Diurese (mL/24 h)', placeholder: '1500', modo: 'decimal' },
+const CAMPOS: { chave: CampoSinal; curto: string; unidade: string; placeholder: string; modo: 'text' | 'decimal' }[] = [
+  { chave: 'pa', curto: 'PA', unidade: 'mmHg', placeholder: '120/80', modo: 'text' },
+  { chave: 'fc', curto: 'FC', unidade: 'bpm', placeholder: '80', modo: 'decimal' },
+  { chave: 'fr', curto: 'FR', unidade: 'irpm', placeholder: '16', modo: 'decimal' },
+  { chave: 'temp', curto: 'Temp', unidade: '°C', placeholder: '36,5', modo: 'decimal' },
+  { chave: 'sato2', curto: 'SatO2', unidade: '%', placeholder: '98', modo: 'decimal' },
+  { chave: 'dextro', curto: 'Dextro', unidade: 'mg/dL', placeholder: '100', modo: 'decimal' },
+  { chave: 'diurese', curto: 'Diurese', unidade: 'mL/24 h', placeholder: '1500', modo: 'decimal' },
 ]
+
+const rotuloDe = (c: (typeof CAMPOS)[number]) => `${c.curto} (${c.unidade})`
 
 export function brutosDeSinais(s: Sinais): BrutosSinais {
   const texto = (n: number | null) => (n === null ? '' : String(n))
@@ -50,7 +52,7 @@ export function erroSinal(chave: CampoSinal, texto: string): string | null {
 export function errosDeSinais(brutos: BrutosSinais): string[] {
   return CAMPOS.flatMap((c) => {
     const e = erroSinal(c.chave, brutos[c.chave])
-    return e ? [`${c.rotulo}: ${e}`] : []
+    return e ? [`${rotuloDe(c)}: ${e}`] : []
   })
 }
 
@@ -62,7 +64,7 @@ export function aplicarSinal(sinais: Sinais, chave: CampoSinal, texto: string): 
   return { ...sinais, [chave]: valor } as Sinais
 }
 
-/** Grade de sinais vitais. Quem chama decide a seção (accordion) e o estado dos brutos. */
+/** Sinais vitais: 7 em linha (sm+) ou grade de 4 (celular). Quem chama guarda o estado dos brutos. */
 export function CamposSinais({
   brutos,
   onAlterar,
@@ -71,12 +73,15 @@ export function CamposSinais({
   onAlterar: (chave: CampoSinal, texto: string) => void
 }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="grid grid-cols-4 gap-x-2 gap-y-3 rounded-lg border border-border bg-campo p-3 sm:grid-cols-7">
       {CAMPOS.map((c) => {
         const erro = erroSinal(c.chave, brutos[c.chave])
         return (
-          <div key={c.chave} className="grid content-start gap-2">
-            <Label htmlFor={`ev-sinal-${c.chave}`}>{c.rotulo}</Label>
+          <div key={c.chave} className="grid min-w-0 content-start gap-1">
+            <RotuloCampo htmlFor={`ev-sinal-${c.chave}`} className="mb-0 flex-col items-center gap-0 text-center normal-case">
+              <span className="uppercase">{c.curto}</span>{' '}
+              <span className="block text-[10px] font-semibold text-muted-foreground">({c.unidade})</span>
+            </RotuloCampo>
             <Input
               id={`ev-sinal-${c.chave}`}
               inputMode={c.modo}
@@ -86,10 +91,10 @@ export function CamposSinais({
               aria-invalid={erro ? true : undefined}
               aria-describedby={erro ? `erro-sinal-${c.chave}` : undefined}
               onChange={(e) => onAlterar(c.chave, e.target.value)}
-              className="h-11 text-base tabular-nums"
+              className="bg-card px-1 text-center tabular-nums"
             />
             {erro && (
-              <p id={`erro-sinal-${c.chave}`} className="text-sm font-semibold text-destructive">
+              <p id={`erro-sinal-${c.chave}`} className="text-[12px] font-semibold text-destructive">
                 {erro}
               </p>
             )}

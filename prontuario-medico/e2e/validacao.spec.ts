@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { anexarPeloCampo } from './helpers/anexos';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -130,13 +131,11 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
   await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await page.getByRole('button', { name: 'Exames', exact: true }).click();
 
   await page.route('**/storage/v1/object/**', (r) => r.abort());
-  await page.getByTestId('entrada-foto').setInputFiles(FOTO);
+  await anexarPeloCampo(page, 'IMAGEM', FOTO);
   await expect(page.getByText('Sem conexão. Tente enviar o anexo novamente.')).toBeVisible({ timeout: 20_000 });
 
-  await page.getByRole('button', { name: 'Exames', exact: true }).click();
   await page.getByLabel('Evolução clínica').fill('Evolução com anexo pendente');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta de teste');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
@@ -269,8 +268,7 @@ test.describe.serial('validação: anexos e menu', () => {
     await expect(page).toHaveURL(/\/evolucao$/);
     await page.getByLabel('Evolução clínica').fill('Evolução com foto');
     await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com foto');
-    await page.getByRole('button', { name: 'Exames', exact: true }).click();
-    await page.getByTestId('entrada-foto').setInputFiles(path.join(__dirname, 'fixtures', 'exame.jpg'));
+    await anexarPeloCampo(page, 'IMAGEM', path.join(__dirname, 'fixtures', 'exame.jpg'));
     await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
     await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
     await page.getByRole('button', { name: 'Confirmar envio' }).click();

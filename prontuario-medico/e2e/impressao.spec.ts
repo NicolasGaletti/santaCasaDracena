@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { PDFParse } from 'pdf-parse'
 import { expect, test, type Page } from '@playwright/test'
+import { anexarPeloCampo } from './helpers/anexos'
 
 const SENHA = 'Teste@123'
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -165,21 +166,14 @@ test('mesma chave de impressão repetida não gera nova via', async ({ page }) =
   expect(await textoDoPdf(await repetida.body())).not.toContain('2ª via');
 })
 
-/** Cria evolução com foto (Outro, "Foto do exame") e PDF (Laboratório, "Hemograma completo") e finaliza. */
+/** Cria evolução com foto (Imagem, "Foto do exame") e PDF (Laboratório, "Hemograma completo") e finaliza. */
 async function finalizarComAnexos(page: Page, internacaoId: string, texto: string): Promise<string> {
   await page.goto(`/internacoes/${internacaoId}`)
   await page.getByRole('link', { name: 'Nova evolução' }).click()
   await expect(page).toHaveURL(/\/evolucao$/)
-  await page.getByRole('button', { name: 'Exames', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Anexos', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click()
-  await page.getByLabel('Descrição').fill('Foto do exame')
-  await page.getByTestId('entrada-foto').setInputFiles(FOTO)
+  await anexarPeloCampo(page, 'IMAGEM', FOTO, 'Foto do exame')
   await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 })
-  await page.getByRole('button', { name: 'Adicionar anexo', exact: true }).click()
-  await page.getByRole('radio', { name: 'Laboratório' }).click()
-  await page.getByLabel('Descrição').fill('Hemograma completo')
-  await page.getByTestId('entrada-arquivo').setInputFiles(PDF)
+  await anexarPeloCampo(page, 'LABORATORIO', PDF, 'Hemograma completo')
   await expect(page.getByTestId('anexo-item')).toHaveCount(2, { timeout: 20_000 })
   await page.getByLabel('Evolução clínica').fill(texto)
   await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
@@ -220,7 +214,7 @@ test('com anexos=1 o PDF tem página da imagem', async ({ page }) => {
   const comImagens = await page.request.get(`/evolucoes/${id}/pdf?anexos=1`)
   expect(comImagens.status()).toBe(200)
   const texto = await textoDoPdf(await comImagens.body())
-  expect(texto).toMatch(/Outro · \d{2}\/\d{2}\/\d{4} · Foto do exame/)
+  expect(texto).toMatch(/Imagem · \d{2}\/\d{2}\/\d{4} · Foto do exame/)
   expect(texto).toContain(`Evolução ${id.slice(0, 8).toUpperCase()}`)
   expect(texto).toContain('Página 1 de 2')
 })

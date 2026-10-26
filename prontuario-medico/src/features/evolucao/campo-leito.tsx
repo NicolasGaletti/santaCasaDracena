@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore, useTransition } from 'react'
 import { toast } from 'sonner'
 import { trocarLeito } from './actions'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 
 const assinaVazio = () => () => {}
 
@@ -62,9 +62,9 @@ export function CampoLeito({
 
   return (
     <div className="flex flex-col gap-1">
-      <Label htmlFor="leito-internacao" className="text-sm text-muted-foreground">
+      <RotuloCampo htmlFor="leito-internacao" className="mb-0">
         Leito / ala
-      </Label>
+      </RotuloCampo>
       <Input
         id="leito-internacao"
         name="leito"
@@ -83,7 +83,7 @@ export function CampoLeito({
         }}
         aria-invalid={erro ? true : undefined}
         aria-describedby={erro ? 'erro-leito' : undefined}
-        className="h-11 w-full max-w-40 text-lg font-bold tabular-nums"
+        className="w-full max-w-40 font-bold tabular-nums"
       />
       {enviando && (
         <p role="status" className="text-sm font-semibold text-muted-foreground">

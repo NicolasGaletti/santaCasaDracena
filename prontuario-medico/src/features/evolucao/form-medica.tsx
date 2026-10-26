@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { useRef, useState } from 'react'
-import { Copy } from 'lucide-react'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Activity, Copy, FilePenLine, FlaskConical, HeartPulse, ScanLine } from 'lucide-react'
+import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MarcarAba } from '@/components/navegacao-ativa'
-import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { AnexosDoCampo, AnexosOutros, AvisosAnexos } from '@/features/anexos/anexos-do-campo'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { enviarParaValidacao, finalizar } from './actions'
 import { CampoTextual } from './campo-textual'
@@ -64,7 +65,6 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
   const [dialogo, setDialogo] = useState(false)
   const [descartarAberto, setDescartarAberto] = useState(false)
   const [avisoAnexo, setAvisoAnexo] = useState(false)
-  const [abertos, setAbertos] = useState<string[]>(['evolucao', 'conduta'])
   const travaConclusao = useRef(false)
 
   const {
@@ -113,10 +113,9 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
     alterar({ ...anterior, modelo_versao: 'medica@1', sinais: dados.sinais })
   }
 
-  /** Envio em andamento ou falho bloqueia a finalização: mostra o aviso na seção Exames, aberta. */
+  /** Envio em andamento ou falho bloqueia a finalização: mostra o aviso junto dos campos de exame. */
   function bloquearPorAnexo() {
     setAvisoAnexo(true)
-    setAbertos((lista) => (lista.includes('exames') ? lista : [...lista, 'exames']))
   }
 
   /** Finalizar (médico) ou enviar para validação (demais perfis): mesma validação, mesma confirmação. */
@@ -178,7 +177,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         <div className="flex items-start justify-between gap-3">
           <Link
             href={`/internacoes/${internacaoId}`}
-            className="inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline"
           >
             ← Prontuário
           </Link>
@@ -186,8 +185,8 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             <Button
               type="button"
               variant="ghost"
-              size="sm"
-              className="min-h-11 px-3 font-semibold text-destructive hover:text-destructive"
+              size="compacto"
+              className="font-semibold text-destructive hover:text-destructive"
               disabled={enviando || anexosEvolucao.enviando}
               onClick={() => setDescartarAberto(true)}
             >
@@ -195,10 +194,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
             </Button>
           )}
         </div>
-        <h1 className="text-2xl font-bold leading-snug">
-          {titulo}
-        </h1>
-        <p className="text-muted-foreground">
+        <p className="min-w-0 break-words text-muted-foreground">
           {paciente.nome} · Leito {paciente.leito}
         </p>
       </header>
@@ -206,7 +202,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
-        <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <p role="status" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {`Devolvida pelo médico: ${rascunho.devolvidaMotivo}`}
           {rascunho.devolvidaPorNome && (
             <span className="mt-1 block text-sm font-normal">{`Devolvida por ${rascunho.devolvidaPorNome}`}</span>
@@ -215,7 +211,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
       )}
 
       {erros.length > 0 && (
-        <div role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <div role="alert" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           <p>{podeFinalizar ? 'Antes de finalizar, corrija:' : 'Antes de enviar, corrija:'}</p>
           <ul className="list-disc pl-5">
             {erros.map((e) => (
@@ -225,90 +221,88 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
         </div>
       )}
 
-      <form onSubmit={(e) => e.preventDefault()} aria-label={titulo} className="flex flex-col gap-4 pb-28">
+      <form onSubmit={(e) => e.preventDefault()} aria-label={titulo} className="flex flex-col">
         <fieldset disabled={!hidratado} className="contents">
-          <Accordion type="multiple" value={abertos} onValueChange={setAbertos} className="rounded-lg border border-border bg-card px-4">
-            <AccordionItem value="diagnosticos">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Diagnósticos</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
+          <CartaoSecao
+            titulo={titulo}
+            icone={FilePenLine}
+            subtitulo="O rascunho salva sozinho. Finalize para liberar a impressão."
+            className="sm:rounded-b-none"
+            acao={
+              <Button
+                type="button"
+                variant="contorno-teal"
+                size="compacto"
+                disabled={!hidratado || !anterior || enviando || salvando}
+                title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
+                aria-label="Copiar anterior"
+                onClick={copiarAnterior}
+              >
+                <Copy aria-hidden="true" />
+                <span className="hidden sm:inline">Copiar anterior</span>
+              </Button>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <CampoTextual id="ev-diagnosticos" rotulo="Diagnósticos" valor={dados.diagnosticos} onChange={(v) => alterarCampo('diagnosticos', v)} linhas={2} />
                 <CampoTextual id="ev-comorbidades" rotulo="Comorbidades" valor={dados.comorbidades} onChange={(v) => alterarCampo('comorbidades', v)} linhas={2} />
-                <CampoTextual id="ev-muc" rotulo="MUC" valor={dados.muc} onChange={(v) => alterarCampo('muc', v)} linhas={2} />
-              </AccordionContent>
-            </AccordionItem>
+                <CampoTextual id="ev-muc" rotulo="MUC" valor={dados.muc} onChange={(v) => alterarCampo('muc', v)} linhas={2} placeholder="Ex.: Enalapril 20 mg 12/12 h" />
+              </div>
 
-            <AccordionItem value="evolucao">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Evolução</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                <CampoTextual id="ev-evolucao" rotulo="Evolução clínica" valor={dados.evolucao_clinica} onChange={(v) => alterarCampo('evolucao_clinica', v)} obrigatorio linhas={6} />
-              </AccordionContent>
-            </AccordionItem>
+              <CampoTextual id="ev-evolucao" rotulo="Evolução clínica" valor={dados.evolucao_clinica} onChange={(v) => alterarCampo('evolucao_clinica', v)} obrigatorio linhas={5} />
 
-            <AccordionItem value="exames">
-              <AccordionTrigger className="min-h-11 text-base font-bold">{anexosEvolucao.anexos.length > 0 ? `Exames (${anexosEvolucao.anexos.length})` : 'Exames'}</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                <CampoTextual id="ev-ecg" rotulo="ECG" valor={dados.ecg} onChange={(v) => alterarCampo('ecg', v)} linhas={2} />
-                <CampoTextual id="ev-imagem" rotulo="Exames de imagem" valor={dados.exames_imagem} onChange={(v) => alterarCampo('exames_imagem', v)} linhas={2} />
-                <CampoTextual id="ev-lab" rotulo="Exames laboratoriais" valor={dados.exames_laboratoriais} onChange={(v) => alterarCampo('exames_laboratoriais', v)} linhas={2} />
-                <BlocoAnexos
-                  estado={anexosEvolucao}
-                  avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? mensagemAnexoNaoEnviado(podeFinalizar ? 'finalizar' : 'enviar') : null}
-                />
-              </AccordionContent>
-            </AccordionItem>
+              <AvisosAnexos
+                estado={anexosEvolucao}
+                avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? mensagemAnexoNaoEnviado(podeFinalizar ? 'finalizar' : 'enviar') : null}
+              />
+              <div className="grid gap-4 sm:grid-cols-3">
+                <CampoTextual id="ev-ecg" rotulo="ECG" icone={HeartPulse} corRotulo="text-exame-ecg" valor={dados.ecg} onChange={(v) => alterarCampo('ecg', v)} linhas={2} placeholder="Ex.: ritmo sinusal">
+                  <AnexosDoCampo tipo="ECG" estado={anexosEvolucao} />
+                </CampoTextual>
+                <CampoTextual id="ev-imagem" rotulo="Exames de imagem" icone={ScanLine} corRotulo="text-exame-imagem" valor={dados.exames_imagem} onChange={(v) => alterarCampo('exames_imagem', v)} linhas={2} placeholder="Ex.: Eco FE 52%">
+                  <AnexosDoCampo tipo="IMAGEM" estado={anexosEvolucao} />
+                </CampoTextual>
+                <CampoTextual id="ev-lab" rotulo="Exames laboratoriais" icone={FlaskConical} corRotulo="text-exame-lab" valor={dados.exames_laboratoriais} onChange={(v) => alterarCampo('exames_laboratoriais', v)} linhas={2} placeholder="Ex.: Trop 0,42, Hb 13,1">
+                  <AnexosDoCampo tipo="LABORATORIO" estado={anexosEvolucao} />
+                </CampoTextual>
+              </div>
+              <AnexosOutros estado={anexosEvolucao} />
 
-            <AccordionItem value="sinais">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Sinais vitais</AccordionTrigger>
-              <AccordionContent className="pb-4">
+              <div className="grid gap-2">
+                <p className="flex items-center gap-1 text-[11px] font-bold tracking-wide text-primary-suave-foreground uppercase">
+                  <Activity aria-hidden="true" className="size-3.5" />
+                  Sinais vitais
+                </p>
                 <CamposSinais brutos={brutos} onAlterar={alterarSinal} />
-              </AccordionContent>
-            </AccordionItem>
+              </div>
 
-            <AccordionItem value="exame-fisico">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Exame físico</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                {CAMPOS_EXAME.map((c) => (
-                  <CampoTextual key={c.chave} id={`ev-exame-${c.chave}`} rotulo={c.rotulo} valor={dados.exame_fisico[c.chave]} onChange={(v) => alterarExame(c.chave, v)} linhas={2} />
-                ))}
-              </AccordionContent>
-            </AccordionItem>
+              <div className="grid gap-2">
+                <p className="text-[11px] font-bold tracking-wide text-texto-forte uppercase">Exame físico</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {CAMPOS_EXAME.map((c) => (
+                    <CampoTextual key={c.chave} id={`ev-exame-${c.chave}`} rotulo={c.rotulo} valor={dados.exame_fisico[c.chave]} onChange={(v) => alterarExame(c.chave, v)} linhas={2} />
+                  ))}
+                </div>
+              </div>
 
-            <AccordionItem value="conduta">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Conduta</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                <CampoTextual id="ev-conduta" rotulo="Conduta" valor={dados.conduta} onChange={(v) => alterarCampo('conduta', v)} obrigatorio linhas={4} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              <CampoTextual id="ev-conduta" rotulo="Conduta" corRotulo="text-conduta" valor={dados.conduta} onChange={(v) => alterarCampo('conduta', v)} obrigatorio linhas={3} placeholder="Condutas, prescrições, exames solicitados…" />
+            </div>
+          </CartaoSecao>
         </fieldset>
+        <RodapeEvolucao
+          indicador={indicador}
+          salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
+          acaoPrincipal={
+            <Button type="button" variant="primaria" size="compacto" disabled={!hidratado || enviando} onClick={pedirConclusao}>
+              {podeFinalizar ? 'Finalizar' : 'Enviar para validação'}
+            </Button>
+          }
+        />
       </form>
 
-      <RodapeEvolucao
-        indicador={indicador}
-        salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
-        acaoSecundaria={
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!hidratado || !anterior || enviando || salvando}
-            title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
-            aria-label="Copiar anterior"
-            onClick={copiarAnterior}
-            className="h-11 px-3 text-sm"
-          >
-            <Copy aria-hidden="true" className="sm:hidden" />
-            <span className="hidden sm:inline">Copiar anterior</span>
-          </Button>
-        }
-        acaoPrincipal={
-          <Button type="button" disabled={!hidratado || enviando} onClick={pedirConclusao} className="h-11 px-4">
-            {podeFinalizar ? 'Finalizar' : 'Enviar para validação'}
-          </Button>
-        }
-      />
-
       {erroAcao && (
-        <p role="alert" className="fixed inset-x-3 bottom-20 z-30 rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <p role="alert" className="fixed inset-x-3 bottom-24 z-40 rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {erroAcao}
         </p>
       )}

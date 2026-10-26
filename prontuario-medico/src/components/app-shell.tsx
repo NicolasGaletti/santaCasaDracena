@@ -10,6 +10,7 @@ import { BotaoSair } from '@/features/sessao/botao-sair'
 import { Sino } from '@/features/notificacoes/sino'
 import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
+import { iniciais } from '@/lib/iniciais'
 import { rotuloIdentificacao } from '@/lib/rotulos-perfil'
 
 type Props = {
@@ -20,12 +21,6 @@ type Props = {
   usuarioId?: string
   naoLidas?: number
   children: ReactNode
-}
-
-function iniciais(nome: string) {
-  const partes = nome.trim().replace(/\([^)]*\)/g, '').split(/\s+/).filter((p) => /^\p{L}/u.test(p) && !/^(dr|dra|prof|profa)\.?$/i.test(p))
-  const letras = partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : (partes[0] ?? '?').slice(0, 2)
-  return letras.toUpperCase()
 }
 
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const

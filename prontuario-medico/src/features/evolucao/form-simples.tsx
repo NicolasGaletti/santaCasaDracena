@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import { useRef, useState } from 'react'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { Activity, FilePenLine, Paperclip } from 'lucide-react'
+import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { MarcarAba } from '@/components/navegacao-ativa'
-import { BlocoAnexos, useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
+import { AnexosGerais, AvisosAnexos } from '@/features/anexos/anexos-do-campo'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
 import { enviarParaValidacao } from './actions'
 import { CampoTextual } from './campo-textual'
@@ -39,7 +41,6 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
   const [dialogo, setDialogo] = useState(false)
   const [descartarAberto, setDescartarAberto] = useState(false)
   const [avisoAnexo, setAvisoAnexo] = useState(false)
-  const [abertos, setAbertos] = useState<string[]>(['texto', 'plano'])
   const travaEnvio = useRef(false)
 
   const {
@@ -78,10 +79,9 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
     if (sinais) alterar({ ...dados, sinais })
   }
 
-  /** Envio em andamento ou falho bloqueia o envio: mostra o aviso na seção Anexos, aberta. */
+  /** Envio em andamento ou falho bloqueia o envio: mostra o aviso junto dos anexos. */
   function bloquearPorAnexo() {
     setAvisoAnexo(true)
-    setAbertos((lista) => (lista.includes('anexos') ? lista : [...lista, 'anexos']))
   }
 
   function pedirEnvio() {
@@ -140,7 +140,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
         <div className="flex items-start justify-between gap-3">
           <Link
             href={`/internacoes/${internacaoId}`}
-            className="inline-flex min-h-11 w-fit items-center font-semibold underline-offset-4 hover:underline"
+            className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline"
           >
             ← Prontuário
           </Link>
@@ -148,8 +148,8 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
             <Button
               type="button"
               variant="ghost"
-              size="sm"
-              className="min-h-11 px-3 font-semibold text-destructive hover:text-destructive"
+              size="compacto"
+              className="font-semibold text-destructive hover:text-destructive"
               disabled={enviando || anexosEvolucao.enviando}
               onClick={() => setDescartarAberto(true)}
             >
@@ -157,8 +157,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
             </Button>
           )}
         </div>
-        <h1 className="text-2xl font-bold leading-snug">{titulo}</h1>
-        <p className="text-muted-foreground">
+        <p className="min-w-0 break-words text-muted-foreground">
           {paciente.nome} · Leito {paciente.leito}
         </p>
       </header>
@@ -166,7 +165,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
       {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
-        <p role="status" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <p role="status" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {`Devolvida pelo médico: ${rascunho.devolvidaMotivo}`}
           {rascunho.devolvidaPorNome && (
             <span className="mt-1 block text-sm font-normal">{`Devolvida por ${rascunho.devolvidaPorNome}`}</span>
@@ -175,7 +174,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
       )}
 
       {erros.length > 0 && (
-        <div role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <div role="alert" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           <p>Antes de enviar, corrija:</p>
           <ul className="list-disc pl-5">
             {erros.map((e) => (
@@ -186,57 +185,56 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
       )}
 
       {erroAcao && (
-        <p role="alert" className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+        <p role="alert" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
           {erroAcao}
         </p>
       )}
 
-      <form onSubmit={(e) => e.preventDefault()} aria-label={titulo} className="flex flex-col gap-4 pb-28">
+      <form onSubmit={(e) => e.preventDefault()} aria-label={titulo} className="flex flex-col">
         <fieldset disabled={!hidratado} className="contents">
-          <Accordion type="multiple" value={abertos} onValueChange={setAbertos} className="rounded-lg border border-border bg-card px-4">
-            <AccordionItem value="texto">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Evolução</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                <CampoTextual id="ev-texto" rotulo="Evolução" valor={dados.texto} onChange={(v) => alterarCampo('texto', v)} obrigatorio linhas={6} />
-              </AccordionContent>
-            </AccordionItem>
+          <CartaoSecao
+            titulo={titulo}
+            icone={FilePenLine}
+            subtitulo="O rascunho salva sozinho. Envie para validação quando terminar."
+            className="sm:rounded-b-none"
+          >
+            <div className="flex flex-col gap-4">
+              <CampoTextual id="ev-texto" rotulo="Evolução" valor={dados.texto} onChange={(v) => alterarCampo('texto', v)} obrigatorio linhas={6} />
 
-            <AccordionItem value="sinais">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Sinais vitais</AccordionTrigger>
-              <AccordionContent className="pb-4">
+              <div className="grid gap-2">
+                <p className="flex items-center gap-1 text-[11px] font-bold tracking-wide text-primary-suave-foreground uppercase">
+                  <Activity aria-hidden="true" className="size-3.5" />
+                  Sinais vitais
+                </p>
                 <CamposSinais brutos={brutos} onAlterar={alterarSinal} />
-              </AccordionContent>
-            </AccordionItem>
+              </div>
 
-            <AccordionItem value="plano">
-              <AccordionTrigger className="min-h-11 text-base font-bold">Plano</AccordionTrigger>
-              <AccordionContent className="flex flex-col gap-4 pb-4">
-                <CampoTextual id="ev-plano" rotulo="Plano" valor={dados.plano} onChange={(v) => alterarCampo('plano', v)} obrigatorio linhas={4} />
-              </AccordionContent>
-            </AccordionItem>
+              <CampoTextual id="ev-plano" rotulo="Plano" corRotulo="text-conduta" valor={dados.plano} onChange={(v) => alterarCampo('plano', v)} obrigatorio linhas={4} />
 
-            <AccordionItem value="anexos">
-              <AccordionTrigger className="min-h-11 text-base font-bold">{anexosEvolucao.anexos.length > 0 ? `Anexos (${anexosEvolucao.anexos.length})` : 'Anexos'}</AccordionTrigger>
-              <AccordionContent className="pb-4">
-                <BlocoAnexos
+              <div className="grid gap-2">
+                <p className="flex items-center gap-1 text-[11px] font-bold tracking-wide text-texto-forte uppercase">
+                  <Paperclip aria-hidden="true" className="size-3.5" />
+                  Anexos
+                </p>
+                <AvisosAnexos
                   estado={anexosEvolucao}
                   avisoFinalizacao={avisoAnexo && (anexosEvolucao.enviando || anexosEvolucao.temFalha) ? mensagemAnexoNaoEnviado('enviar') : null}
                 />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                <AnexosGerais estado={anexosEvolucao} />
+              </div>
+            </div>
+          </CartaoSecao>
         </fieldset>
+        <RodapeEvolucao
+          indicador={indicador}
+          salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
+          acaoPrincipal={
+            <Button type="button" variant="primaria" size="compacto" disabled={!hidratado || enviando} onClick={pedirEnvio}>
+              Enviar para validação
+            </Button>
+          }
+        />
       </form>
-
-      <RodapeEvolucao
-        indicador={indicador}
-        salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
-        acaoPrincipal={
-          <Button type="button" disabled={!hidratado || enviando} onClick={pedirEnvio} className="h-11 px-4">
-            Enviar para validação
-          </Button>
-        }
-      />
 
       <Dialog open={dialogo} onOpenChange={(aberto) => !aberto && !enviando && setDialogo(false)}>
         <DialogContent>

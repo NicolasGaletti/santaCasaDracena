@@ -255,6 +255,23 @@ test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }
   await expect(alertas(page)).toHaveCount(0);
 });
 
+test('ficha médica mostra todos os campos sem abrir seções', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirNovaEvolucao(page);
+
+  for (const nome of ['Diagnósticos', 'Comorbidades', 'MUC', 'Evolução clínica', 'ECG', 'Exames de imagem', 'Exames laboratoriais', 'FC (bpm)', 'Geral', 'Aparelho respiratório', 'Neurológico']) {
+    await expect(page.getByRole('textbox', { name: nome, exact: true }).or(page.getByLabel(nome, { exact: true })).first()).toBeVisible();
+  }
+  await expect(page.getByRole('textbox', { name: 'Conduta' })).toBeVisible();
+  // Nada recolhível e exame físico já preenchido com o texto padrão.
+  await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(0);
+  await expect(page.getByLabel('Geral', { exact: true })).toHaveValue(/REG, hidratada/);
+  for (const tipo of ['ECG', 'IMAGEM', 'LABORATORIO']) {
+    await expect(page.getByTestId(`anexos-${tipo}`).getByRole('button', { name: /^Anexar/ })).toBeVisible();
+  }
+});
+
 test('sinal vital inválido mostra erro e bloqueia finalizar', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
@@ -262,7 +279,6 @@ test('sinal vital inválido mostra erro e bloqueia finalizar', async ({ page }) 
 
   await page.getByLabel('Evolução clínica').fill('Evolução com sinal inválido');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com sinal inválido');
-  await page.getByRole('button', { name: 'Sinais vitais' }).click();
   await page.getByLabel('FC (bpm)').fill('abc');
   await expect(page.getByText('Digite um número.')).toBeVisible();
 

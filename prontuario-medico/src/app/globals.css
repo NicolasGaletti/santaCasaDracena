@@ -51,7 +51,7 @@
 
   /* Bordas, campos e foco */
   --border: #e2e8f0; /* slate-200 */
-  --input: #cbd5e1; /* slate-300: borda do campo */
+  --input: #7c8a9e; /* borda do campo: 3:1 sobre branco (WCAG 1.4.11) */
   --campo: #f8fafc; /* slate-50: fundo do campo */
   --ring: #a34700;
 
