@@ -300,3 +300,42 @@ test.describe.serial('validação: anexos e menu', () => {
     }
   });
 });
+
+test('médico vê a original do adendo na validação', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.context().clearCookies();
+  await academicoEnvia(page, id, 'Evolução original do adendo', 'Conduta original do adendo');
+  const originalId = sqlLocal(
+    `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+  );
+  const medico = await clienteComo('medico1@teste.local');
+  const { error: erroValidar } = await medico.rpc('validar_evolucao', { p_evolucao_id: originalId });
+  expect(erroValidar).toBeNull();
+
+  // Acadêmico cria o adendo da original finalizada e envia para validação.
+  await page.context().clearCookies();
+  await entrar(page, 'academico@teste.local');
+  await page.goto(`/internacoes/${id}`);
+  await page.getByRole('button', { name: 'Adendo', exact: true }).click();
+  await page.getByLabel('Evolução clínica').fill('Adendo que corrige a original');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+  const adendoId = sqlLocal(
+    `select id from public.evolucoes where internacao_id = '${id}' and adendo_de = '${originalId}' and status = 'AGUARDANDO_VALIDACAO'`,
+  );
+
+  await page.context().clearCookies();
+  await entrar(page, 'medico1@teste.local');
+  await page.goto(`/validacao?evolucao=${adendoId}`);
+  await expect(page.getByTestId('rotulo-adendo')).toBeVisible();
+  await expect(page.getByText('Adendo que corrige a original')).toBeVisible();
+  await page.getByText('Ver evolução original').click();
+  await expect(page.getByText('Evolução original do adendo', { exact: true })).toBeVisible();
+
+  const pasta = path.join(__dirname, '..', '..', '.superpowers', 'sdd', '2026-10-25-plano-3-multiprofissional');
+  const projeto = test.info().project.name === 'mobile' ? 'mobile' : 'desktop';
+  if (projeto === 'mobile') await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: path.join(pasta, `final-fix-validacao-adendo-${projeto}.png`), fullPage: true });
+});

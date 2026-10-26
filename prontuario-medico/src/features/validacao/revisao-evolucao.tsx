@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { CartaoEvolucao } from '@/features/evolucao/cartao-evolucao'
 import { ehRedirecionamento } from '@/features/evolucao/envio'
+import { OriginalAdendo } from '@/features/evolucao/original-adendo'
 import { devolver, validar } from './actions'
 import type { RevisaoValidacao } from './consultas'
 
@@ -69,6 +70,7 @@ export function RevisaoEvolucao({ revisao }: { revisao: RevisaoValidacao }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {revisao.original && <OriginalAdendo original={revisao.original} />}
       <CartaoEvolucao evolucao={revisao.evolucao} />
 
       <p className="text-sm font-semibold text-muted-foreground">
