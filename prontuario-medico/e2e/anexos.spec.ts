@@ -123,7 +123,8 @@ test('anexar mostra confirmação, atualiza a lista e limpa o formulário', asyn
   await abrirExamesDeRascunho(page, id);
 
   const lab = page.getByTestId('anexos-LABORATORIO');
-  await expect(lab.getByText('Nenhum anexo.')).toBeVisible();
+  await expect(lab.getByTestId('anexo-item')).toHaveCount(0);
+  await expect(lab.getByText('Nenhum anexo.')).toHaveCount(0);
 
   const painel = page.getByRole('dialog', { name: 'Anexar Laboratório' });
   await lab.getByRole('button', { name: /^Anexar/ }).click();

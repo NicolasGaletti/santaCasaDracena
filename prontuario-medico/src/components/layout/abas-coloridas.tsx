@@ -10,10 +10,10 @@ export type CorAba = 'teal' | 'rose' | 'sky' | 'emerald'
 export type AbaColorida = { valor: string; rotulo: string; icone: LucideIcon; cor: CorAba }
 
 const INATIVA: Record<CorAba, string> = {
-  teal: 'text-slate-600',
-  rose: 'text-rose-700',
-  sky: 'text-sky-700',
-  emerald: 'text-emerald-700',
+  teal: 'data-[state=inactive]:text-slate-700',
+  rose: 'data-[state=inactive]:text-rose-700',
+  sky: 'data-[state=inactive]:text-sky-700',
+  emerald: 'data-[state=inactive]:text-emerald-700',
 }
 
 type Props = {
@@ -33,7 +33,7 @@ export function AbasColoridas({ abas, valor, onValorChange, children }: Props) {
             key={v}
             value={v}
             className={cn(
-              'inline-flex min-h-11 flex-1 shrink-0 max-sm:[&_svg]:hidden items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold sm:text-sm whitespace-nowrap transition-colors outline-none hover:bg-white/70 focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:hover:bg-teal-700 sm:flex-none sm:px-4',
+              'inline-flex min-h-11 flex-1 shrink-0 max-sm:[&_svg]:hidden items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold sm:text-sm whitespace-nowrap outline-none hover:bg-white focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:opacity-100 data-[state=active]:hover:bg-teal-700 sm:flex-none sm:px-4',
               INATIVA[cor],
             )}
           >

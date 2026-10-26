@@ -298,7 +298,6 @@ export function AnexosDoCampo({ tipo, estado }: { tipo: TipoAnexoOferecido; esta
       <div role="status" className="empty:hidden">
         {estado.adicionado && estado.anexos.at(-1)?.tipo === tipo && <Confirmacao />}
       </div>
-      {anexos.length === 0 && envios.length === 0 && <p className="text-[13px] text-muted-foreground">Nenhum anexo.</p>}
       <Button
         type="button"
         variant="contorno-teal"
@@ -327,7 +326,6 @@ export function AnexosGerais({ estado }: { estado: EstadoAnexos }) {
       <div role="status" className="empty:hidden">
         {estado.adicionado && <Confirmacao />}
       </div>
-      {estado.anexos.length === 0 && estado.envios.length === 0 && <p className="text-[13px] text-muted-foreground">Nenhum anexo.</p>}
       <Button type="button" variant="contorno-teal" size="compacto" className="w-fit" onClick={() => setAberto(true)}>
         <Plus aria-hidden="true" />
         Anexar
