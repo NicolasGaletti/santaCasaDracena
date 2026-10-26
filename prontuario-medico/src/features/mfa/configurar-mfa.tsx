@@ -9,7 +9,7 @@ export function ConfigurarMfa() {
   const [aberto, setAberto] = useState(false)
   if (!aberto) {
     return (
-      <Button type="button" onClick={() => setAberto(true)}>
+      <Button type="button" variant="primaria" size="lg" onClick={() => setAberto(true)}>
         Configurar autenticador
       </Button>
     )

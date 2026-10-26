@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Smartphone } from 'lucide-react'
+import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 import { base64UrlParaBytes, bytesParaBase64Url } from './push'
@@ -83,10 +85,8 @@ export function AtivarPush() {
   }
 
   return (
-    <section aria-labelledby="titulo-aparelho" className="space-y-3">
-      <h2 id="titulo-aparelho" className="font-bold text-foreground">
-        Este aparelho
-      </h2>
+    <CartaoSecao titulo="Este aparelho" icone={Smartphone} className="max-w-xl">
+     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         No iPhone, as notificações só funcionam com o app instalado na tela inicial.
       </p>
@@ -99,7 +99,7 @@ export function AtivarPush() {
         </p>
       )}
       {estado === 'inativo' && (
-        <Button type="button" onClick={ativar} disabled={ocupado}>
+        <Button type="button" variant="primaria" onClick={ativar} disabled={ocupado}>
           Ativar notificações neste aparelho
         </Button>
       )}
@@ -118,6 +118,7 @@ export function AtivarPush() {
           {erro}
         </p>
       )}
-    </section>
+     </div>
+    </CartaoSecao>
   )
 }

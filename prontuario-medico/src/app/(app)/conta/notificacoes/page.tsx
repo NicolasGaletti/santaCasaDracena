@@ -9,8 +9,8 @@ export default async function ContaNotificacoesPage() {
   if (profissional.perfil === 'admin') redirect('/conta/seguranca')
   const prefs = await lerPreferencias()
   return (
-    <div className="max-w-md space-y-6">
-      <h1 className="text-xl font-bold text-foreground">Notificações</h1>
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">Notificações</h1>
       <Preferencias pushValidacao={prefs.pushValidacao} pushDevolvida={prefs.pushDevolvida} medico={profissional.perfil === 'medico'} />
       <AtivarPush />
     </div>

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { salvarEquipe, vincularMembro } from './actions'
 import type { EquipeAdmin, ProfissionalAdmin } from './consultas'
@@ -70,13 +70,13 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
   return (
     <>
       <div className="flex justify-end">
-        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={() => abrir({ tipo: 'nova' })}>
+        <Button type="button" variant="primaria" size="lg" className="w-full sm:w-auto" onClick={() => abrir({ tipo: 'nova' })}>
           Nova equipe
         </Button>
       </div>
 
       {equipes.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
           Nenhuma equipe ainda. Crie a primeira para vincular profissionais.
         </p>
       ) : (
@@ -86,7 +86,7 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
             const candidatos = profissionais.filter((p) => p.ativo && !p.equipe_ids.includes(eq.id))
             const aberta = abertas.has(eq.id)
             return (
-              <li key={eq.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground">
+              <li key={eq.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-words text-base font-bold leading-snug">{eq.nome}</h2>
@@ -140,8 +140,8 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
                       </ul>
                     )}
                     {candidatos.length > 0 && (
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor={`add-${eq.id}`}>Adicionar membro</Label>
+                      <div>
+                        <RotuloCampo htmlFor={`add-${eq.id}`}>Adicionar membro</RotuloCampo>
                         <Select value="" onValueChange={(id) => acaoRapida(() => vincularMembro(id, eq.id, true))}>
                           <SelectTrigger id={`add-${eq.id}`} className="w-full">
                             <SelectValue placeholder="Selecione um profissional" />
@@ -180,8 +180,8 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
               void executar(() => salvarEquipe(id, nome, ativo), () => setDialogo(null))
             }}
           >
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="equipe-nome">Nome da equipe</Label>
+            <div>
+              <RotuloCampo htmlFor="equipe-nome">Nome da equipe</RotuloCampo>
               <Input id="equipe-nome" value={nome} maxLength={100} onChange={(e) => setNome(e.target.value)} required />
             </div>
             {erro && (
@@ -193,7 +193,7 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
               <Button type="button" variant="outline" size="lg" disabled={enviando} onClick={() => setDialogo(null)}>
                 Cancelar
               </Button>
-              <Button type="submit" size="lg" disabled={enviando}>
+              <Button type="submit" variant="primaria" size="lg" disabled={enviando}>
                 Salvar
               </Button>
             </div>

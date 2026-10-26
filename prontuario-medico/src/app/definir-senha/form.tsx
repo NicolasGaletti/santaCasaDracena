@@ -1,6 +1,10 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { CartaoAuth } from '@/components/layout/cartao-auth'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { definirSenha } from './actions'
 import type { EstadoForm } from '@/lib/forms'
 import { validarSenha } from '@/lib/senha'
@@ -13,60 +17,35 @@ export function FormSenha() {
   const erro = erroLocal ?? state.erro
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-slate-200 p-8">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Definir senha</h1>
-          <p className="text-sm text-slate-500">Mínimo de 10 caracteres, com letra e número.</p>
+    <CartaoAuth titulo="Definir senha" descricao="Mínimo de 10 caracteres, com letra e número.">
+      {erro && (
+        <p role="alert" className="mb-4 rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 text-sm font-semibold text-destructive-soft-foreground">
+          {erro}
+        </p>
+      )}
+
+      <form
+        action={formAction}
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          const dados = new FormData(e.currentTarget)
+          const invalida = validarSenha(String(dados.get('senha') ?? ''))
+          setErroLocal(invalida)
+          if (invalida) e.preventDefault()
+        }}
+      >
+        <div>
+          <RotuloCampo htmlFor="senha">Nova senha</RotuloCampo>
+          <Input id="senha" name="senha" type="password" required autoComplete="new-password" />
         </div>
-
-        {erro && (
-          <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            {erro}
-          </p>
-        )}
-
-        <form
-          action={formAction}
-          className="space-y-4"
-          onSubmit={(e) => {
-            const dados = new FormData(e.currentTarget)
-            const invalida = validarSenha(String(dados.get('senha') ?? ''))
-            setErroLocal(invalida)
-            if (invalida) e.preventDefault()
-          }}
-        >
-          <div>
-            <label htmlFor="senha" className="block text-xs font-semibold text-slate-600 uppercase mb-1">Nova senha</label>
-            <input
-              id="senha"
-              name="senha"
-              type="password"
-              required
-              autoComplete="new-password"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-slate-800"
-            />
-          </div>
-          <div>
-            <label htmlFor="confirmacao" className="block text-xs font-semibold text-slate-600 uppercase mb-1">Confirmar nova senha</label>
-            <input
-              id="confirmacao"
-              name="confirmacao"
-              type="password"
-              required
-              autoComplete="new-password"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-slate-800"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 rounded-lg transition"
-          >
-            {pending ? 'Salvando...' : 'Salvar senha'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <div>
+          <RotuloCampo htmlFor="confirmacao">Confirmar nova senha</RotuloCampo>
+          <Input id="confirmacao" name="confirmacao" type="password" required autoComplete="new-password" />
+        </div>
+        <Button type="submit" variant="primaria" size="lg" className="w-full" disabled={pending}>
+          {pending ? 'Salvando...' : 'Salvar senha'}
+        </Button>
+      </form>
+    </CartaoAuth>
   )
 }

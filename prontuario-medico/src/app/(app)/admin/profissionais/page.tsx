@@ -7,7 +7,10 @@ export default async function PaginaProfissionais() {
   const [profissionais, equipes] = await Promise.all([listarProfissionaisAdmin(), listarEquipesAdmin()])
   return (
     <>
-      <h1 className="text-2xl font-bold">Profissionais</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Profissionais</h1>
+        <p className="text-sm text-muted-foreground">Convide, edite e desative quem acessa o prontuário.</p>
+      </div>
       <ListaProfissionais profissionais={profissionais} equipes={equipes} meuId={admin.id} />
     </>
   )

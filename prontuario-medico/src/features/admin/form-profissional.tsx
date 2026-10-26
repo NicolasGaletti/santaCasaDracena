@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FUNCOES, funcaoPorValor } from './funcoes'
 
@@ -66,14 +66,14 @@ export function FormProfissional({
         onEnviar(v)
       }}
     >
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="prof-nome">Nome</Label>
+      <div>
+        <RotuloCampo htmlFor="prof-nome">Nome</RotuloCampo>
         <Input id="prof-nome" value={v.nome} maxLength={200} onChange={(e) => setV({ ...v, nome: e.target.value })} required />
       </div>
 
       {modo === 'convidar' && (
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="prof-email">E-mail</Label>
+        <div>
+          <RotuloCampo htmlFor="prof-email">E-mail</RotuloCampo>
           <Input
             id="prof-email"
             type="email"
@@ -86,8 +86,8 @@ export function FormProfissional({
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="prof-funcao">Função</Label>
+      <div>
+        <RotuloCampo htmlFor="prof-funcao">Função</RotuloCampo>
         <Select value={v.funcao} onValueChange={mudarFuncao} disabled={funcaoTravada}>
           <SelectTrigger id="prof-funcao" className="w-full">
             <SelectValue placeholder="Selecione a função" />
@@ -105,12 +105,12 @@ export function FormProfissional({
 
       {temConselho && (
         <div className="grid grid-cols-[1fr_5.5rem] gap-3">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="prof-conselho">Conselho</Label>
+          <div>
+            <RotuloCampo htmlFor="prof-conselho">Conselho</RotuloCampo>
             <Input id="prof-conselho" value={v.conselho} maxLength={20} onChange={(e) => setV({ ...v, conselho: e.target.value })} />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="prof-uf">UF</Label>
+          <div>
+            <RotuloCampo htmlFor="prof-uf">UF</RotuloCampo>
             <Input
               id="prof-uf"
               value={v.uf}
@@ -119,8 +119,8 @@ export function FormProfissional({
               onChange={(e) => setV({ ...v, uf: e.target.value.toUpperCase() })}
             />
           </div>
-          <div className="col-span-2 flex flex-col gap-2">
-            <Label htmlFor="prof-numero">Número</Label>
+          <div className="col-span-2">
+            <RotuloCampo htmlFor="prof-numero">Número</RotuloCampo>
             <Input id="prof-numero" value={v.numero} maxLength={20} inputMode="numeric" onChange={(e) => setV({ ...v, numero: e.target.value })} />
           </div>
         </div>
@@ -128,12 +128,12 @@ export function FormProfissional({
 
       {equipes.length > 0 && (
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Equipes</legend>
+          <legend className="mb-1 text-[11px] font-bold tracking-wide text-texto-forte uppercase">Equipes</legend>
           <div className="flex flex-col gap-2">
             {equipes.map((eq) => (
               <label
                 key={eq.id}
-                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-input px-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-accent has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
+                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-input px-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary-suave has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
               >
                 <input
                   type="checkbox"
@@ -158,7 +158,7 @@ export function FormProfissional({
         <Button type="button" variant="outline" size="lg" onClick={onCancelar} disabled={enviando}>
           Cancelar
         </Button>
-        <Button type="submit" size="lg" disabled={enviando}>
+        <Button type="submit" variant="primaria" size="lg" disabled={enviando}>
           {enviando ? 'Enviando…' : rotuloEnvio}
         </Button>
       </div>

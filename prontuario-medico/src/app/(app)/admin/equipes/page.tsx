@@ -7,7 +7,10 @@ export default async function PaginaEquipes() {
   const [equipes, profissionais] = await Promise.all([listarEquipesAdmin(), listarProfissionaisAdmin()])
   return (
     <>
-      <h1 className="text-2xl font-bold">Equipes</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Equipes</h1>
+        <p className="text-sm text-muted-foreground">Agrupam profissionais e aparecem na admissão e nos filtros de internados.</p>
+      </div>
       <ListaEquipes equipes={equipes} profissionais={profissionais} />
     </>
   )

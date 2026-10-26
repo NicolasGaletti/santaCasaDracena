@@ -33,11 +33,11 @@ export function VerificarMfa({ fatorId, destino }: { fatorId: string; destino: s
     <form onSubmit={confirmar} className="space-y-5">
       <CampoCodigo id="codigo-verificacao" valor={codigo} aoMudar={setCodigo} />
       {erro && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 text-sm font-semibold text-destructive-soft-foreground">
           {erro}
         </p>
       )}
-      <Button type="submit" size="lg" className="w-full" disabled={enviando || codigo.length !== 6}>
+      <Button type="submit" variant="primaria" size="lg" className="w-full" disabled={enviando || codigo.length !== 6}>
         {enviando ? 'Confirmando...' : 'Confirmar'}
       </Button>
     </form>

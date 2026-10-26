@@ -60,21 +60,21 @@ export function CadastrarMfa({ destino }: { destino: string }) {
 
   return (
     <form onSubmit={confirmar} className="space-y-5">
-      <ol className="space-y-5 text-sm text-slate-700">
+      <ol className="space-y-5 text-sm text-foreground">
         <li className="space-y-3">
           <p>Abra o aplicativo autenticador no celular e escaneie este QR code.</p>
-          <div className="mx-auto flex size-48 items-center justify-center rounded-lg border border-slate-200 bg-white p-2">
+          <div className="mx-auto flex size-48 items-center justify-center rounded-xl border border-border bg-white p-2">
             {fator ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={fator.qr} alt="QR code para cadastrar o autenticador" className="size-full" />
             ) : (
-              <span className="text-xs text-slate-500">{erro ? '' : 'Gerando QR code...'}</span>
+              <span className="text-xs text-muted-foreground">{erro ? '' : 'Gerando QR code...'}</span>
             )}
           </div>
           {fator && (
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-muted-foreground">
               Sem câmera? Digite esta chave no aplicativo:{' '}
-              <code data-testid="segredo-mfa" className="block break-all rounded bg-slate-100 px-2 py-1.5 font-mono text-sm text-slate-800 select-all">
+              <code data-testid="segredo-mfa" className="block break-all rounded-lg bg-muted px-2 py-1.5 font-mono text-sm text-foreground select-all">
                 {fator.segredo}
               </code>
             </p>
@@ -87,12 +87,12 @@ export function CadastrarMfa({ destino }: { destino: string }) {
       </ol>
 
       {erro && (
-        <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="rounded-lg border border-destructive-soft-borda bg-destructive-soft p-3 text-sm font-semibold text-destructive-soft-foreground">
           {erro}
         </p>
       )}
 
-      <Button type="submit" size="lg" className="w-full" disabled={!fator || enviando || codigo.length !== 6}>
+      <Button type="submit" variant="primaria" size="lg" className="w-full" disabled={!fator || enviando || codigo.length !== 6}>
         {enviando ? 'Ativando...' : 'Ativar autenticador'}
       </Button>
     </form>

@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { alterarAtivo, atualizarProfissional, convidarProfissional, reenviarConvite } from './actions'
 import { FormProfissional, type ValoresProfissional } from './form-profissional'
 import { funcaoDe } from './funcoes'
@@ -94,7 +94,7 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
     <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2 sm:w-80">
-          <Label htmlFor="busca-prof">Buscar profissional</Label>
+          <RotuloCampo htmlFor="busca-prof">Buscar profissional</RotuloCampo>
           <Input
             id="busca-prof"
             type="search"
@@ -103,13 +103,13 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
             onChange={(e) => setBusca(e.target.value)}
           />
         </div>
-        <Button type="button" size="lg" className="w-full sm:w-auto" onClick={() => abrir({ tipo: 'convidar' })}>
+        <Button type="button" variant="primaria" size="lg" className="w-full sm:w-auto" onClick={() => abrir({ tipo: 'convidar' })}>
           Convidar profissional
         </Button>
       </div>
 
       {visiveis.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
           Nenhum profissional encontrado.
         </p>
       ) : (
@@ -120,7 +120,7 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
             const registro = p.conselho && p.numero_conselho ? `${p.conselho} ${p.numero_conselho}${p.uf_conselho ? `/${p.uf_conselho}` : ''}` : null
             const nomesEquipes = p.equipe_ids.map((id) => nomeEquipe.get(id)).filter(Boolean)
             return (
-              <li key={p.id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground">
+              <li key={p.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="break-words text-base font-bold leading-snug">{p.nome}</h2>
@@ -239,7 +239,7 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
             <Button
               type="button"
               size="lg"
-              variant={alvoAtivo?.ativar ? 'default' : 'destructive'}
+              variant={alvoAtivo?.ativar ? 'primaria' : 'destructive'}
               disabled={enviando}
               onClick={() => alvoAtivo && executar(() => alterarAtivo(alvoAtivo.alvo.id, alvoAtivo.ativar), alvoAtivo.ativar ? 'Profissional reativado.' : 'Profissional desativado.')}
             >

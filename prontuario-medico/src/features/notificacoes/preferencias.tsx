@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { BellRing } from 'lucide-react'
+import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 
@@ -22,10 +24,8 @@ export function Preferencias({ pushValidacao, pushDevolvida, medico }: Props) {
 
   const caixa = 'size-5 shrink-0 accent-primary'
   return (
-    <section aria-labelledby="titulo-avisos" className="space-y-3">
-      <h2 id="titulo-avisos" className="font-bold text-foreground">
-        Avisos por push
-      </h2>
+    <CartaoSecao titulo="Avisos por push" icone={BellRing} className="max-w-xl">
+     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         Escolha quais pendências chegam como aviso no aparelho. O sino do aplicativo sempre mostra todas as notificações.
       </p>
@@ -57,7 +57,7 @@ export function Preferencias({ pushValidacao, pushDevolvida, medico }: Props) {
         <span>Evolução devolvida para mim</span>
       </label>
       <div className="flex items-center gap-3">
-        <Button type="button" onClick={salvar} disabled={estado === 'salvando'}>
+        <Button type="button" variant="primaria" onClick={salvar} disabled={estado === 'salvando'}>
           Salvar preferências
         </Button>
         <p role="status" className={`text-sm ${estado === 'erro' ? 'text-destructive' : 'text-muted-foreground'}`}>
@@ -65,6 +65,7 @@ export function Preferencias({ pushValidacao, pushDevolvida, medico }: Props) {
           {estado === 'erro' && 'Não foi possível salvar. Tente novamente.'}
         </p>
       </div>
-    </section>
+     </div>
+    </CartaoSecao>
   )
 }

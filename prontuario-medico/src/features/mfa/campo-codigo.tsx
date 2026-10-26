@@ -1,13 +1,13 @@
 'use client'
 
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 
 /** Campo do código de 6 dígitos do app autenticador. */
 export function CampoCodigo({ id, valor, aoMudar }: { id: string; valor: string; aoMudar: (v: string) => void }) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>Código de 6 dígitos</Label>
+    <div>
+      <RotuloCampo htmlFor={id}>Código de 6 dígitos</RotuloCampo>
       <Input
         id={id}
         value={valor}

@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
+import { SubnavPilulas } from '@/components/layout/subnav-pilulas'
 import type { LinhaAcesso, LinhaAlteracao, Pagina } from './consultas'
 import {
   queryAuditoria,
@@ -17,7 +18,7 @@ const FORMATO = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo'
 const quando = (iso: string) => FORMATO.format(new Date(iso))
 
 const CLASSE_CELULA = 'px-3 py-2.5 align-top'
-const CLASSE_CABECALHO = 'px-3 py-2 text-left text-sm font-semibold text-muted-foreground'
+const CLASSE_CABECALHO = 'px-3 py-2 text-left text-[11px] font-bold tracking-wide text-texto-forte uppercase'
 
 function Abas({ filtros }: { filtros: FiltrosAuditoria }) {
   const abas = [
@@ -25,23 +26,10 @@ function Abas({ filtros }: { filtros: FiltrosAuditoria }) {
     { aba: 'alteracoes', rotulo: 'Alterações' },
   ] as const
   return (
-    <nav aria-label="Seções da auditoria" className="flex gap-6 border-b border-border">
-      {abas.map((a) => {
-        const ativo = filtros.aba === a.aba
-        return (
-          <Link
-            key={a.aba}
-            href={queryAuditoria({ ...filtros, aba: a.aba, pagina: 1 })}
-            aria-current={ativo ? 'page' : undefined}
-            className={`-mb-px inline-flex min-h-11 items-center border-b-2 px-1 font-semibold transition-colors ${
-              ativo ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {a.rotulo}
-          </Link>
-        )
-      })}
-    </nav>
+    <SubnavPilulas
+      rotuloNav="Seções da auditoria"
+      itens={abas.map((a) => ({ href: queryAuditoria({ ...filtros, aba: a.aba, pagina: 1 }), rotulo: a.rotulo, ativo: filtros.aba === a.aba }))}
+    />
   )
 }
 
@@ -50,21 +38,21 @@ function Filtros({ filtros, profissionais }: { filtros: FiltrosAuditoria; profis
   return (
     <form action="/auditoria" className="grid grid-cols-2 items-end gap-3 lg:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
       {filtros.aba === 'alteracoes' && <input type="hidden" name="aba" value="alteracoes" />}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="filtro-de">De</Label>
+      <div className="block">
+        <RotuloCampo htmlFor="filtro-de">De</RotuloCampo>
         <Input id="filtro-de" name="de" type="date" defaultValue={filtros.de} />
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="filtro-ate">Até</Label>
+      <div className="block">
+        <RotuloCampo htmlFor="filtro-ate">Até</RotuloCampo>
         <Input id="filtro-ate" name="ate" type="date" defaultValue={filtros.ate} />
       </div>
-      <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
-        <Label htmlFor="filtro-profissional">Profissional</Label>
+      <div className="col-span-2 block lg:col-span-1">
+        <RotuloCampo htmlFor="filtro-profissional">Profissional</RotuloCampo>
         <select
           id="filtro-profissional"
           name="profissional"
           defaultValue={filtros.profissional ?? ''}
-          className="h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+          className="h-11 w-full min-w-0 rounded-lg border border-input bg-campo px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
         >
           <option value="">Todos os profissionais</option>
           {profissionais.map((p) => (
@@ -75,7 +63,7 @@ function Filtros({ filtros, profissionais }: { filtros: FiltrosAuditoria; profis
         </select>
       </div>
       <div className="col-span-2 flex gap-2 lg:col-span-1">
-        <Button type="submit" className="flex-1 lg:flex-none">
+        <Button type="submit" variant="primaria" className="flex-1 lg:flex-none">
           Filtrar
         </Button>
         {temFiltro && (
@@ -118,15 +106,15 @@ function Paginacao({ filtros, total }: { filtros: FiltrosAuditoria; total: numbe
 }
 
 function Vazio() {
-  return <p className="rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">Nenhum registro neste filtro.</p>
+  return <p className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-muted-foreground">Nenhum registro neste filtro.</p>
 }
 
 function TabelaAcessos({ linhas }: { linhas: LinhaAcesso[] }) {
   if (linhas.length === 0) return <Vazio />
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full min-w-[34rem] text-sm">
-        <thead className="border-b border-border">
+        <thead className="border-b border-border bg-muted">
           <tr>
             <th scope="col" className={CLASSE_CABECALHO}>Quando</th>
             <th scope="col" className={CLASSE_CABECALHO}>Profissional</th>
@@ -152,9 +140,9 @@ function TabelaAcessos({ linhas }: { linhas: LinhaAcesso[] }) {
 function TabelaAlteracoes({ linhas }: { linhas: (LinhaAlteracao & { quem: string })[] }) {
   if (linhas.length === 0) return <Vazio />
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full min-w-[40rem] text-sm">
-        <thead className="border-b border-border">
+        <thead className="border-b border-border bg-muted">
           <tr>
             <th scope="col" className={CLASSE_CABECALHO}>Quando</th>
             <th scope="col" className={CLASSE_CABECALHO}>Quem</th>
