@@ -94,6 +94,14 @@ test('definir-senha sem sessão volta ao login', async ({ page }) => {
   await expect(page).toHaveURL(/\/login/)
 })
 
+test('definir-senha com login por senha redireciona para a home', async ({ page }) => {
+  await entrar(page, 'admin@teste.local', 'Teste@123')
+  await expect(page).toHaveURL('/')
+  await page.goto('/definir-senha')
+  // `/` do admin segue para a lista de profissionais; o que importa é sair de /definir-senha.
+  await expect(page).toHaveURL(/localhost:3000\/(admin\/profissionais)?$/)
+})
+
 test('recuperação de senha', async ({ page }) => {
   const email = emailUnico()
   await convidar(email)

@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import type { EstadoForm } from '@/lib/forms'
 import { validarSenha } from '@/lib/senha'
+import { sessaoPorLinkDeEmail } from '@/lib/sessao'
 import { createClient } from '@/lib/supabase/server'
 
 export async function definirSenha(_prev: EstadoForm, form: FormData): Promise<EstadoForm> {
@@ -17,6 +18,9 @@ export async function definirSenha(_prev: EstadoForm, form: FormData): Promise<E
   const { data } = await supabase.auth.getClaims()
   const userId = data?.claims.sub
   if (!userId) redirect('/login')
+  if (!data?.claims || !sessaoPorLinkDeEmail(data.claims)) {
+    return { erro: 'Use o link enviado por e-mail para definir a senha.' }
+  }
 
   const { error } = await supabase.auth.updateUser({ password: senha })
   if (error) {
