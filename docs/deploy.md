@@ -39,7 +39,13 @@ Ordem: 1) `npx supabase db push` no staging (de dentro de `prontuario-medico/`);
 
 Migrations pendentes para o próximo deploy (aplicar com `npx supabase db push` antes de dar push em `staging`):
 
-- `20261025000013_snapshot_perfil.sql`: `finalizar_core` grava o perfil do autor em `snapshot_autor`, para a 2ª via não mudar quando o autor é promovido. Não altera o hash. As migrações 0009–0012 já foram aplicadas no staging em 2026-10-25.
+- `20261025000013_snapshot_perfil.sql`: `finalizar_core` grava o perfil do autor em `snapshot_autor`, para a 2ª via não mudar quando o autor é promovido. Não altera o hash.
+- `20261025000014_alta.sql`: alta médica (`dar_alta`, resumo clínico em `internacoes_clinico.resumo_alta`).
+- `20261025000015_admin.sql`: administração de equipes e profissionais (índice único de nome de equipe; ver a checagem de duplicadas abaixo).
+- `20261025000016_aal2.sql`: funções `admin_*` exigem sessão `aal2`.
+- `20261025000017_notificacoes.sql`: sino e push (`notificacoes`, preferências, assinaturas).
+
+As migrações 0009–0012 já foram aplicadas no staging em 2026-10-25. Todo o roteiro do Plano 4 está na seção "Plano 4 — deploy no staging" abaixo.
 
 Seed: `prontuario-medico/supabase/seed.sql` é só local/e2e (`npx supabase db reset`). Contém admins de teste com credenciais públicas e um secret TOTP conhecido; **nunca** aplicar em staging ou produção (não usar `--include-seed`). Usuários de teste do staging são criados manualmente (como enfermeira/acadêmico).
 
@@ -54,7 +60,7 @@ Regras:
 - O bucket `anexos` é criado pela migration `20261025000007_anexos.sql` (privado, 20 MB por arquivo, JPEG, PNG, WebP e PDF). Não há nada a configurar à mão no painel.
 - Anexos nunca são públicos. O acesso é só por URL assinada, com validade de 5 minutos.
 - Storage do plano Free do Supabase: 1 GB, cerca de 3 mil fotos comprimidas. Migrar para o plano Pro (100 GB) antes do uso real.
-- Os backups do Supabase não incluem os arquivos do Storage. O backup diário do Storage para o R2 entra no Plano 4.
+- Os backups do Supabase não incluem os arquivos do Storage. O backup diário (criptografado) do Storage para o R2 roda pelo GitHub Actions: ver [backup.md](backup.md).
 
 ## Netlify
 
@@ -81,6 +87,21 @@ Em cada projeto:
 
 - Desligar "Allow new users to sign up". Usuários são criados pelo administrador.
 - Site URL e Redirect URLs: URL pública do Netlify daquele ambiente.
+
+## Plano 4 — deploy no staging
+
+Roteiro em ordem (espelha a seção 1 de [go-live.md](go-live.md); em produção troque staging por produção). Comandos `npx supabase` rodam dentro de `prontuario-medico/`.
+
+1. **Equipes duplicadas** (antes da 0015, que cria índice único): `select lower(btrim(nome)), count(*) from public.equipes group by 1 having count(*) > 1;`. Se vier alguma linha, renomear no SQL Editor antes de seguir.
+2. `npx supabase db push` no projeto de staging. **NUNCA** `--include-seed`.
+3. `npx supabase functions deploy admin-usuarios enviar-push`
+4. `npx supabase secrets set SITE_URL=https://staging--santacasadracena.netlify.app VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:… PUSH_WEBHOOK_SECRET=…` (chaves VAPID: ver "Plano 4 — Notificações (push)").
+5. **Database Webhook**: tabela `public.notificacoes`, evento INSERT, POST em `https://<ref>.supabase.co/functions/v1/enviar-push`, header `x-webhook-secret` igual a `PUSH_WEBHOOK_SECRET`.
+6. **Auth**: templates Invite user e Reset password, Site URL e Redirect URLs do staging, signups desligados, TOTP (MFA) habilitado, SMTP próprio (seção "Plano 4 — Auth" abaixo).
+7. **Netlify**: variável `SITE_URL` no contexto da branch `staging` e `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+8. Push da branch `staging` (merge de `develop`).
+9. **Primeiro admin** (script `primeiro-admin.sql`, seção "Plano 4 — Auth"). Recomendado criar um segundo admin: ver [go-live.md](go-live.md#admin-perdeu-o-autenticador).
+10. **Smoke**: logo depois do webhook, enviar e finalizar uma evolução (com validação por um médico) para provar que o gatilho de notificação não quebra o fluxo legal de evolução; conferir o sino. Depois: convite, senha, MFA, alta e folha de alta.
 
 ## Plano 4 — Auth (convite e recuperação de senha)
 

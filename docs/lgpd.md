@@ -62,6 +62,10 @@ Formalizar contratos/aditivos de operador (DPA) com cada fornecedor. Há transfe
 
 HTTPS/HSTS, CSP com nonce, `X-Frame-Options: DENY`, `Cache-Control: no-store` nas páginas autenticadas, RLS em todas as tabelas, chave `service_role` apenas em Edge Function, backups criptografados, MFA obrigatório para admin. Detalhes: [deploy](deploy.md) e [backup](backup.md).
 
+### Cópia local de rascunho no aparelho
+
+O app guarda uma cópia local do rascunho de evolução no IndexedDB do navegador, para não perder texto clínico sem rede. No logout (manual ou por inatividade) as cópias **já sincronizadas** são apagadas. Um rascunho **ainda não sincronizado** permanece no aparelho depois do logout, de propósito, para não perder texto clínico. Ele só é apagado quando o mesmo usuário entra de novo e o rascunho sincroniza. Em aparelho compartilhado ou perdido, isso significa que um texto não enviado pode ficar no navegador até esse novo login; o admin pode desativar a conta, mas não apaga a cópia local. A tela de login avisa quando há rascunho pendente.
+
 ## Incidentes
 
 1. Conter: desativar o usuário/aparelho envolvido (admin), trocar senhas e chaves afetadas.

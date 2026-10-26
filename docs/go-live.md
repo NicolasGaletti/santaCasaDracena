@@ -48,6 +48,19 @@ Marque cada item. Detalhes em [deploy.md](deploy.md), [backup.md](backup.md) e [
 - [ ] Fluxo completo: convite → senha → MFA → evoluir → validar → imprimir → alta → folha de alta → auditoria.
 - [ ] Push chega para `validacao_pendente` sem dado clínico.
 
+## Admin perdeu o autenticador
+
+Se um admin perder o celular ou o app autenticador, outro admin não consegue resetar o fator pela tela. Quem tem acesso ao projeto Supabase faz no SQL Editor (trocando o e-mail):
+
+```sql
+delete from auth.mfa_factors
+where user_id = (select id from auth.users where lower(email) = lower('<email>'));
+```
+
+Em seguida o admin entra com e-mail e senha, é levado ao cadastro e registra um autenticador novo. A ação fica no log do Supabase, não na tabela `auditoria`; anote quem pediu e quando.
+
+- [ ] **Recomendado antes do go-live:** ter pelo menos um **segundo admin** com MFA cadastrado, para não depender só do acesso ao painel do Supabase.
+
 ## 6. Piloto
 
 - [ ] Começar com **uma equipe**, com **papel em paralelo**, por algumas semanas.
