@@ -42,7 +42,7 @@ export function AtivarPush() {
         setEstado(permissao === 'denied' ? 'negada' : 'inativo')
         return
       }
-      await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      // O registro do service worker é feito uma vez no layout (SerwistProvider).
       const registro = await navigator.serviceWorker.ready
       const assinatura =
         (await registro.pushManager.getSubscription()) ??

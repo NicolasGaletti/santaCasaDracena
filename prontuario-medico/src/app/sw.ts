@@ -1,7 +1,47 @@
-// Service worker de push (Plano 4, Task 7c). Sem fetch e sem cache.
-// A Task 10 move estes handlers para o service worker do Serwist, no mesmo URL.
+/// <reference lib="webworker" />
+import { NetworkOnly, Serwist, type PrecacheEntry, type SerwistGlobalConfig } from 'serwist'
+
+declare global {
+  interface WorkerGlobalScope extends SerwistGlobalConfig {
+    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined
+  }
+}
+
+declare const self: ServiceWorkerGlobalScope
+
+// Cache só do shell estático (precache) e de /offline. Nenhum cache em runtime:
+// navegação e rotas de dados vão sempre à rede; se a navegação falhar, mostra /offline.
+const DADOS = /^\/(evolucoes|internacoes|api|auth)(\/|$)/
+
+const serwist = new Serwist({
+  precacheEntries: self.__SW_MANIFEST,
+  skipWaiting: true,
+  clientsClaim: true,
+  runtimeCaching: [
+    {
+      matcher: ({ request, url }) =>
+        request.mode === 'navigate' ||
+        DADOS.test(url.pathname) ||
+        url.pathname.includes('/pdf') ||
+        url.hostname.endsWith('.supabase.co'),
+      handler: new NetworkOnly(),
+    },
+  ],
+  fallbacks: {
+    entries: [
+      {
+        url: '/offline',
+        matcher: ({ request }) => request.destination === 'document',
+      },
+    ],
+  },
+})
+
+serwist.addEventListeners()
+
+// Push (Plano 4, Task 7c): handlers movidos do antigo public/sw.js.
 self.addEventListener('push', (event) => {
-  let dados = {}
+  let dados: { title?: unknown; body?: unknown; url?: unknown } = {}
   try {
     dados = event.data ? event.data.json() : {}
   } catch {

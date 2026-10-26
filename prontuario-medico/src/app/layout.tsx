@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Atkinson_Hyperlegible } from "next/font/google";
 import "./globals.css";
+import { SerwistProvider } from "@serwist/turbopack/react";
 import { Toaster } from "@/components/ui/sonner";
 
 const atkinson = Atkinson_Hyperlegible({
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={`${atkinson.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
-        {children}
+        <SerwistProvider swUrl="/sw.js" cacheOnNavigation={false} reloadOnOnline={false}>
+          {children}
+        </SerwistProvider>
         <Toaster position="top-center" />
       </body>
     </html>
