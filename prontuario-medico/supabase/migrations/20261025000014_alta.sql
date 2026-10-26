@@ -49,6 +49,18 @@ begin
     raise exception 'A data da alta não pode ser anterior à admissão.' using errcode = 'P0001';
   end if;
   if exists (
+    select 1 from public.leitos_historico l
+    where l.internacao_id = p_internacao_id and l.ate is null and l.de > p_alta_em
+  ) then
+    raise exception 'A data da alta não pode ser anterior à última troca de leito.' using errcode = 'P0001';
+  end if;
+  if exists (
+    select 1 from public.evolucoes e
+    where e.internacao_id = p_internacao_id and e.status = 'FINALIZADA' and e.finalizada_em > p_alta_em
+  ) then
+    raise exception 'A data da alta não pode ser anterior à última evolução finalizada.' using errcode = 'P0001';
+  end if;
+  if exists (
     select 1 from public.evolucoes e
     where e.internacao_id = p_internacao_id and e.status = 'AGUARDANDO_VALIDACAO'
   ) then
@@ -60,7 +72,7 @@ begin
       tipo_alta = p_tipo, motivo_alta = v_resumo
   where id = p_internacao_id;
 
-  update public.leitos_historico set ate = greatest(p_alta_em, de)
+  update public.leitos_historico set ate = p_alta_em
   where internacao_id = p_internacao_id and ate is null;
 end;
 $$;

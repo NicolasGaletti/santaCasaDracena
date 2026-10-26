@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(19);
 
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
 select set_config('tst.medico_fora', tests.criar_profissional('medico')::text, true);
@@ -38,6 +38,13 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, da
   ('14300000-0000-0000-0000-000000000001', '14200000-0000-0000-0000-000000000001', 'medica', current_setting('tst.residente')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo F1","conduta":"Cond F1"}', 'Texto F1', now(), current_setting('tst.medico')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('f', 64), now());
 insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, enviada_em) values
   ('14300000-0000-0000-0000-000000000002', '14200000-0000-0000-0000-000000000002', 'medica', current_setting('tst.residente')::uuid, 'AGUARDANDO_VALIDACAO', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo A2","conduta":"Cond A2"}', 'Texto A2', now());
+
+-- rascunho pendente em I1 (congelado após alta); I4 leito trocado "no futuro"; I5 evolução finalizada "no futuro"
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre) values
+  ('14300000-0000-0000-0000-000000000004', '14200000-0000-0000-0000-000000000001', 'medica', current_setting('tst.residente')::uuid, 'RASCUNHO', '{"modelo_versao":"medica@1","evolucao_clinica":"Rasc","conduta":"Rasc"}', 'Rascunho pendente');
+update public.leitos_historico set de = now() + interval '1 minute' where internacao_id = '14200000-0000-0000-0000-000000000004';
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, finalizada_em, validada_por, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, enviada_em) values
+  ('14300000-0000-0000-0000-000000000005', '14200000-0000-0000-0000-000000000005', 'medica', current_setting('tst.residente')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo F5","conduta":"Cond F5"}', 'Texto F5', now() + interval '1 minute', current_setting('tst.medico')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('e', 64), now());
 
 -- 1. residente não dá alta
 select tests.autenticar(current_setting('tst.residente')::uuid);
@@ -86,6 +93,19 @@ select throws_ok(
   'P0001', 'Há evoluções aguardando validação nesta internação.', 'alta recusada com evolução aguardando validação'
 );
 
+select throws_ok(
+  $$select public.dar_alta('14200000-0000-0000-0000-000000000003', null, 'Resumo')$$,
+  'P0001', 'Informe o tipo da alta.', 'tipo nulo falha'
+);
+select throws_ok(
+  $$select public.dar_alta('14200000-0000-0000-0000-000000000004', 'MELHORADA', 'Resumo')$$,
+  'P0001', 'A data da alta não pode ser anterior à última troca de leito.', 'alta antes da última troca de leito falha'
+);
+select throws_ok(
+  $$select public.dar_alta('14200000-0000-0000-0000-000000000005', 'MELHORADA', 'Resumo')$$,
+  'P0001', 'A data da alta não pode ser anterior à última evolução finalizada.', 'alta antes da última evolução finalizada falha'
+);
+
 -- 9. médico da equipe dá alta
 select lives_ok(
   $$select public.dar_alta('14200000-0000-0000-0000-000000000001', 'CURADA', ' Resumo da alta ')$$,
@@ -119,6 +139,14 @@ select tests.autenticar(current_setting('tst.residente')::uuid);
 select throws_ok(
   $$select public.salvar_rascunho('14200000-0000-0000-0000-000000000001', '{"modelo_versao":"medica@1","evolucao_clinica":"x","conduta":"y"}', 'x')$$,
   'P0001', 'Internação com alta não permite novas evoluções.', 'após alta não salva rascunho'
+);
+
+-- rascunho pendente continua congelado após alta
+reset role;
+select tests.autenticar(current_setting('tst.residente')::uuid);
+select throws_ok(
+  $$select public.enviar_evolucao('14300000-0000-0000-0000-000000000004')$$,
+  'P0001', 'Internação com alta: evolução não pode ser alterada.', 'após alta rascunho pendente continua congelado'
 );
 
 -- 14. após alta adendo continua permitido
