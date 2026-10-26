@@ -1,8 +1,9 @@
 begin;
-select plan(23);
+select plan(33);
 
 select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
+select set_config('tst.admin2', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.alvo', tests.criar_profissional('recepcao', false)::text, true);
 
 -- dados clínicos para o teste de leitura negada
@@ -49,6 +50,16 @@ select throws_ok($$select public.admin_atualizar_profissional(current_setting('t
 select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.alvo')::uuid, 'Fulana Enf', 'multiprofissional', 'enfermagem', 'COREN', '123', 'SP')$$, 'atualiza multiprofissional');
 select lives_ok($$select public.admin_definir_ativo(current_setting('tst.alvo')::uuid, false)$$, 'admin desativa');
 
+-- 4b. proteções do próprio perfil e do último admin
+select throws_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin')::uuid, 'Admin', 'medico', null, 'CRM', '1', 'SP')$$, 'P0001', 'Você não pode alterar o seu próprio perfil.', 'admin não altera o próprio perfil');
+select is((select perfil::text from public.profissionais where id = current_setting('tst.admin')::uuid), 'admin', 'perfil do admin intacto');
+select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin')::uuid, 'Admin Renomeado', 'admin', null, null, null, null)$$, 'admin edita o próprio nome');
+select throws_ok($$select public.admin_definir_ativo(current_setting('tst.admin')::uuid, false)$$, 'P0001', 'Você não pode desativar a si mesmo.', 'admin não desativa a si mesmo');
+select throws_ok($$select public.admin_atualizar_profissional(current_setting('tst.alvo')::uuid, 'Fulana', null, null, null, null, null)$$, 'P0001', 'Informe o perfil.', 'perfil nulo falha');
+select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin2')::uuid, 'Admin Dois', 'recepcao', null, null, null, null)$$, 'admin rebaixa outro admin (resta um ativo)');
+select is((select perfil::text from public.profissionais where id = current_setting('tst.admin2')::uuid), 'recepcao', 'outro admin rebaixado');
+select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin2')::uuid, 'Admin Dois', 'admin', null, null, null, null)$$, 'admin promove outro a admin');
+
 -- 5. admin vê todos os profissionais, mas não conteúdo clínico
 select cmp_ok((select count(*) from public.profissionais), '>=', 4::bigint, 'admin lê todos os profissionais');
 select is(
@@ -62,6 +73,14 @@ select ok(
   and (select count(*) from public.auditoria where por = current_setting('tst.admin')::uuid and tabela = 'membros_equipe') >= 2
   and (select count(*) from public.auditoria where por = current_setting('tst.admin')::uuid and tabela = 'profissionais') >= 2,
   'ações do admin vão para auditoria');
+
+select ok(
+  exists (select 1 from public.auditoria where por = current_setting('tst.admin')::uuid and tabela = 'equipes' and operacao = 'INSERT' and registro_id = current_setting('tst.equipe'))
+  and exists (select 1 from public.auditoria where por = current_setting('tst.admin')::uuid and tabela = 'profissionais' and operacao = 'UPDATE' and registro_id = current_setting('tst.alvo')),
+  'auditoria registra o admin como autor de INSERT em equipes e UPDATE em profissionais');
+
+-- 7. unicidade de nome de equipe no banco (case-insensitive)
+select throws_ok($$insert into public.equipes (nome) values (' EQUIPE RENOMEADA 15 ')$$, '23505', null, 'índice único de nome de equipe');
 
 select * from finish();
 rollback;

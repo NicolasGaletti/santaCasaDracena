@@ -9,6 +9,9 @@
 create policy profissionais_select_admin on public.profissionais for select to authenticated
   using (app.perfil_atual() = 'admin');
 
+-- Unicidade de nome de equipe garantida também no banco (a checagem na função só dá a mensagem amigável).
+create unique index equipes_nome_unico on public.equipes (lower(btrim(nome)));
+
 create function app.exige_admin() returns void
 language plpgsql security definer set search_path = ''
 as $$
@@ -20,6 +23,22 @@ end;
 $$;
 revoke all on function app.exige_admin() from public, anon;
 grant execute on function app.exige_admin() to authenticated;
+
+-- Falha se, após a mudança em curso, não restar admin ativo. Trava as linhas dos admins
+-- ativos para serializar mudanças concorrentes.
+create function app.exige_outro_admin_ativo(p_excluir uuid) returns void
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  perform 1 from public.profissionais
+   where perfil = 'admin' and ativo and id <> p_excluir
+   for update;
+  if not found then
+    raise exception 'Deve existir ao menos um administrador ativo.' using errcode = 'P0001';
+  end if;
+end;
+$$;
+revoke all on function app.exige_outro_admin_ativo(uuid) from public, anon, authenticated;
 
 create function public.admin_salvar_equipe(p_id uuid, p_nome text, p_ativo boolean)
 returns uuid
@@ -98,10 +117,21 @@ declare
   v_conselho text := nullif(btrim(p_conselho), '');
   v_numero text := nullif(btrim(p_numero), '');
   v_uf text := nullif(upper(btrim(p_uf)), '');
+  v_perfil_atual public.perfil_profissional;
 begin
   perform app.exige_admin();
   if v_nome is null then
     raise exception 'Informe o nome do profissional.' using errcode = 'P0001';
+  end if;
+  if p_perfil is null then
+    raise exception 'Informe o perfil.' using errcode = 'P0001';
+  end if;
+  select p.perfil into v_perfil_atual from public.profissionais p where p.id = p_id;
+  if p_id = auth.uid() and p_perfil is distinct from v_perfil_atual then
+    raise exception 'Você não pode alterar o seu próprio perfil.' using errcode = 'P0001';
+  end if;
+  if v_perfil_atual = 'admin' and p_perfil <> 'admin' then
+    perform app.exige_outro_admin_ativo(p_id);
   end if;
   if p_perfil = 'multiprofissional' and p_categoria is null then
     raise exception 'Multiprofissional exige categoria.' using errcode = 'P0001';
@@ -136,6 +166,10 @@ begin
   perform app.exige_admin();
   if p_id = auth.uid() and not coalesce(p_ativo, false) then
     raise exception 'Você não pode desativar a si mesmo.' using errcode = 'P0001';
+  end if;
+  if not coalesce(p_ativo, true)
+     and exists (select 1 from public.profissionais where id = p_id and perfil = 'admin' and ativo) then
+    perform app.exige_outro_admin_ativo(p_id);
   end if;
   update public.profissionais set ativo = coalesce(p_ativo, ativo) where id = p_id;
   if not found then
