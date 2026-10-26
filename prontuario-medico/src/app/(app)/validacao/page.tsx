@@ -36,7 +36,7 @@ export default async function PaginaValidacao({ searchParams }: { searchParams: 
     return (
       <>
         {voltar}
-        <CabecalhoPaciente linha={revisao.internacao} diasInternado={diasEntre(revisao.internacao.admitido_em)} />
+        <CabecalhoPaciente linha={revisao.internacao} diasInternado={diasEntre(revisao.internacao.admitido_em)} permitirTrocarLeito={false} />
         <RevisaoEvolucao revisao={revisao} />
       </>
     )

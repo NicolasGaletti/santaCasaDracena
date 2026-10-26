@@ -71,8 +71,8 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
               {iniciais(profissional.nome)}
             </span>
             <div className="min-w-0">
-              <p className="truncate font-heading font-bold">{profissional.nome}</p>
-              <p className="truncate text-[13px] text-cabecalho-suave">{identificacao}</p>
+              <p title={profissional.nome} className="truncate font-heading font-bold">{profissional.nome}</p>
+              <p title={identificacao} className="truncate text-[13px] text-cabecalho-suave">{identificacao}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">

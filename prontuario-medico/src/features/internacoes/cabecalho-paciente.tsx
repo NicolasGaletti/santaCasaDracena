@@ -15,7 +15,16 @@ function Meta({ icone, children }: { icone: ReactNode; children: ReactNode }) {
 }
 
 /** Cabeçalho escuro do paciente: avatar, nome e metadados; no celular os metadados viram chips. */
-export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaInternacao; diasInternado: number }) {
+export function CabecalhoPaciente({
+  linha,
+  diasInternado,
+  permitirTrocarLeito = true,
+}: {
+  linha: LinhaInternacao
+  diasInternado: number
+  /** Falso na validação: lá não se troca o leito. */
+  permitirTrocarLeito?: boolean
+}) {
   const anos = idade(linha.data_nascimento)
   const internado = linha.status === 'INTERNADO'
   const textoAnos = `${anos} ${anos === 1 ? 'ano' : 'anos'}`
@@ -68,7 +77,7 @@ export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaIntern
       </ul>
 
       <div className="sm:absolute sm:top-4 sm:right-6">
-        <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado} />
+        <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado && permitirTrocarLeito} />
       </div>
     </section>
   )

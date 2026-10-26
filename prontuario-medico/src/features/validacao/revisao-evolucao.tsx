@@ -71,7 +71,7 @@ export function RevisaoEvolucao({ revisao }: { revisao: RevisaoValidacao }) {
   return (
     <div className="flex flex-col gap-4">
       {revisao.original && <OriginalAdendo original={revisao.original} />}
-      <CartaoEvolucao evolucao={revisao.evolucao} />
+      <CartaoEvolucao evolucao={revisao.evolucao} ocultarAutor />
 
       <p className="px-1 text-[13px] font-semibold text-muted-foreground">
         {`Registrado por ${revisao.evolucao.autor_nome ?? 'autor não identificado'} – ${revisao.autorIdentificacao || 'Perfil não identificado'}`}

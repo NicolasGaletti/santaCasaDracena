@@ -113,7 +113,7 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
           Nenhum profissional encontrado.
         </p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {visiveis.map((p) => {
             const s = status(p)
             const funcao = funcaoDe(p.perfil, p.categoria)

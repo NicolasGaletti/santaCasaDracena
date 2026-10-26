@@ -131,11 +131,14 @@ export function CartaoEvolucao({
   evolucao,
   secao,
   ocultarAcoes = false,
+  ocultarAutor = false,
   anexosOutros = [],
 }: {
   evolucao: EvolucaoTimeline
   secao?: SecaoExame
   ocultarAcoes?: boolean
+  /** Esconde o autor do rodapé quando a tela já o mostra (ex.: validação). */
+  ocultarAutor?: boolean
   /** Anexos antigos do tipo OUTRO desta evolução. */
   anexosOutros?: AnexoGaleria[]
 }) {
@@ -241,10 +244,12 @@ export function CartaoEvolucao({
       )}
 
       <footer className="flex flex-wrap items-center gap-2">
-        <p className="flex min-w-0 max-w-full items-center gap-1 text-[12px] text-muted-foreground sm:mr-auto">
-          <UserRound aria-hidden className="size-3.5 shrink-0" />
-          <span className="min-w-0 truncate">{evolucao.autor_nome ?? 'Autor não identificado'}</span>
-        </p>
+        {!ocultarAutor && (
+          <p className="flex min-w-0 max-w-full items-center gap-1 text-[12px] text-muted-foreground sm:mr-auto">
+            <UserRound aria-hidden className="size-3.5 shrink-0" />
+            <span className="min-w-0 truncate">{evolucao.autor_nome ?? 'Autor não identificado'}</span>
+          </p>
+        )}
         {/* Sem contêiner extra: o erro do adendo ocupa a linha inteira abaixo dos botões. */}
         {finalizada && !ocultarAcoes && <BotaoImprimirEvolucao evolucaoId={evolucao.id} />}
         {finalizada && !ocultarAcoes && (evolucao.qtd_anexos ?? 0) > 0 && <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />}

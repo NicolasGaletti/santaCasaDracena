@@ -86,39 +86,39 @@ export function AtivarPush() {
 
   return (
     <CartaoSecao titulo="Este aparelho" icone={Smartphone} className="max-w-xl">
-     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        No iPhone, as notificações só funcionam com o app instalado na tela inicial.
-      </p>
-      {estado === 'indisponivel' && (
-        <p className="rounded-lg bg-muted p-3 text-sm">Notificações push não estão disponíveis neste navegador ou neste ambiente.</p>
-      )}
-      {estado === 'negada' && (
-        <p className="rounded-lg bg-muted p-3 text-sm">
-          As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador e volte aqui.
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          No iPhone, as notificações só funcionam com o app instalado na tela inicial.
         </p>
-      )}
-      {estado === 'inativo' && (
-        <Button type="button" variant="primaria" onClick={ativar} disabled={ocupado}>
-          Ativar notificações neste aparelho
-        </Button>
-      )}
-      {estado === 'ativo' && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p role="status" className="text-sm text-muted-foreground">
-            Notificações ativas neste aparelho.
+        {estado === 'indisponivel' && (
+          <p className="rounded-lg bg-muted p-3 text-sm">Notificações push não estão disponíveis neste navegador ou neste ambiente.</p>
+        )}
+        {estado === 'negada' && (
+          <p className="rounded-lg bg-muted p-3 text-sm">
+            As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador e volte aqui.
           </p>
-          <Button type="button" variant="outline" onClick={desativar} disabled={ocupado}>
-            Desativar neste aparelho
+        )}
+        {estado === 'inativo' && (
+          <Button type="button" variant="primaria" onClick={ativar} disabled={ocupado}>
+            Ativar notificações neste aparelho
           </Button>
-        </div>
-      )}
-      {erro && (
-        <p role="alert" className="text-sm text-destructive">
-          {erro}
-        </p>
-      )}
-     </div>
+        )}
+        {estado === 'ativo' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="status" className="text-sm text-muted-foreground">
+              Notificações ativas neste aparelho.
+            </p>
+            <Button type="button" variant="outline" onClick={desativar} disabled={ocupado}>
+              Desativar neste aparelho
+            </Button>
+          </div>
+        )}
+        {erro && (
+          <p role="alert" className="text-sm text-destructive">
+            {erro}
+          </p>
+        )}
+      </div>
     </CartaoSecao>
   )
 }

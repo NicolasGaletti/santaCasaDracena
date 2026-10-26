@@ -71,23 +71,26 @@ export function FilaImpressao({ linhas }: { linhas: LinhaFila[] }) {
           {linhas.map((l) => (
             <li
               key={l.id}
-              className={`flex items-start gap-3 rounded-xl border border-l-4 p-3 ${selecionadas.has(l.id) ? 'border-primary-suave-borda border-l-primary bg-primary-suave' : 'border-border border-l-teal-decorativo bg-card'}`}
+              className={`rounded-xl border border-l-4 ${selecionadas.has(l.id) ? 'border-primary-suave-borda border-l-primary bg-primary-suave' : 'border-border border-l-teal-decorativo bg-card'}`}
             >
-              <input
-                id={`imprimir-${l.id}`}
-                type="checkbox"
-                checked={selecionadas.has(l.id)}
-                onChange={(e) => alternar(l.id, e.target.checked)}
-                className="mt-0.5 size-6 shrink-0 accent-primary"
-                aria-label={`Selecionar ${l.paciente}`}
-              />
-              <label htmlFor={`imprimir-${l.id}`} className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5">
-                <span className="font-heading font-bold break-words">{l.paciente}</span>
-                <span className="text-sm text-muted-foreground">
-                  Leito {l.leito} · {l.equipe}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {l.validador} · {l.horario}
+              {/* O rótulo ocupa a linha toda: alvo de toque ≥ 44px no celular. */}
+              <label className="flex min-h-11 cursor-pointer items-start gap-3 p-3">
+                <input
+                  id={`imprimir-${l.id}`}
+                  type="checkbox"
+                  checked={selecionadas.has(l.id)}
+                  onChange={(e) => alternar(l.id, e.target.checked)}
+                  className="mt-0.5 size-6 shrink-0 accent-primary"
+                  aria-label={`Selecionar ${l.paciente}`}
+                />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-heading font-bold break-words">{l.paciente}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Leito {l.leito} · {l.equipe}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {l.validador} · {l.horario}
+                  </span>
                 </span>
               </label>
             </li>
