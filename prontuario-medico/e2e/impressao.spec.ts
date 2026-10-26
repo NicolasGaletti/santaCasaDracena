@@ -85,9 +85,8 @@ test('PDF de rascunho responde 404', async ({ page }) => {
   await page.getByRole('link', { name: 'Nova evolução' }).click()
   await page.getByLabel('Evolução clínica').fill('Rascunho que não pode ser impresso')
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 })
-  await page.goto(`/internacoes/${internacao}`)
-  const cartao = page.getByTestId('cartao-evolucao').first()
-  const id = (await cartao.locator('h3').getAttribute('id'))?.replace('evolucao-', '')
+  // Rascunho não aparece na timeline: o id vem do banco.
+  const id = sqlLocal(`select id from public.evolucoes where internacao_id = '${internacao}' and status = 'RASCUNHO'`)
   if (!id) throw new Error('id do rascunho não encontrado')
 
   const resposta = await page.request.get(`/evolucoes/${id}/pdf`)
@@ -184,7 +183,8 @@ async function finalizarComAnexos(page: Page, internacaoId: string, texto: strin
   await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar finalização' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // Finalizar com anexos leva mais que o padrão de 5 s sob carga (o botão fica desabilitado enquanto grava).
+  await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 })
   const link = page.locator('a[href$="/pdf"]').first()
   await expect(link).toBeVisible()
   const id = (await link.getAttribute('href'))?.match(UUID)?.[0]
