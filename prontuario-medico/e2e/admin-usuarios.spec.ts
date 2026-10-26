@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
+import { tokenAdminAal2 } from './helpers/mfa'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const SUPABASE_CHAVE =
@@ -40,7 +41,7 @@ function emailUnico(): string {
 }
 
 test('admin convida e o e-mail chega no Inbucket', async () => {
-  const token = await tokenDe('admin@teste.local')
+  const token = await tokenAdminAal2()
   const email = emailUnico()
   const nome = `Nova Enfermeira ${email.slice(8, 14)} (teste)`
   const r = await chamar(token, {
@@ -79,7 +80,7 @@ test('admin convida e o e-mail chega no Inbucket', async () => {
 })
 
 test('convite sem conselho exigido é recusado e e-mail duplicado dá 409', async () => {
-  const token = await tokenDe('admin@teste.local')
+  const token = await tokenAdminAal2()
   const semConselho = await chamar(token, {
     acao: 'convidar', email: emailUnico(), nome: 'Sem Conselho (teste)', funcao: 'medico',
   })
@@ -91,6 +92,15 @@ test('convite sem conselho exigido é recusado e e-mail duplicado dá 409', asyn
   })
   expect(duplicado.status).toBe(409)
   expect(duplicado.corpo).toEqual({ erro: 'Este e-mail já está cadastrado.' })
+})
+
+test('admin com sessão aal1 recebe 403', async () => {
+  const token = await tokenDe('admin@teste.local')
+  const r = await chamar(token, {
+    acao: 'convidar', email: emailUnico(), nome: 'Sem MFA (teste)', funcao: 'interno',
+  })
+  expect(r.status).toBe(403)
+  expect(r.corpo).toEqual({ erro: 'Confirme o código do autenticador para continuar.' })
 })
 
 test('médico recebe 403', async () => {
@@ -112,7 +122,7 @@ test('sem token a função recusa', async () => {
 })
 
 test('desativar revoga sessões', async ({ browser }) => {
-  const adminToken = await tokenDe('admin@teste.local')
+  const adminToken = await tokenAdminAal2()
   const alvo = 'a0000000-0000-0000-0000-00000000000a' // sessao@teste.local (seed)
 
   // refresh token emitido antes de desativar: deve morrer mesmo após reativar (sessões revogadas)
@@ -159,7 +169,7 @@ test('desativar revoga sessões', async ({ browser }) => {
 })
 
 test('limites de tamanho e reenvio a desativado', async () => {
-  const token = await tokenDe('admin@teste.local')
+  const token = await tokenAdminAal2()
   const longo = await chamar(token, {
     acao: 'convidar', email: emailUnico(), nome: 'x'.repeat(201), funcao: 'interno',
   })

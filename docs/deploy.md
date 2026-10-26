@@ -95,6 +95,8 @@ Em staging e produção, fazer manualmente (o `config.toml` só vale para o Supa
 - Os links usam `{{ .SiteURL }}/auth/callback?token_hash=...&type=invite|recovery&next=/definir-senha` (funciona em outro aparelho). Por isso o **Site URL** deve ser a URL pública do ambiente e entrar também em Redirect URLs.
 - Netlify: variável `SITE_URL`, recomendada e definida explicitamente por contexto de deploy (produção e branch `staging`), usada como origem do `redirectTo` em "Esqueci minha senha". Sem ela, usa-se `URL` em produção e `DEPLOY_PRIME_URL` nos demais contextos (o `URL` do Netlify aponta para produção mesmo em branch deploys).
 - SMTP próprio (ex.: Resend) em Authentication → SMTP Settings; o SMTP padrão do Supabase tem limite baixo.
+- **MFA TOTP (admin)**: em staging e produção, Authentication → Sign In / Providers → Multi-Factor → habilitar **TOTP** (enroll e verify). Localmente já está em `config.toml` (`[auth.mfa.totp]`). Sem isso o admin não consegue cadastrar o autenticador e fica sem acesso à administração.
+- O seed cria um fator TOTP fictício (secret conhecido) para `admin@teste.local`, só para o e2e. Em staging, remover esse fator (Authentication → Users → admin@teste.local → Factors) e cadastrar um autenticador real no primeiro acesso.
 
 ## Usuários de teste (staging)
 

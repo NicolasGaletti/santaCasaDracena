@@ -62,11 +62,16 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
             <p className="truncate font-bold text-foreground">{profissional.nome}</p>
             <p className="text-sm text-muted-foreground">{identificacao}</p>
           </div>
-          <form action={sair}>
-            <Button type="submit" variant="outline">
-              Sair
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost">
+              <Link href="/conta/seguranca">Segurança</Link>
             </Button>
-          </form>
+            <form action={sair}>
+              <Button type="submit" variant="outline">
+                Sair
+              </Button>
+            </form>
+          </div>
         </div>
       </header>
 

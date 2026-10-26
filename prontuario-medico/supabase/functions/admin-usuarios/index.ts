@@ -77,9 +77,21 @@ async function exigirAdmin(req: Request): Promise<{ doChamador: SupabaseClient; 
     throw new ErroHttp(403, 'Acesso restrito a administradores.')
   }
 
-  // TODO(Task 7): exigir aal2 aqui (admin com sessão aal1 -> 403).
+  // MFA obrigatório para admin: o JWT já foi validado por getUser acima, aqui só lemos a claim.
+  if (aalDoToken(token) !== 'aal2') {
+    throw new ErroHttp(403, 'Confirme o código do autenticador para continuar.')
+  }
 
   return { doChamador, adminId: usuario.user.id }
+}
+
+function aalDoToken(jwt: string): string | undefined {
+  try {
+    const carga = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(carga)).aal
+  } catch {
+    return undefined
+  }
 }
 
 function servico(): SupabaseClient {

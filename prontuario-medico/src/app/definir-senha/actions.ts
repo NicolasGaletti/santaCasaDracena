@@ -29,6 +29,5 @@ export async function definirSenha(_prev: EstadoForm, form: FormData): Promise<E
   }
 
   const { data: perfil } = await supabase.from('profissionais').select('perfil').eq('id', userId).maybeSingle()
-  // Task 7 cria /conta/mfa (cadastro/verificação obrigatória para admin).
-  redirect(perfil?.perfil === 'admin' ? '/conta/mfa' : '/')
+  redirect(perfil?.perfil === 'admin' ? '/mfa/cadastrar' : '/')
 }

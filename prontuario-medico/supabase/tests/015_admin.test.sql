@@ -28,7 +28,7 @@ select throws_ok($$select public.admin_atualizar_profissional(current_setting('t
 
 -- 2. admin cria equipe
 reset role;
-select tests.autenticar(current_setting('tst.admin')::uuid);
+select tests.autenticar(current_setting('tst.admin')::uuid, 'aal2');
 select set_config('tst.equipe', public.admin_salvar_equipe(null, 'Equipe Nova 15', true)::text, true);
 select is((select nome from public.equipes where id = current_setting('tst.equipe')::uuid), 'Equipe Nova 15', 'admin cria equipe');
 select throws_ok($$select public.admin_salvar_equipe(null, '  equipe nova 15 ', true)$$, 'P0001', 'Já existe uma equipe com esse nome.', 'nome de equipe duplicado');
@@ -71,7 +71,7 @@ select set_config('role', 'anon', true);
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select throws_ok($$select * from public.admin_listar_profissionais()$$, '42501', null, 'anon não lista profissionais');
 reset role;
-select tests.autenticar(current_setting('tst.admin')::uuid);
+select tests.autenticar(current_setting('tst.admin')::uuid, 'aal2');
 
 -- 5. admin vê todos os profissionais, mas não conteúdo clínico
 select cmp_ok((select count(*) from public.profissionais), '>=', 4::bigint, 'admin lê todos os profissionais');
@@ -98,7 +98,7 @@ select throws_ok($$insert into public.equipes (nome) values (' EQUIPE RENOMEADA 
 -- 8. revogação de sessões: só service_role
 reset role;
 insert into auth.sessions (id, user_id) values ('15400000-0000-0000-0000-000000000001', current_setting('tst.alvo')::uuid);
-select tests.autenticar(current_setting('tst.admin')::uuid);
+select tests.autenticar(current_setting('tst.admin')::uuid, 'aal2');
 select throws_ok($$select public.admin_revogar_sessoes(current_setting('tst.alvo')::uuid)$$, '42501', null, 'admin autenticado não revoga sessões');
 reset role;
 select set_config('role', 'anon', true);

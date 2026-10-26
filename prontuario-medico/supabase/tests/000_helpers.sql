@@ -2,13 +2,16 @@ create extension if not exists pgtap with schema extensions;
 
 create schema if not exists tests;
 
-create or replace function tests.autenticar(p_user uuid)
+drop function if exists tests.autenticar(uuid);
+
+-- p_aal: nível de garantia do JWT ('aal1' = só senha; 'aal2' = senha + TOTP).
+create or replace function tests.autenticar(p_user uuid, p_aal text default 'aal1')
 returns void
 language plpgsql
 as $$
 begin
   perform set_config('role', 'authenticated', true);
-  perform set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated', 'aal', p_aal)::text, true);
 end;
 $$;
 

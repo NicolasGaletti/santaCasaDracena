@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { createClient } from '@supabase/supabase-js'
+import { entrarAdmin, tokenAdminAal2 } from './helpers/mfa'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const SUPABASE_CHAVE =
@@ -16,14 +16,12 @@ function emailUnico(): string {
 }
 
 async function convidar(email: string): Promise<void> {
-  const cliente = createClient(SUPABASE_URL, SUPABASE_CHAVE, { auth: { persistSession: false } })
-  const { data, error } = await cliente.auth.signInWithPassword({ email: 'admin@teste.local', password: 'Teste@123' })
-  if (error || !data.session) throw new Error(`login admin: ${error?.message}`)
+  const token = await tokenAdminAal2()
   const resposta = await fetch(FUNCAO_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${data.session.access_token}`,
+      Authorization: `Bearer ${token}`,
       apikey: SUPABASE_CHAVE,
     },
     body: JSON.stringify({
@@ -95,8 +93,7 @@ test('definir-senha sem sessão volta ao login', async ({ page }) => {
 })
 
 test('definir-senha com login por senha redireciona para a home', async ({ page }) => {
-  await entrar(page, 'admin@teste.local', 'Teste@123')
-  await expect(page).toHaveURL('/')
+  await entrarAdmin(page)
   await page.goto('/definir-senha')
   // `/` do admin segue para a lista de profissionais; o que importa é sair de /definir-senha.
   await expect(page).toHaveURL(/localhost:3000\/(admin\/profissionais)?$/)

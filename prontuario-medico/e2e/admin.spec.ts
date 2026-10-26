@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { entrarAdmin } from './helpers/mfa'
+
 const SENHA = 'Teste@123'
 
 // Telas de administração (Plano 4, Task 5). Mutações compartilham o banco: em série.
@@ -27,7 +29,7 @@ test.describe('admin', () => {
   test.skip(({ isMobile }) => isMobile, 'somente desktop')
 
   test('admin vai direto para a administração, sem abas clínicas', async ({ page }) => {
-    await entrar(page, 'admin@teste.local')
+    await entrarAdmin(page)
     await expect(page).toHaveURL(/\/admin\/profissionais$/)
     await expect(page.getByRole('heading', { name: 'Profissionais' })).toBeVisible()
     const nav = page.getByRole('navigation', { name: 'Principal' })
@@ -43,7 +45,7 @@ test.describe('admin', () => {
   test('admin convida enfermeira com COREN sugerido', async ({ page }) => {
     const sufixo = Math.random().toString(36).slice(2, 8)
     const nome = `Enfermeira Convidada ${sufixo} (teste)`
-    await entrar(page, 'admin@teste.local')
+    await entrarAdmin(page)
     await page.getByRole('button', { name: 'Convidar profissional' }).click()
     const dialogo = page.getByRole('dialog', { name: 'Convidar profissional' })
     await dialogo.getByLabel('Nome').fill(nome)
@@ -85,7 +87,7 @@ test.describe('admin', () => {
 
   test('admin cria equipe e vincula', async ({ page }) => {
     const nomeEquipe = `Equipe E2E ${Math.random().toString(36).slice(2, 7)}`
-    await entrar(page, 'admin@teste.local')
+    await entrarAdmin(page)
     await page.getByRole('navigation', { name: 'Administração' }).getByRole('link', { name: 'Equipes' }).click()
     await expect(page.getByRole('heading', { name: 'Equipes' })).toBeVisible()
 
@@ -131,7 +133,7 @@ test.describe('admin', () => {
       await entrar(usuario, 'desativavel@teste.local')
       await expect(usuario.getByRole('heading', { name: 'Internados' })).toBeVisible()
 
-      await entrar(page, 'admin@teste.local')
+      await entrarAdmin(page)
       await page.getByLabel('Buscar profissional').fill('Desativável')
       const linha = page.getByRole('listitem').filter({ hasText: nome })
       await expect(linha).toContainText('Ativo')
@@ -154,7 +156,7 @@ test.describe('admin', () => {
   })
 
   test('admin não vê a própria desativação', async ({ page }) => {
-    await entrar(page, 'admin@teste.local')
+    await entrarAdmin(page)
     await page.getByLabel('Buscar profissional').fill('Admin Teste')
     const eu = page.getByRole('listitem').filter({ hasText: 'Admin Teste' })
     await expect(eu).toBeVisible()

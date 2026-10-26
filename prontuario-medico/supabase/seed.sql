@@ -58,6 +58,10 @@ insert into auth.users (
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
   ('a0000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'desativavel@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+  -- Admin sem fator TOTP: usado só por e2e/mfa.spec.ts (cadastro obrigatório).
+  ('a0000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'admin.semmfa@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
@@ -95,7 +99,14 @@ insert into public.profissionais (id, nome, perfil, ativo) values
 insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho) values
   ('a0000000-0000-0000-0000-000000000009', 'Admin Teste', 'admin', null, null, null, null),
   ('a0000000-0000-0000-0000-00000000000a', 'Fisioterapeuta Sessão (teste)', 'multiprofissional', 'fisioterapia', 'CREFITO', '55555', 'SP'),
-  ('a0000000-0000-0000-0000-00000000000b', 'Recepção Desativável (teste)', 'recepcao', null, null, null, null);
+  ('a0000000-0000-0000-0000-00000000000b', 'Recepção Desativável (teste)', 'recepcao', null, null, null, null),
+  ('a0000000-0000-0000-0000-00000000000c', 'Admin Sem MFA (teste)', 'admin', null, null, null, null);
+
+-- Fator TOTP verificado do admin@teste.local. Secret fictício, só para dev/e2e
+-- (e2e/helpers/mfa.ts usa o mesmo valor para gerar os códigos).
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, secret, created_at, updated_at)
+values ('f0000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000009', 'Autenticador (teste)',
+        'totp', 'verified', 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', now(), now());
 
 insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001'),
