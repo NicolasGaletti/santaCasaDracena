@@ -63,6 +63,10 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
     if (/Content[- ]Security[- ]Policy|violates the following/i.test(m.text())) violacoes.push(m.text())
   })
   page.on('pageerror', (e) => violacoes.push(`pageerror: ${e.message}`))
+  const respostasAction: APIResponse[] = []
+  page.on('response', (r) => {
+    if (r.request().method() === 'POST' && r.request().headers()['next-action']) respostasAction.push(r as unknown as APIResponse)
+  })
 
   await page.goto('/login')
   await expect(page.getByLabel('E-mail Profissional')).toBeVisible()
@@ -114,6 +118,12 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
   await page.goto(`/evolucoes/${evolucaoId}/pdf`).catch(() => undefined)
 
   expect(violacoes).toEqual([])
+
+  // Resposta de server action (POST) também não pode ser cacheada.
+  expect(respostasAction.length).toBeGreaterThan(0)
+  if (test.info().project.name === 'pwa') {
+    for (const r of respostasAction) expect(r.headers()['cache-control'] ?? '').toContain('no-store')
+  }
 })
 
 test('assets estáticos e service worker não recebem no-store indevido', async ({ request }) => {
@@ -121,4 +131,23 @@ test('assets estáticos e service worker não recebem no-store indevido', async 
   expect(manifest.headers()['cache-control'] ?? '').not.toContain('no-store')
   const sw = await request.get('/sw.js')
   expect(sw.headers()['cache-control']).toBe('no-cache, no-store, must-revalidate')
+})
+
+test('/offline (estática, fora do proxy) recebe CSP sem nonce', async ({ request }) => {
+  const resposta = await request.get('/offline')
+  expect(resposta.status()).toBe(200)
+  const h = resposta.headers()
+  const csp = diretivas(h['content-security-policy'] ?? '')
+  expect(csp['script-src']).toEqual(["'self'", "'unsafe-inline'"])
+  expect(csp['default-src']).toEqual(["'self'"])
+  expect(csp['object-src']).toEqual(["'none'"])
+  expect(csp['base-uri']).toEqual(["'self'"])
+  expect(csp['form-action']).toEqual(["'self'"])
+  expect(csp['frame-ancestors']).toEqual(["'none'"])
+  expect(csp['worker-src']).toEqual(["'self'"])
+  expect(csp['manifest-src']).toEqual(["'self'"])
+  expect(csp['font-src']).toEqual(["'self'"])
+  expect(csp['connect-src']).toEqual(expect.arrayContaining(["'self'", 'https://*.supabase.co']))
+  expect(h['content-security-policy']).not.toContain('nonce-')
+  expect(h['x-frame-options']).toBe('DENY')
 })

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withSerwist } from "@serwist/turbopack";
+import { montarCspEstatica } from "./src/lib/csp";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
@@ -21,6 +22,11 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
           { key: "X-Content-Type-Options", value: "nosniff" },
         ],
+      },
+      {
+        // /offline fica fora do matcher do proxy (estática); recebe CSP estática aqui, sem duplicar header.
+        source: "/offline",
+        headers: [{ key: "Content-Security-Policy", value: montarCspEstatica() }],
       },
       {
         source: "/(sw.js|serwist/:path*)",
