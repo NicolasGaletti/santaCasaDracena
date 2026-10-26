@@ -303,6 +303,8 @@ test.describe.serial('validação: anexos e menu', () => {
 });
 
 test('médico vê a original do adendo na validação', async ({ page }) => {
+  // Fluxo longo (duas validações e uma captura): sob carga da suíte completa passa do limite de 30 s.
+  test.setTimeout(60_000);
   const id = await admitirPaciente(page, leitoUnico());
   await page.context().clearCookies();
   await academicoEnvia(page, id, 'Evolução original do adendo', 'Conduta original do adendo');
