@@ -94,6 +94,20 @@ Em staging e produção, fazer manualmente (o `config.toml` só vale para o Supa
 - **MFA TOTP (admin)**: em staging e produção, Authentication → Sign In / Providers → Multi-Factor → habilitar **TOTP** (enroll e verify). Localmente já está em `config.toml` (`[auth.mfa.totp]`). Sem isso o admin não consegue cadastrar o autenticador e fica sem acesso à administração.
 - O `seed.sql` (admins de teste com senha pública e TOTP conhecido) nunca é aplicado em staging/produção; admins reais cadastram o próprio autenticador no primeiro acesso.
 
+## Plano 4 — Notificações (push)
+
+Feito pelo usuário no deploy; nada disso entra no repositório.
+
+1. Gerar as chaves VAPID: `npx web-push generate-vapid-keys`.
+2. Segredos da Edge Function (Supabase):
+   `supabase secrets set VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:seu@email PUSH_WEBHOOK_SECRET=<string aleatória longa>`
+3. Publicar a função: `supabase functions deploy enviar-push` (usa `verify_jwt = false` do `config.toml`; a autenticação é o header `x-webhook-secret`).
+4. Netlify: variável `NEXT_PUBLIC_VAPID_PUBLIC_KEY` = a chave pública (só a pública; a privada fica só no Supabase).
+5. Dashboard do Supabase, Database, Webhooks, Create: tabela `public.notificacoes`, evento INSERT, tipo HTTP Request, método POST, URL `https://<ref>.supabase.co/functions/v1/enviar-push`, header `x-webhook-secret` com o mesmo valor de `PUSH_WEBHOOK_SECRET`. Repetir em cada projeto (staging e produção).
+6. Teste rápido: sem o header a função responde 401; com ele e um destinatário sem assinaturas responde 200 `{"enviados":0}`.
+
+O push só sai para `validacao_pendente` e `evolucao_devolvida` e nunca contém nome de paciente nem conteúdo clínico. Assinaturas que o serviço de push recusa (404/410) são apagadas.
+
 ## Usuários de teste (staging)
 
 Dados fictícios, criados manualmente (o seed é só local).

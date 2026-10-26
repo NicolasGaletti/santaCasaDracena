@@ -239,6 +239,7 @@ export type Database = {
           criado_em: string;
           dados: NonNullable<Json>;
           devolvida_motivo: string | null;
+          devolvida_por: string | null;
           enviada_em: string | null;
           finalizada_em: string | null;
           hash_versao: number;
@@ -262,6 +263,7 @@ export type Database = {
           criado_em?: string;
           dados?: NonNullable<Json>;
           devolvida_motivo?: string | null;
+          devolvida_por?: string | null;
           enviada_em?: string | null;
           finalizada_em?: string | null;
           hash_versao?: number;
@@ -284,6 +286,7 @@ export type Database = {
           criado_em?: string;
           dados?: NonNullable<Json>;
           devolvida_motivo?: string | null;
+          devolvida_por?: string | null;
           enviada_em?: string | null;
           finalizada_em?: string | null;
           hash_versao?: number;
@@ -321,6 +324,20 @@ export type Database = {
           {
             foreignKeyName: "evolucoes_autor_id_fkey";
             columns: ["autor_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_devolvida_por_fkey";
+            columns: ["devolvida_por"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_devolvida_por_fkey";
+            columns: ["devolvida_por"];
             isOneToOne: false;
             referencedRelation: "vw_profissionais_publico";
             referencedColumns: ["id"];
@@ -640,6 +657,83 @@ export type Database = {
           },
         ];
       };
+      notificacoes: {
+        Row: {
+          criada_em: string;
+          destinatario_id: string;
+          evolucao_id: string | null;
+          id: string;
+          internacao_id: string | null;
+          lida_em: string | null;
+          texto: string;
+          tipo: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          criada_em?: string;
+          destinatario_id: string;
+          evolucao_id?: string | null;
+          id?: string;
+          internacao_id?: string | null;
+          lida_em?: string | null;
+          texto: string;
+          tipo: string;
+        };
+        Update: {
+          criada_em?: string;
+          destinatario_id?: string;
+          evolucao_id?: string | null;
+          id?: string;
+          internacao_id?: string | null;
+          lida_em?: string | null;
+          texto?: string;
+          tipo?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_destinatario_id_fkey";
+            columns: ["destinatario_id"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notificacoes_destinatario_id_fkey";
+            columns: ["destinatario_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notificacoes_evolucao_id_fkey";
+            columns: ["evolucao_id"];
+            isOneToOne: false;
+            referencedRelation: "evolucoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notificacoes_evolucao_id_fkey";
+            columns: ["evolucao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_evolucoes_timeline";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notificacoes_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "internacoes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notificacoes_internacao_id_fkey";
+            columns: ["internacao_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_internacoes_lista";
+            referencedColumns: ["internacao_id"];
+          },
+        ];
+      };
       pacientes: {
         Row: {
           cns: string | null;
@@ -673,6 +767,40 @@ export type Database = {
           nome_mae?: string | null;
         };
         Relationships: [];
+      };
+      preferencias_notificacao: {
+        Row: {
+          profissional_id: string;
+          push_devolvida: boolean;
+          push_validacao: boolean;
+        };
+        ComputedFields: never;
+        Insert: {
+          profissional_id: string;
+          push_devolvida?: boolean;
+          push_validacao?: boolean;
+        };
+        Update: {
+          profissional_id?: string;
+          push_devolvida?: boolean;
+          push_validacao?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "preferencias_notificacao_profissional_id_fkey";
+            columns: ["profissional_id"];
+            isOneToOne: true;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "preferencias_notificacao_profissional_id_fkey";
+            columns: ["profissional_id"];
+            isOneToOne: true;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profissionais: {
         Row: {
@@ -708,6 +836,49 @@ export type Database = {
         };
         Relationships: [];
       };
+      push_assinaturas: {
+        Row: {
+          auth: string;
+          criada_em: string;
+          endpoint: string;
+          id: string;
+          p256dh: string;
+          profissional_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          auth: string;
+          criada_em?: string;
+          endpoint: string;
+          id?: string;
+          p256dh: string;
+          profissional_id: string;
+        };
+        Update: {
+          auth?: string;
+          criada_em?: string;
+          endpoint?: string;
+          id?: string;
+          p256dh?: string;
+          profissional_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_assinaturas_profissional_id_fkey";
+            columns: ["profissional_id"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "push_assinaturas_profissional_id_fkey";
+            columns: ["profissional_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       vw_evolucoes_timeline: {
@@ -722,6 +893,8 @@ export type Database = {
           criado_em: string;
           dados: NonNullable<Json>;
           devolvida_motivo: string | null;
+          devolvida_por: string | null;
+          devolvida_por_nome: string | null;
           enviada_em: string | null;
           finalizada_em: string | null;
           hash_versao: number;
@@ -762,6 +935,20 @@ export type Database = {
           {
             foreignKeyName: "evolucoes_autor_id_fkey";
             columns: ["autor_id"];
+            isOneToOne: false;
+            referencedRelation: "vw_profissionais_publico";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_devolvida_por_fkey";
+            columns: ["devolvida_por"];
+            isOneToOne: false;
+            referencedRelation: "profissionais";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "evolucoes_devolvida_por_fkey";
+            columns: ["devolvida_por"];
             isOneToOne: false;
             referencedRelation: "vw_profissionais_publico";
             referencedColumns: ["id"];
@@ -945,7 +1132,13 @@ export type Database = {
       devolver_evolucao: { Args: { p_evolucao_id: string; p_motivo: string }; Returns: undefined };
       enviar_evolucao: { Args: { p_evolucao_id: string }; Returns: undefined };
       finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
+      marcar_lida: { Args: { p_id: string }; Returns: undefined };
+      marcar_todas_lidas: { Args: Record<PropertyKey, never>; Returns: undefined };
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
+      registrar_assinatura_push: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string };
+        Returns: undefined;
+      };
       registrar_impressao: { Args: { p_evolucao_id: string }; Returns: number };
       registrar_impressoes: {
         Args: { p_chave?: string; p_ids: string[] };
@@ -955,6 +1148,11 @@ export type Database = {
         }[];
       };
       remover_anexo: { Args: { p_anexo_id: string }; Returns: undefined };
+      remover_assinatura_push: { Args: { p_endpoint: string }; Returns: undefined };
+      salvar_preferencias_notificacao: {
+        Args: { p_push_devolvida: boolean; p_push_validacao: boolean };
+        Returns: undefined;
+      };
       salvar_rascunho: {
         Args: { p_dados: Json; p_internacao_id: string; p_texto_livre: string };
         Returns: {
