@@ -10,6 +10,7 @@ import {
   DocumentoEvolucao,
   codigoCurto,
   legendaAnexo,
+  linhaValidacao,
   secoesVisiveis,
   sinaisVisiveis,
   type AnexoImpressao,
@@ -144,6 +145,19 @@ describe('sinaisVisiveis', () => {
 describe('codigoCurto', () => {
   it('usa os 8 primeiros caracteres do uuid em maiúsculas', () => {
     expect(codigoCurto('d0a1b2c3-0000-4000-8000-000000000000')).toBe('D0A1B2C3')
+  })
+})
+
+describe('linhaValidacao', () => {
+  it('nomeia o validador do snapshot', () => {
+    expect(linhaValidacao(impressao(dadosSemExameFisico()).evolucao)).toBe(
+      'Validado por Dra. Marina Lopes (teste) – CRM 145892/SP em 25/10/2026 13:05',
+    )
+  })
+
+  it('sem snapshot do validador não cai para o autor', () => {
+    const evolucao = impressao(dadosSemExameFisico(), 1, [], { snapshot_validador: null }).evolucao
+    expect(linhaValidacao(evolucao)).toBe('Identificação não disponível')
   })
 })
 

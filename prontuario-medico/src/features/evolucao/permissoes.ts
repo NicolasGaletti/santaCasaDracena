@@ -43,12 +43,12 @@ export async function ehMembroDaEquipe(
 }
 
 /**
- * Adendo: o autor da evolução original, ou médico membro da equipe da internação.
+ * Adendo: membro da equipe da internação e (autor da evolução original, ou médico).
  * Só perfis que evoluem; a regra de internação em alta e a de rascunho aberto ficam no banco.
  */
 export function podeCriarAdendo(perfil: string, ehAutor: boolean, ehMembroEquipe: boolean): boolean {
   if (!(PERFIS_QUE_EVOLUEM as readonly string[]).includes(perfil)) return false
-  return ehAutor || (perfil === 'medico' && ehMembroEquipe)
+  return ehMembroEquipe && (ehAutor || perfil === 'medico')
 }
 
 /** Multiprofissional sem categoria não consegue registrar evolução (o banco recusa). */

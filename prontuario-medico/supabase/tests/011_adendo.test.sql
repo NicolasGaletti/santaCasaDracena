@@ -1,5 +1,5 @@
 begin;
-select plan(30);
+select plan(31);
 
 -- setup como postgres (transaction-local)
 select set_config('tst.medico_a', tests.criar_profissional('medico')::text, true);
@@ -7,6 +7,7 @@ select set_config('tst.medico_b', tests.criar_profissional('medico')::text, true
 select set_config('tst.residente', tests.criar_profissional('residente', true, 'medica')::text, true);
 select set_config('tst.multi', tests.criar_profissional('multiprofissional', true, 'fisioterapia')::text, true);
 select set_config('tst.recepcao', tests.criar_profissional('recepcao', false)::text, true);
+select set_config('tst.res_fora', tests.criar_profissional('residente', true, 'medica')::text, true);
 
 insert into public.equipes (id, nome) values
   ('77700000-0000-0000-0000-000000000001', 'Clinica Medica'),
@@ -66,6 +67,10 @@ insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, da
 -- A11: adendo já finalizado (de F2, residente, I2) para testar adendo de adendo
 insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, adendo_de, finalizada_em, validada_por, validada_em, snapshot_autor, snapshot_validador, conteudo_hash) values
   ('66600000-0000-0000-0000-000000000011', '88800000-0000-0000-0000-000000000002', 'medica', current_setting('tst.residente')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo A11","conduta":"Cond A11"}', 'Texto A11', '66600000-0000-0000-0000-000000000002', now(), current_setting('tst.medico_a')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('a', 64));
+
+-- A12: finalizada do residente fora da equipe (I1), para testar autoria sem vínculo
+insert into public.evolucoes (id, internacao_id, categoria, autor_id, status, dados, texto_livre, finalizada_em, validada_por, validada_em, snapshot_autor, snapshot_validador, conteudo_hash, enviada_em) values
+  ('66600000-0000-0000-0000-000000000012', '88800000-0000-0000-0000-000000000001', 'medica', current_setting('tst.res_fora')::uuid, 'FINALIZADA', '{"modelo_versao":"medica@1","evolucao_clinica":"Evo F12","conduta":"Cond F12"}', 'Texto F12', now(), current_setting('tst.medico_a')::uuid, now(), '{"nome":"x"}', '{"nome":"x"}', repeat('f', 64), now());
 
 -- ===== criar_adendo =====
 
@@ -336,6 +341,17 @@ select throws_ok(
   $$select public.finalizar_evolucao('66600000-0000-0000-0000-000000000010')$$,
   'P0001', 'Internação com alta: evolução não pode ser alterada.',
   'finalizar rascunho comum em internação com alta é recusado'
+);
+
+-- ===== autoria exige vínculo com a equipe =====
+
+-- 29. autor fora da equipe não cria adendo, mesmo sendo o autor da original (residente fora de I1)
+reset role;
+select tests.autenticar(current_setting('tst.res_fora')::uuid);
+select throws_ok(
+  $$select public.criar_adendo('66600000-0000-0000-0000-000000000012')$$,
+  'P0001', 'Acesso negado.',
+  'autor fora da equipe não cria adendo'
 );
 
 select * from finish();

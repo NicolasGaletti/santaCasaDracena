@@ -173,7 +173,7 @@ export function linhaRegistro(evolucao: EvolucaoImpressao['evolucao']): string |
 
 /** Linha de validação; nunca usa identidade padrão. */
 export function linhaValidacao(evolucao: EvolucaoImpressao['evolucao']): string {
-  const assinante = evolucao.snapshot_validador ?? evolucao.snapshot_autor
+  const assinante = evolucao.snapshot_validador
   if (!assinante?.nome) return 'Identificação não disponível'
   const registro = textoRegistro(assinante)
   const quando = formatarDataHoraSP(evolucao.validada_em ?? evolucao.finalizada_em)

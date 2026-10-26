@@ -125,7 +125,7 @@ revoke execute on function public.salvar_rascunho(uuid, jsonb, text) from public
 grant execute on function public.salvar_rascunho(uuid, jsonb, text) to authenticated;
 
 -- 3. criar_adendo: nova evolução RASCUNHO ligada à finalizada (adendo_de).
--- Chamador: autor da original, ou médico membro da equipe. Permitido com internação em alta.
+-- Chamador: membro da equipe da internação e (autor da original, ou médico). Permitido com internação em alta.
 create function public.criar_adendo(p_evolucao_id uuid) returns uuid
 language plpgsql security definer set search_path = ''
 as $$
@@ -157,8 +157,8 @@ begin
   end if;
   select i.* into v_int from public.internacoes i where i.id = v_orig.internacao_id for share;
 
-  -- quem pode: autor da original, ou médico membro da equipe (checado antes do status)
-  if not (v_orig.autor_id = auth.uid() or (app.eh_medico() and app.membro_equipe(v_int.equipe_id))) then
+  -- quem pode: membro da equipe e (autor da original, ou médico) (checado antes do status)
+  if not (app.membro_equipe(v_int.equipe_id) and (v_orig.autor_id = auth.uid() or app.eh_medico())) then
     raise exception 'Acesso negado.' using errcode = 'P0001';
   end if;
   if v_orig.status <> 'FINALIZADA' then

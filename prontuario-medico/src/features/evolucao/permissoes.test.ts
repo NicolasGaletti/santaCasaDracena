@@ -20,10 +20,16 @@ describe('permissoes de evolução', () => {
 });
 
 describe('podeCriarAdendo', () => {
-  it('autor da original pode criar adendo, em qualquer perfil que evolui', () => {
-    expect(podeCriarAdendo('residente', true, false)).toBe(true);
-    expect(podeCriarAdendo('multiprofissional', true, false)).toBe(true);
-    expect(podeCriarAdendo('academico', true, false)).toBe(true);
+  it('autor da original membro da equipe pode criar adendo, em qualquer perfil que evolui', () => {
+    expect(podeCriarAdendo('residente', true, true)).toBe(true);
+    expect(podeCriarAdendo('multiprofissional', true, true)).toBe(true);
+    expect(podeCriarAdendo('academico', true, true)).toBe(true);
+  });
+
+  it('autor da original fora da equipe não cria adendo', () => {
+    expect(podeCriarAdendo('residente', true, false)).toBe(false);
+    expect(podeCriarAdendo('multiprofissional', true, false)).toBe(false);
+    expect(podeCriarAdendo('academico', true, false)).toBe(false);
   });
 
   it('médico membro da equipe pode criar adendo de evolução de outro', () => {
