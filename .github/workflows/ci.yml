@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, staging, main]
+  pull_request:
+    branches: [develop, staging, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: prontuario-medico
+
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      # Valores de mentira: o build só precisa que as variáveis existam. CI não usa nenhum secret.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: prontuario-medico/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Testes unitários (vitest)
+        run: npm test
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Supabase local (só o necessário para os testes de banco)
+        run: npx supabase start -x studio,imgproxy,edge-runtime,realtime,mailpit,postgres-meta,logflare,vector,supavisor
+
+      - name: Testes de banco (pgTAP)
+        run: npx supabase test db
+
+      - name: Build
+        run: npm run build

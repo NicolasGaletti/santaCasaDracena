@@ -1,0 +1,150 @@
+name: Backup
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: Ambiente a copiar
+        type: choice
+        options: [staging, prod, ambos]
+        default: staging
+
+permissions:
+  contents: read
+
+# Nunca dois backups do mesmo ambiente ao mesmo tempo; não cancela o que está rodando.
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: backup ${{ matrix.ambiente }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # Environments permitem secrets de Storage distintos por ambiente (mesmos nomes, valores do projeto certo).
+    environment: ${{ matrix.ambiente }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ambiente: [staging, prod]
+    env:
+      # R2 via aws cli (compatibilidade com checksums do R2).
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+      DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+      DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+      ESCOLHA: ${{ inputs.ambiente }}
+      EVENTO: ${{ github.event_name }}
+      AMBIENTE: ${{ matrix.ambiente }}
+    steps:
+      - name: Decidir se este ambiente roda
+        id: decidir
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENTO" = "workflow_dispatch" ] && [ "$ESCOLHA" != "ambos" ] && [ "$ESCOLHA" != "$AMBIENTE" ]; then
+            echo "::notice title=Backup $AMBIENTE::Ignorado: execução manual pediu apenas '$ESCOLHA'."
+            echo "rodar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$AMBIENTE" = "prod" ]; then url="$DB_URL_PROD"; else url="$DB_URL_STAGING"; fi
+          if [ -z "$url" ]; then
+            echo "::notice title=Backup $AMBIENTE::Ignorado: secret SUPABASE_DB_URL_$(echo "$AMBIENTE" | tr '[:lower:]' '[:upper:]') não configurado."
+            echo "rodar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Ambiente configurado: qualquer secret de destino ausente é erro, não pulo silencioso.
+          faltando=""
+          for nome in R2_ENDPOINT R2_BUCKET BACKUP_AGE_PUBLIC_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!nome}" ]; then faltando="$faltando $nome"; fi
+          done
+          if [ -n "$faltando" ]; then
+            echo "::error title=Backup $AMBIENTE::Secrets ausentes:$faltando (R2_ACCESS_KEY_ID = AWS_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY)."
+            exit 1
+          fi
+          echo "rodar=true" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar pg_dump 17, age e rclone
+        if: steps.decidir.outputs.rodar == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # O pg_dump precisa ser da mesma major do servidor (supabase/config.toml: major_version = 17).
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17 age rclone
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump do banco, compactar, criptografar e enviar ao R2
+        if: steps.decidir.outputs.rodar == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$AMBIENTE" = "prod" ]; then DB_URL="$DB_URL_PROD"; else DB_URL="$DB_URL_STAGING"; fi
+          carimbo="$(date -u +%Y-%m-%dT%H%M%SZ)"
+          alvo="s3://${R2_BUCKET}/db/${AMBIENTE}/${carimbo}.sql.gz.age"
+          arquivo="$RUNNER_TEMP/dump.sql.gz.age"
+          # O texto puro nunca toca o disco: pg_dump -> gzip -> age -> arquivo já criptografado.
+          /usr/lib/postgresql/17/bin/pg_dump --dbname="$DB_URL" --no-owner --no-privileges \
+            | gzip -9 \
+            | age -r "$BACKUP_AGE_PUBLIC_KEY" > "$arquivo"
+          tamanho="$(stat -c %s "$arquivo")"
+          if [ "$tamanho" -lt 1024 ]; then
+            echo "::error title=Backup $AMBIENTE::Dump suspeitamente pequeno ($tamanho bytes)."
+            exit 1
+          fi
+          aws s3 cp "$arquivo" "$alvo" --endpoint-url "$R2_ENDPOINT" --no-progress
+          rm -f "$arquivo"
+          echo "Banco ($AMBIENTE) enviado: db/${AMBIENTE}/${carimbo}.sql.gz.age ($tamanho bytes)"
+
+      - name: Copiar anexos (Storage) para o R2, criptografados
+        if: steps.decidir.outputs.rodar == 'true'
+        shell: bash
+        env:
+          SB_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+          SB_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+          SB_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+          SB_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+          CRYPT_SENHA: ${{ secrets.RCLONE_CRYPT_PASSWORD }}
+          CRYPT_SALT: ${{ secrets.RCLONE_CRYPT_PASSWORD2 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SB_ENDPOINT" ] || [ -z "$SB_ACCESS_KEY_ID" ] || [ -z "$SB_SECRET_ACCESS_KEY" ] || [ -z "$CRYPT_SENHA" ]; then
+            echo "::warning title=Anexos $AMBIENTE::Ignorado: secrets do Storage (SUPABASE_STORAGE_S3_* / RCLONE_CRYPT_PASSWORD) não configurados. O banco foi copiado, os anexos NÃO."
+            exit 0
+          fi
+          # Remotos do rclone só por variáveis de ambiente: nenhum arquivo de configuração.
+          export RCLONE_CONFIG_SB_TYPE=s3
+          export RCLONE_CONFIG_SB_PROVIDER=Other
+          export RCLONE_CONFIG_SB_ENDPOINT="$SB_ENDPOINT"
+          export RCLONE_CONFIG_SB_ACCESS_KEY_ID="$SB_ACCESS_KEY_ID"
+          export RCLONE_CONFIG_SB_SECRET_ACCESS_KEY="$SB_SECRET_ACCESS_KEY"
+          export RCLONE_CONFIG_SB_REGION="${SB_REGION:-us-east-1}"
+          export RCLONE_CONFIG_R2_TYPE=s3
+          export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+          export RCLONE_CONFIG_R2_ENDPOINT="$R2_ENDPOINT"
+          export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+          export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+          export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+          export RCLONE_CONFIG_CRIPTO_TYPE=crypt
+          export RCLONE_CONFIG_CRIPTO_REMOTE="R2:${R2_BUCKET}/anexos/${AMBIENTE}"
+          # crypt exige a senha "ofuscada" (rclone obscure), não em texto puro.
+          RCLONE_CONFIG_CRIPTO_PASSWORD="$(rclone obscure "$CRYPT_SENHA")"
+          export RCLONE_CONFIG_CRIPTO_PASSWORD
+          if [ -n "$CRYPT_SALT" ]; then
+            RCLONE_CONFIG_CRIPTO_PASSWORD2="$(rclone obscure "$CRYPT_SALT")"
+            export RCLONE_CONFIG_CRIPTO_PASSWORD2
+          fi
+          # copy (não sync): o que sumir da origem permanece no destino (retenção legal).
+          rclone copy SB:anexos CRIPTO: --transfers 8 --checksum --stats-one-line --stats 30s -v
+          echo "Anexos ($AMBIENTE) copiados para anexos/${AMBIENTE}/ (nomes e conteúdo criptografados)."
