@@ -99,8 +99,9 @@ test('folha de alta em PDF', async ({ page }) => {
 
   const semSessao = await page.context().browser()!.newContext({ baseURL: 'http://localhost:3000' })
   const anonimo = await semSessao.request.get(`/internacoes/${id}/alta/pdf`, { maxRedirects: 0 })
-  expect(anonimo.status()).toBe(307)
-  expect(anonimo.headers()['location']).toContain('/login')
+  expect(anonimo.status()).toBe(401)
+  expect(anonimo.headers()['cache-control']).toBe('no-store')
+  expect(await anonimo.json()).toEqual({ erro: 'Não autenticado.' })
   await semSessao.close()
 })
 

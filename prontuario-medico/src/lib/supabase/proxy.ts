@@ -5,7 +5,8 @@ import type { Database } from './database.types'
 const ROTAS_PUBLICAS = ['/login', '/esqueci-senha']
 const PREFIXOS_PUBLICOS = ['/auth/']
 // PDF não é página: sem sessão responde 401 em vez de redirecionar para o login.
-const ROTA_PDF = /^\/evolucoes\/[^/]+\/pdf$/
+// Cobre /evolucoes/<id>/pdf, /evolucoes/lote/pdf e /internacoes/<id>/alta/pdf.
+const ROTA_PDF = /^\/(?:evolucoes\/[^/]+|internacoes\/[^/]+\/alta)\/pdf$/
 
 export async function atualizarSessao(request: NextRequest, requestHeaders: Headers, csp: string) {
   const proximo = () => NextResponse.next({ request: { headers: requestHeaders } })
