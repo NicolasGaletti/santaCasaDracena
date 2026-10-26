@@ -42,8 +42,19 @@ Dados fictícios, criados pelo `supabase/seed.sql`. Senha `Teste@123` vale só p
 | medico1@teste.local | Médico (com CRM) |
 | medico2@teste.local | Médico (com CRM) |
 | medico.semcrm@teste.local | Médico sem CRM |
+| residente@teste.local | Residente (equipe Clínica Médica; envia para validação) |
+| enfermeira@teste.local | Multiprofissional, enfermagem (COREN; equipe Cardiologia; envia para validação) |
+| academico@teste.local | Acadêmico (equipe Cardiologia, sem conselho; envia para validação) |
 | recepcao@teste.local | Recepção |
 | inativo@teste.local | Usuário inativo (acesso negado) |
+
+## Fluxo de evolução e validação
+
+- Médico autor finaliza a evolução direto (RASCUNHO → FINALIZADA).
+- Residente, acadêmico e multiprofissional enviam a evolução para validação (RASCUNHO → AGUARDANDO_VALIDACAO).
+- Um médico membro da equipe da internação valida (→ FINALIZADA) ou devolve com motivo (→ RASCUNHO).
+- Adendo: evolução nova ligada a uma finalizada, criada pelo autor original (membro da equipe) ou por médico da equipe, também após a alta.
+- PDF: uma assinatura, a do médico. Quando o autor não é médico, a linha "Registrado por" aparece.
 
 ## Testes
 
@@ -55,6 +66,8 @@ npm run typecheck     # tsc --noEmit
 npm run lint          # ESLint
 npm run build         # build de produção
 ```
+
+Os testes e2e (`e2e/`) criam dados pelo helper `sqlLocal`, que executa `docker exec` no container fixo `supabase_db_prontuario-medico`. Por isso, o Supabase local precisa estar rodando (`npx supabase start`) e o nome do container deve ser esse, ou os testes e2e de adendo, anexos, impressão e validação falham.
 
 Verificação completa da fatia:
 

@@ -35,7 +35,14 @@ Aplicar migrations:
 npx supabase db push
 ```
 
-Ordem: 1) `npx supabase db push` no staging; 2) logo em seguida o push da branch `staging`. Entre os dois passos, a admissão no app antigo pode falhar por alguns minutos.
+Ordem: 1) `npx supabase db push` no staging (de dentro de `prontuario-medico/`); 2) logo em seguida o push da branch `staging`. Entre os dois passos, a admissão no app antigo pode falhar por alguns minutos.
+
+Migrations pendentes para o próximo deploy (aplicar com `npx supabase db push` antes de dar push em `staging`):
+
+- `20261025000009_perfil_academico.sql`: novo perfil `academico` (acadêmico de medicina, sem conselho; envia evoluções para validação).
+- `20261025000010_validacao.sql`: fluxo de validação (`enviar_evolucao`, `finalizar_evolucao`, devolução com motivo).
+- `20261025000011_adendo.sql`: adendo a evolução finalizada (`criar_adendo`).
+- `20261025000012_anexos_validacao.sql`: médicos da equipe leem anexos de evoluções `AGUARDANDO_VALIDACAO`.
 
 Seed (dados fictícios) só em staging:
 
@@ -47,7 +54,7 @@ Regras:
 
 - Nunca editar uma migration que já foi aplicada em algum ambiente.
 - Para mudar o banco, criar uma migration nova.
-- Banco e código andam juntos. As migrations até `20261025000008` (anexos, equipe responsável, finalizar v2) precisam estar no staging junto com o código. As migrations `0005` e `0006` mudam assinaturas de funções (`registrar_impressoes`, `admitir_paciente`): aplicar o código sem o banco, ou o banco sem o código, quebra o fluxo.
+- Banco e código andam juntos. As migrations até `20261025000012` (anexos, equipe responsável, finalizar v2, perfil acadêmico, validação, adendo, anexos de validação) precisam estar no staging junto com o código. As migrations `0005` e `0006` mudam assinaturas de funções (`registrar_impressoes`, `admitir_paciente`): aplicar o código sem o banco, ou o banco sem o código, quebra o fluxo.
 
 ## Anexos e Storage
 
@@ -89,6 +96,9 @@ Dados fictícios, criados pelo seed.
 - medico1@teste.local
 - medico2@teste.local
 - medico.semcrm@teste.local
+- residente@teste.local
+- enfermeira@teste.local
+- academico@teste.local
 - recepcao@teste.local
 - inativo@teste.local
 
