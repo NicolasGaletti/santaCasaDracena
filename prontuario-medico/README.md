@@ -1,6 +1,6 @@
 # Prontuário de internação — Santa Casa de Dracena
 
-Sistema de prontuário de internação: lista de internados, admissão, evolução médica com autosave, anexos de exames (galeria por internação, no PDF e na impressão), PDF A4 e impressão com controle de vias. Inclui também equipe responsável, filtro de convênio e botão Salvar.
+Sistema de prontuário de internação: lista de internados, admissão, evolução médica com autosave, anexos de exames (galeria por internação, no PDF e na impressão), PDF A4 e impressão com controle de vias. Inclui também equipe responsável, filtro de convênio, alta, administração de usuários e equipes (MFA para admin), notificações push e PWA.
 
 Projeto Next.js dentro de `prontuario-medico/`. Visão geral do repositório no [README da raiz](../README.md).
 
@@ -61,7 +61,8 @@ Dados fictícios, criados pelo `supabase/seed.sql`. Senha `Teste@123` vale só p
 ```bash
 npm run test          # unidade (Vitest)
 npm run test:db       # banco: pgTAP em supabase/tests (exige supabase start)
-npm run test:e2e      # Playwright (sobe o app com npm run dev, se necessário)
+npm run test:e2e      # Playwright, em série (sobe o app com npm run dev, se necessário)
+npm run test:e2e:pwa  # Playwright, projeto PWA (service worker, offline)
 npm run typecheck     # tsc --noEmit
 npm run lint          # ESLint
 npm run build         # build de produção
@@ -88,5 +89,7 @@ Detalhes de ambientes, migrations em staging e configuração do Netlify em [`do
 
 ## Documentação
 
+- Go-live: [`docs/go-live.md`](../docs/go-live.md); LGPD: [`docs/lgpd.md`](../docs/lgpd.md); backup: [`docs/backup.md`](../docs/backup.md)
+- Primeiro admin: `supabase/scripts/primeiro-admin.sql` (passos no go-live)
 - Spec: [`docs/superpowers/specs/2026-10-25-prontuario-design.md`](../docs/superpowers/specs/2026-10-25-prontuario-design.md)
 - Plano da fatia 1: [`docs/superpowers/plans/2026-10-25-plano-1-fatia-testavel.md`](../docs/superpowers/plans/2026-10-25-plano-1-fatia-testavel.md)

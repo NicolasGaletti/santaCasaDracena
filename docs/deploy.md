@@ -92,6 +92,7 @@ Em staging e produção, fazer manualmente (o `config.toml` só vale para o Supa
 - Netlify: variável `SITE_URL`, recomendada e definida explicitamente por contexto de deploy (produção e branch `staging`), usada como origem do `redirectTo` em "Esqueci minha senha". Sem ela, usa-se `URL` em produção e `DEPLOY_PRIME_URL` nos demais contextos (o `URL` do Netlify aponta para produção mesmo em branch deploys).
 - SMTP próprio (ex.: Resend) em Authentication → SMTP Settings; o SMTP padrão do Supabase tem limite baixo.
 - **MFA TOTP (admin)**: em staging e produção, Authentication → Sign In / Providers → Multi-Factor → habilitar **TOTP** (enroll e verify). Localmente já está em `config.toml` (`[auth.mfa.totp]`). Sem isso o admin não consegue cadastrar o autenticador e fica sem acesso à administração.
+- **Primeiro admin** (staging e produção): 1) painel → Authentication → Users → **Invite user** com o e-mail do responsável; 2) `psql "$SUPABASE_DB_URL" -v email='pessoa@exemplo.com' -v nome='Nome Completo' -f supabase/scripts/primeiro-admin.sql` (de dentro de `prontuario-medico/`; ou colar o script no SQL Editor trocando `:'email'` e `:'nome'`); 3) a pessoa abre o convite, define a senha e cadastra o MFA. Idempotente; falha com mensagem clara se o usuário não foi convidado. O e-mail nunca vai para o repositório.
 - O `seed.sql` (admins de teste com senha pública e TOTP conhecido) nunca é aplicado em staging/produção; admins reais cadastram o próprio autenticador no primeiro acesso.
 
 ## Plano 4 — Notificações (push)
@@ -132,4 +133,7 @@ Dentro de `prontuario-medico/`:
 
 - `npm run test`: testes unitários (Vitest).
 - `npm run test:db`: testes de banco (`supabase test db`, exige Supabase local rodando).
-- `npm run test:e2e`: testes end-to-end (Playwright).
+- `npm run test:e2e`: testes end-to-end (Playwright, em série).
+- `npm run test:e2e:pwa`: testes do PWA (projeto `pwa`).
+
+Checklist de produção: [go-live.md](go-live.md).
