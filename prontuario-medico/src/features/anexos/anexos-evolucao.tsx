@@ -305,10 +305,8 @@ export function BlocoAnexos({ estado, avisoFinalizacao = null }: { estado: Estad
                 )}
                 <div className="grid min-w-0 flex-1 gap-0.5">
                   <p className="font-semibold">{ROTULO_TIPO_ANEXO[a.tipo]}</p>
-                  <p className="line-clamp-2 break-words text-sm text-muted-foreground">
-                    {formatarDataAnexo(a.dataExame)}
-                    {a.descricao ? ` · ${a.descricao}` : ''}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{formatarDataAnexo(a.dataExame)}</p>
+                  {a.descricao && <p className="line-clamp-2 wrap-break-word text-sm text-muted-foreground">{a.descricao}</p>}
                   {ehPdf && a.previewUrl && (
                     <a
                       href={a.previewUrl}
