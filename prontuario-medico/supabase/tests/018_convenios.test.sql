@@ -1,5 +1,5 @@
 begin;
-select plan(13);
+select plan(14);
 
 select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
@@ -13,11 +13,14 @@ select ok(
 
 -- 2. valores existentes viram convênios (reaplica a lógica de cópia da migration sobre dados novos)
 insert into public.pacientes (nome, data_nascimento, convenio) values ('P18 a', '1950-01-01', '  Convenio Legado 18 ');
+insert into public.pacientes (nome, data_nascimento, convenio) values ('P18 b', '1950-01-01', repeat('x', 101));
 insert into public.convenios (nome)
 select distinct on (lower(btrim(convenio))) btrim(convenio) from public.pacientes
 where nullif(btrim(convenio), '') is not null
+  and char_length(btrim(convenio)) <= 100
 on conflict do nothing;
 select ok(exists (select 1 from public.convenios where nome = 'Convenio Legado 18'), 'valores existentes viraram convênios');
+select ok(not exists (select 1 from public.convenios where char_length(nome) > 100), 'valor com mais de 100 caracteres é ignorado sem erro');
 
 -- 3. médico não cria
 select tests.autenticar(current_setting('tst.medico')::uuid, 'aal2');

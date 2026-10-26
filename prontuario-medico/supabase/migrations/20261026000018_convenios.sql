@@ -24,6 +24,7 @@ insert into public.convenios (nome)
 select distinct on (lower(btrim(convenio))) btrim(convenio)
 from public.pacientes
 where nullif(btrim(convenio), '') is not null
+  and char_length(btrim(convenio)) <= 100
 order by lower(btrim(convenio)), btrim(convenio)
 on conflict do nothing;
 
