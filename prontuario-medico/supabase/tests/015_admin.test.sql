@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(37);
 
 select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
@@ -81,6 +81,23 @@ select ok(
 
 -- 7. unicidade de nome de equipe no banco (case-insensitive)
 select throws_ok($$insert into public.equipes (nome) values (' EQUIPE RENOMEADA 15 ')$$, '23505', null, 'índice único de nome de equipe');
+
+-- 8. revogação de sessões: só service_role
+reset role;
+insert into auth.sessions (id, user_id) values ('15400000-0000-0000-0000-000000000001', current_setting('tst.alvo')::uuid);
+select tests.autenticar(current_setting('tst.admin')::uuid);
+select throws_ok($$select public.admin_revogar_sessoes(current_setting('tst.alvo')::uuid)$$, '42501', null, 'admin autenticado não revoga sessões');
+reset role;
+select set_config('role', 'anon', true);
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select throws_ok($$select public.admin_revogar_sessoes(current_setting('tst.alvo')::uuid)$$, '42501', null, 'anon não revoga sessões');
+reset role;
+select ok(exists (select 1 from auth.sessions where user_id = current_setting('tst.alvo')::uuid), 'sessões intactas após tentativas negadas');
+select set_config('role', 'service_role', true);
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select public.admin_revogar_sessoes(current_setting('tst.alvo')::uuid);
+reset role;
+select ok(not exists (select 1 from auth.sessions where user_id = current_setting('tst.alvo')::uuid), 'service_role revoga as sessões');
 
 select * from finish();
 rollback;

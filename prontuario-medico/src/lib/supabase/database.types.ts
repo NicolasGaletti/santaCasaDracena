@@ -877,6 +877,7 @@ export type Database = {
         Args: { p_equipe_id: string; p_profissional_id: string };
         Returns: undefined;
       };
+      admin_revogar_sessoes: { Args: { p_id: string }; Returns: undefined };
       admin_salvar_equipe: {
         Args: { p_ativo: boolean; p_id: string; p_nome: string };
         Returns: string;

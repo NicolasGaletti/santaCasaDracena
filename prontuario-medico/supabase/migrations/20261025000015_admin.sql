@@ -157,7 +157,8 @@ begin
 end;
 $$;
 
--- A revogação de sessões fica na Edge Function.
+-- Só altera profissionais.ativo; o ban no Auth e a revogação de sessões (admin_revogar_sessoes)
+-- são feitos pela Edge Function.
 create function public.admin_definir_ativo(p_id uuid, p_ativo boolean)
 returns void
 language plpgsql security definer set search_path = ''
@@ -177,6 +178,22 @@ begin
   end if;
 end;
 $$;
+
+-- Chamada só pela Edge Function (service_role) ao desativar. refresh_tokens cai em cascata.
+create function public.admin_revogar_sessoes(p_id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if coalesce(auth.role(), '') <> 'service_role' then
+    raise exception 'Acesso negado.' using errcode = '42501';
+  end if;
+  delete from auth.sessions where user_id = p_id;
+end;
+$$;
+
+revoke all on function public.admin_revogar_sessoes(uuid) from public, anon, authenticated;
+grant execute on function public.admin_revogar_sessoes(uuid) to service_role;
 
 revoke all on function public.admin_salvar_equipe(uuid, text, boolean) from public, anon;
 revoke all on function public.admin_vincular(uuid, uuid) from public, anon;

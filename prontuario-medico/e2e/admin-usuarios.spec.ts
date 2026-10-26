@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
@@ -64,6 +65,15 @@ test('admin convida e o e-mail chega no Inbucket', async () => {
   })
   const { data: linha } = await admin.from('profissionais').select('id, perfil, categoria, conselho').eq('nome', nome)
   expect(linha?.[0]).toMatchObject({ perfil: 'multiprofissional', categoria: 'enfermagem', conselho: 'COREN' })
+  // auditoria só é legível pelo perfil auditoria (RLS): consulta direto no Postgres local
+  const { data: eu } = await admin.auth.getUser()
+  const por = execFileSync(
+    'docker',
+    ['exec', 'supabase_db_prontuario-medico', 'psql', '-U', 'postgres', '-At', '-c',
+      `select por from auditoria where tabela='convites' and registro_id='${linha?.[0].id}'`],
+    { encoding: 'utf8' },
+  ).trim()
+  expect(por).toBe(eu.user?.id)
   const reenvio = await chamar(token, { acao: 'reenviar', profissionalId: linha?.[0].id })
   expect(reenvio.status).toBe(200)
 })
@@ -105,6 +115,14 @@ test('desativar revoga sessões', async ({ browser }) => {
   const adminToken = await tokenDe('admin@teste.local')
   const alvo = 'a0000000-0000-0000-0000-00000000000a' // sessao@teste.local (seed)
 
+  // refresh token emitido antes de desativar: deve morrer mesmo após reativar (sessões revogadas)
+  const clienteAntigo = createClient(SUPABASE_URL, SUPABASE_CHAVE, { auth: { persistSession: false } })
+  const { data: antigo, error: erroAntigo } = await clienteAntigo.auth.signInWithPassword({
+    email: 'sessao@teste.local', password: SENHA,
+  })
+  expect(erroAntigo).toBeNull()
+  const refreshAntigo = antigo.session!.refresh_token
+
   const contexto = await browser.newContext()
   const pagina = await contexto.newPage()
   try {
@@ -133,4 +151,27 @@ test('desativar revoga sessões', async ({ browser }) => {
   const cliente = createClient(SUPABASE_URL, SUPABASE_CHAVE, { auth: { persistSession: false } })
   const { error } = await cliente.auth.signInWithPassword({ email: 'sessao@teste.local', password: SENHA })
   expect(error).toBeNull()
+
+  const { error: erroRefresh } = await createClient(SUPABASE_URL, SUPABASE_CHAVE, {
+    auth: { persistSession: false },
+  }).auth.refreshSession({ refresh_token: refreshAntigo })
+  expect(erroRefresh).not.toBeNull()
+})
+
+test('limites de tamanho e reenvio a desativado', async () => {
+  const token = await tokenDe('admin@teste.local')
+  const longo = await chamar(token, {
+    acao: 'convidar', email: emailUnico(), nome: 'x'.repeat(201), funcao: 'interno',
+  })
+  expect(longo.status).toBe(400)
+
+  const alvo = 'a0000000-0000-0000-0000-00000000000a'
+  expect((await chamar(token, { acao: 'desativar', profissionalId: alvo })).status).toBe(200)
+  try {
+    const r = await chamar(token, { acao: 'reenviar', profissionalId: alvo })
+    expect(r.status).toBe(400)
+    expect(r.corpo.erro).toBe('Profissional desativado. Reative antes de reenviar o convite.')
+  } finally {
+    expect((await chamar(token, { acao: 'reativar', profissionalId: alvo })).status).toBe(200)
+  }
 })

@@ -102,6 +102,9 @@ async function convidar(corpo: Record<string, unknown>, adminId: string) {
 
   if (!EMAIL.test(email)) throw new ErroHttp(400, 'Informe um e-mail válido.')
   if (!nome) throw new ErroHttp(400, 'Informe o nome do profissional.')
+  if (nome.length > 200) throw new ErroHttp(400, 'Nome muito longo (máximo 200 caracteres).')
+  if (conselho.length > 20) throw new ErroHttp(400, 'Conselho muito longo (máximo 20 caracteres).')
+  if (numero.length > 20) throw new ErroHttp(400, 'Número do conselho muito longo (máximo 20 caracteres).')
   if (!funcao) throw new ErroHttp(400, 'Selecione a função do profissional.')
   if (funcao.exigeConselho && (!conselho || !numero || !uf)) {
     throw new ErroHttp(400, 'Informe conselho, número e UF do conselho para esta função.')
@@ -125,19 +128,33 @@ async function convidar(corpo: Record<string, unknown>, adminId: string) {
     uf_conselho: uf || null,
   })
   if (erroInsert) {
-    // sem usuário órfão: desfaz o convite
-    await admin.auth.admin.deleteUser(data.user.id)
+    await desfazerConvite(admin, data.user.id, false)
     throw new ErroHttp(500, 'Não foi possível cadastrar o profissional. Tente novamente.')
   }
 
   // O trigger de auditoria grava por=null (service_role); registra o admin como autor do convite.
-  await admin.from('auditoria').insert({
+  const { error: erroAuditoria } = await admin.from('auditoria').insert({
     tabela: 'convites',
     registro_id: data.user.id,
     operacao: 'INSERT',
     depois: { perfil: funcao.perfil, categoria: funcao.categoria },
     por: adminId,
   })
+  if (erroAuditoria) {
+    // convite sem rastro de auditoria não vale: desfaz tudo
+    await desfazerConvite(admin, data.user.id, true)
+    throw new ErroHttp(500, 'Não foi possível concluir o convite. Tente novamente.')
+  }
+}
+
+/** Remove o que o convite criou (sem usuário órfão). Falhas de limpeza são logadas. */
+async function desfazerConvite(admin: SupabaseClient, id: string, removerProfissional: boolean) {
+  if (removerProfissional) {
+    const { error } = await admin.from('profissionais').delete().eq('id', id)
+    if (error) console.error('Falha ao remover profissional do convite desfeito', id, error)
+  }
+  const { error } = await admin.auth.admin.deleteUser(id)
+  if (error) console.error('Falha ao remover usuário órfão do convite desfeito', id, error)
 }
 
 function idDoCorpo(corpo: Record<string, unknown>): string {
@@ -151,6 +168,10 @@ async function reenviar(corpo: Record<string, unknown>) {
   const admin = servico()
   const { data, error } = await admin.auth.admin.getUserById(id)
   if (error || !data.user?.email) throw new ErroHttp(404, 'Profissional não encontrado.')
+  const { data: prof } = await admin.from('profissionais').select('ativo').eq('id', id).maybeSingle()
+  if (prof && !prof.ativo) {
+    throw new ErroHttp(400, 'Profissional desativado. Reative antes de reenviar o convite.')
+  }
   if (data.user.email_confirmed_at || data.user.last_sign_in_at) {
     throw new ErroHttp(400, 'Este profissional já aceitou o convite.')
   }
@@ -166,6 +187,11 @@ async function definirAtivo(
   doChamador: SupabaseClient,
 ) {
   const id = idDoCorpo(corpo)
+  const admin = servico()
+
+  // Reativar: tira o ban antes, para uma falha nunca deixar ativo=true com usuário banido.
+  if (ativo) await banir(admin, id, false)
+
   // Com o cliente do chamador: a auditoria registra o admin e as travas do banco valem
   // (não desativar a si mesmo, nem o último admin).
   const { error } = await doChamador.rpc('admin_definir_ativo', { p_id: id, p_ativo: ativo })
@@ -174,14 +200,21 @@ async function definirAtivo(
     throw new ErroHttp(500, 'Não foi possível concluir a operação. Tente novamente.')
   }
 
-  // Ban impede novo login e a renovação do token (refresh) do usuário desativado.
-  // O supabase-js só expõe auth.admin.signOut(jwt) para o token de quem chama, não por user id;
-  // então o access token já emitido vale até expirar, mas o app bloqueia a próxima requisição
-  // (exigirProfissional + app.profissional_ativo() leem profissionais.ativo = false).
-  const { error: erroBan } = await servico().auth.admin.updateUserById(id, {
-    ban_duration: ativo ? 'none' : BAN_PERMANENTE,
+  if (!ativo) {
+    // ativo=false -> ban (sem login nem refresh) -> revoga sessões e refresh tokens.
+    // O supabase-js só expõe auth.admin.signOut(jwt), então a revogação por user id é uma RPC
+    // exclusiva do service_role.
+    await banir(admin, id, true)
+    const { error: erroSessoes } = await admin.rpc('admin_revogar_sessoes', { p_id: id })
+    if (erroSessoes) throw new ErroHttp(502, 'Não foi possível revogar as sessões do usuário. Tente novamente.')
+  }
+}
+
+async function banir(admin: SupabaseClient, id: string, banir: boolean) {
+  const { error } = await admin.auth.admin.updateUserById(id, {
+    ban_duration: banir ? BAN_PERMANENTE : 'none',
   })
-  if (erroBan) throw new ErroHttp(502, 'Não foi possível atualizar o acesso do usuário. Tente novamente.')
+  if (error) throw new ErroHttp(502, 'Não foi possível atualizar o acesso do usuário. Tente novamente.')
 }
 
 Deno.serve(async (req) => {
