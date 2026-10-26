@@ -15,14 +15,16 @@ Leia isto primeiro ao iniciar uma sessão nova. Depois leia só o ledger do plan
 - Deploy: `docs/deploy.md`
 
 ## Estado atual (atualizar ao fim de cada sessão)
-- Planos 1, 1b, 2: concluídos, revisados e no staging (`staging` = `6817c22`).
-- Plano 3: Tasks 1–6 concluídas e revisadas. **Task 7 implementada (`4b0d9ea`), revisão pendente.** Próximo passo: gerar o pacote (`scripts/review-package` base `c46dd3b` head `4b0d9ea`) e despachar o revisor (sonnet). Na rodada de correção da Task 7, aplicar a decisão registrada no ledger: `criar_adendo` passa a exigir que quem cria possa evoluir na internação (autor E membro da equipe, ou médico membro) — editar a migration 0011 no lugar (ainda não aplicada no staging) e alinhar a guarda da página `internacoes/[id]/evolucao`. Exemplos de PDF em `.superpowers/sdd/2026-10-25-plano-3-multiprofissional/task-7-exemplo-*.pdf` (ler o PDF para conferir o visual).
-- Depois: Plano 3 Task 8 (seed/docs/suíte) → revisão final do Plano 3 (Opus) → deploy no staging → Plano 4.
-- Ação pendente do usuário no próximo deploy: `cd prontuario-medico && npx supabase db push` (migrations 0009–0012) **antes** do push da branch `staging`.
+- Planos 1, 1b, 2 e 3: concluídos, revisados e no staging (`staging` = `53eef06`; migrations 0001–0013 aplicadas no staging, todas imutáveis).
+- **Próximo: Plano 4, Task 1** (nada iniciado). Ledger já criado com a pré-verificação e rulings: `.superpowers/sdd/2026-10-25-plano-4-alta-admin-seguranca/progress.md` — **ler antes de despachar**. Principais rulings: numeração das migrations deslocada (alta 0014, admin 0015, aal2 0016, notificações 0017); 7b copia as definições MAIS RECENTES (finalizar_core da 0013) e adiciona `devolvida_por`; um único service worker (push + Serwist); CSP compatível com Next (nonce) e com o Supabase local; flakiness do e2e de login sob carga corrigida na Task 12; Task 2 remove print gerado em `validacao.spec.ts:328-331`.
+- Plano 3 encerrado: ledger antigo em `.superpowers/sdd/2026-10-25-plano-3-multiprofissional/` pode ser apagado depois de copiar os rulings para cá se precisar.
+- Staging: `enfermeira@teste.local` e `academico@teste.local` ainda não existem lá; o usuário recebeu um SQL idempotente para rodar no SQL Editor do Supabase.
+- Configurado pelo usuário: SMTP Resend no Supabase do staging (sem domínio próprio → só envia para o e-mail do usuário; domínio entra no go-live) e buckets R2 + token novo (credenciais só em `gh secret set` na Task 12).
+- Plano 4 precisará do usuário no deploy final: `npx supabase db push`, `npx supabase functions deploy`, secrets (SITE_URL, VAPID), webhook de push, e-mail do primeiro admin.
 
 ## Regras de execução (acordadas com o usuário)
-- Opus (sessão principal) planeja, coordena e revisa visual; implementers sempre `model: haiku`.
-- Revisores: `sonnet` para tarefas de banco/segurança/fluxo legal; `haiku` para tarefas pequenas de interface ou documentação; revisão final de cada plano em `opus`.
+- Opus (sessão principal) planeja, coordena e revisa visual; implementers sempre `model: sonnet` (trocado de haiku em 2026-10-25).
+- Revisores: `sonnet` para tarefas de banco/segurança/fluxo legal; tarefas pequenas de interface/docs o controller confere o diff; revisão final de cada plano em `opus`. E2E instável: o implementer tenta uma vez e reporta, sem repetir a suíte inteira várias vezes; suíte completa uma vez por task.
 - **Economia de tokens:** disparar implementer novo por rodada de correção em vez de retomar agentes com histórico longo; ver prints só de telas novas; pacotes de revisão como arquivo (`scripts/review-package`), nunca colar diffs no chat.
 - Migrations já aplicadas no staging (0001–0008) são imutáveis; as não aplicadas podem ser editadas até o deploy. Sempre `revoke ... from public, anon` + `grant execute ... to authenticated` explícitos.
 - Nunca ler `passDB` nem `.env*`. Commits só em `develop`; push/merge para `staging` com o OK já dado pelo usuário para o fluxo develop→staging; `main` só no go-live.
