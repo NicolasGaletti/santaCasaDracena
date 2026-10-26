@@ -27,3 +27,10 @@ end;
 $$;
 revoke all on function app.exige_admin() from public, anon;
 grant execute on function app.exige_admin() to authenticated;
+
+-- Leitura de todos os profissionais pelo admin exige aal2 (a policy própria
+-- profissionais_select_proprio segue permitindo ler a própria linha em aal1,
+-- necessária às páginas de MFA).
+drop policy profissionais_select_admin on public.profissionais;
+create policy profissionais_select_admin on public.profissionais for select to authenticated
+  using (app.perfil_atual() = 'admin' and coalesce(auth.jwt()->>'aal', '') = 'aal2');

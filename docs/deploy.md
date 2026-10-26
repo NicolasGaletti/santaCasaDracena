@@ -41,11 +41,7 @@ Migrations pendentes para o próximo deploy (aplicar com `npx supabase db push` 
 
 - `20261025000013_snapshot_perfil.sql`: `finalizar_core` grava o perfil do autor em `snapshot_autor`, para a 2ª via não mudar quando o autor é promovido. Não altera o hash. As migrações 0009–0012 já foram aplicadas no staging em 2026-10-25.
 
-Seed (dados fictícios) só em staging:
-
-```bash
-npx supabase db push --include-seed
-```
+Seed: `prontuario-medico/supabase/seed.sql` é só local/e2e (`npx supabase db reset`). Contém admins de teste com credenciais públicas e um secret TOTP conhecido; **nunca** aplicar em staging ou produção (não usar `--include-seed`). Usuários de teste do staging são criados manualmente (como enfermeira/acadêmico).
 
 Regras:
 
@@ -96,11 +92,11 @@ Em staging e produção, fazer manualmente (o `config.toml` só vale para o Supa
 - Netlify: variável `SITE_URL`, recomendada e definida explicitamente por contexto de deploy (produção e branch `staging`), usada como origem do `redirectTo` em "Esqueci minha senha". Sem ela, usa-se `URL` em produção e `DEPLOY_PRIME_URL` nos demais contextos (o `URL` do Netlify aponta para produção mesmo em branch deploys).
 - SMTP próprio (ex.: Resend) em Authentication → SMTP Settings; o SMTP padrão do Supabase tem limite baixo.
 - **MFA TOTP (admin)**: em staging e produção, Authentication → Sign In / Providers → Multi-Factor → habilitar **TOTP** (enroll e verify). Localmente já está em `config.toml` (`[auth.mfa.totp]`). Sem isso o admin não consegue cadastrar o autenticador e fica sem acesso à administração.
-- O seed cria um fator TOTP fictício (secret conhecido) para `admin@teste.local`, só para o e2e. Em staging, remover esse fator (Authentication → Users → admin@teste.local → Factors) e cadastrar um autenticador real no primeiro acesso.
+- O `seed.sql` (admins de teste com senha pública e TOTP conhecido) nunca é aplicado em staging/produção; admins reais cadastram o próprio autenticador no primeiro acesso.
 
 ## Usuários de teste (staging)
 
-Dados fictícios, criados pelo seed.
+Dados fictícios, criados manualmente (o seed é só local).
 
 - medico1@teste.local
 - medico2@teste.local

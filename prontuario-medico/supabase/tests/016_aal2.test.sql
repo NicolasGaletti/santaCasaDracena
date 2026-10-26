@@ -1,5 +1,5 @@
 begin;
-select plan(7);
+select plan(9);
 
 select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
@@ -24,6 +24,14 @@ reset role;
 select tests.autenticar(current_setting('tst.medico')::uuid, 'aal1');
 select lives_ok($$select count(*) from public.internacoes$$, 'médico aal1 lê internações');
 select throws_ok($$select public.admin_salvar_equipe(null, 'X', true)$$, 'P0001', 'Acesso negado.', 'médico aal1 segue recebendo Acesso negado');
+
+-- RLS: admin aal1 vê só a própria linha de profissionais; aal2 vê todas
+reset role;
+select tests.autenticar(current_setting('tst.admin')::uuid, 'aal1');
+select is((select count(*) from public.profissionais), 1::bigint, 'admin aal1 lê só a própria linha de profissionais');
+reset role;
+select tests.autenticar(current_setting('tst.admin')::uuid, 'aal2');
+select cmp_ok((select count(*) from public.profissionais), '>=', 2::bigint, 'admin aal2 lê todas as linhas de profissionais');
 
 select * from finish();
 rollback;

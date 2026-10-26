@@ -44,6 +44,8 @@ insert into auth.users (
    'academico@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
+-- ATENÇÃO: a partir daqui o seed contém admins de teste com senha pública (Teste@123) e um
+-- secret TOTP conhecido. Este seed é SOMENTE local/e2e: NUNCA aplicar em staging ou produção.
 -- Admin e usuário descartável para testes da Edge Function admin-usuarios (Plano 4).
 insert into auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
