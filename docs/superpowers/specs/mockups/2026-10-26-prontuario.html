@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prontuário — proposta de tela</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:Inter,sans-serif;background:#e2e8f0}
+  .poppins{font-family:Poppins,sans-serif}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#334155}
+  .inp{width:100%;border:1px solid #cbd5e1;border-radius:.5rem;background:#f8fafc;padding:.5rem .75rem;font-size:14px;color:#0f172a}
+  .inp::placeholder{color:#94a3b8}
+  .m .inp{font-size:16px;padding:.6rem .75rem}
+  .vital{border:1px solid #cbd5e1;border-radius:.5rem;background:#fff;text-align:center;font-size:14px;padding:.35rem 0;width:100%}
+  .m .vital{font-size:16px}
+  svg.lucide{width:16px;height:16px;stroke-width:2.2}
+  .phone{width:390px;height:844px;border-radius:44px;border:12px solid #0f172a;overflow:hidden;position:relative;background:#f8fafc;box-shadow:0 30px 60px -20px rgba(15,23,42,.45)}
+  .phone .screen{height:100%;overflow-y:auto;padding-bottom:84px}
+  .noscroll::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="p-6">
+<div class="max-w-[1500px] mx-auto">
+  <h2 class="poppins text-2xl font-bold text-slate-900">Proposta: tela do prontuário</h2>
+  <p class="text-slate-600 mb-6">Baseada no seu protótipo. Computador à esquerda, celular à direita (role dentro do celular). Dados fictícios.</p>
+
+  <div class="flex gap-8 items-start flex-wrap">
+
+  <!-- ===================== DESKTOP ===================== -->
+  <div class="flex-1 min-w-[880px] rounded-2xl overflow-hidden shadow-xl bg-slate-50 border border-slate-300">
+    <!-- cabeçalho do paciente -->
+    <div class="bg-slate-900 text-white px-6 py-4 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-teal-600 grid place-items-center poppins font-bold text-lg">MS</div>
+      <div class="flex-1">
+        <div class="poppins text-xl font-bold">Maria Silva Santos</div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-slate-300 mt-0.5">
+          <span class="flex items-center gap-1"><i data-lucide="cake"></i> D.N. <b class="text-white">14/05/1958</b> (68 anos)</span>
+          <span class="flex items-center gap-1"><i data-lucide="bed-double"></i> <b class="text-white">Leito 102 · UTI</b></span>
+          <span class="flex items-center gap-1"><i data-lucide="users"></i> <b class="text-white">Cardiologia</b></span>
+          <span class="flex items-center gap-1"><i data-lucide="id-card"></i> Convênio <b class="text-teal-400">Bradesco Saúde</b></span>
+          <span class="flex items-center gap-1"><i data-lucide="calendar"></i> Internado há <b class="text-white">3 dias</b></span>
+        </div>
+      </div>
+      <a class="text-slate-400 text-sm flex items-center gap-1"><i data-lucide="arrow-left"></i> Internados</a>
+    </div>
+
+    <div class="p-6 space-y-5">
+      <!-- barra de ações compacta -->
+      <div class="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+        <span class="inline-flex items-center gap-1.5 text-[13px] font-semibold rounded-full px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200"><i data-lucide="pencil-line"></i> Rascunho de hoje · salvo às 09:42</span>
+        <div class="ml-auto flex gap-2">
+          <button class="inline-flex items-center gap-1.5 text-[13px] font-semibold rounded-lg px-3 py-2 bg-slate-900 text-white"><i data-lucide="printer"></i> Imprimir evolução</button>
+          <button class="inline-flex items-center gap-1.5 text-[13px] font-semibold rounded-lg px-3 py-2 bg-rose-50 text-rose-700 border border-rose-200"><i data-lucide="log-out"></i> Dar alta</button>
+        </div>
+      </div>
+
+      <!-- ficha de evolução -->
+      <div class="bg-white border border-slate-200 rounded-xl">
+        <div class="px-5 py-4 border-b border-slate-200 flex items-start justify-between">
+          <div>
+            <div class="poppins font-bold text-teal-800 flex items-center gap-2"><i data-lucide="file-pen-line"></i> EVOLUÇÃO MÉDICA — CARDIOLOGIA</div>
+            <div class="text-[13px] text-slate-500 mt-0.5">O rascunho salva sozinho. Finalize para liberar a impressão.</div>
+          </div>
+          <button class="inline-flex items-center gap-1.5 text-[13px] font-semibold rounded-lg px-3 py-1.5 bg-teal-50 text-teal-800 border border-teal-200"><i data-lucide="copy"></i> Copiar do dia anterior</button>
+        </div>
+        <div class="p-5 space-y-4">
+          <div class="grid grid-cols-3 gap-4">
+            <div><div class="lbl mb-1">Diagnóstico(s)</div><input class="inp" value="IAMSSST, HAS, DM2"></div>
+            <div><div class="lbl mb-1">Comorbidades</div><input class="inp" value="HAS, DM2, tabagismo prévio"></div>
+            <div><div class="lbl mb-1">MUC</div><input class="inp" placeholder="Ex.: Enalapril 20mg 12/12h"></div>
+          </div>
+          <div><div class="lbl mb-1">Evolução clínica do dia</div><textarea class="inp" rows="3" placeholder="Relato do paciente, intercorrências, impressões…"></textarea></div>
+          <div class="grid grid-cols-3 gap-4">
+            <div><div class="lbl mb-1 flex items-center gap-1 text-rose-700"><i data-lucide="heart-pulse"></i> ECG</div><input class="inp" placeholder="Ex.: ritmo sinusal"></div>
+            <div><div class="lbl mb-1 flex items-center gap-1 text-sky-700"><i data-lucide="scan-line"></i> Exames de imagem</div><input class="inp" placeholder="Ex.: Eco FE 52%"></div>
+            <div><div class="lbl mb-1 flex items-center gap-1 text-emerald-700"><i data-lucide="flask-conical"></i> Laboratório</div><input class="inp" placeholder="Ex.: Trop 0.42, Hb 13.1"></div>
+          </div>
+          <div class="flex items-center gap-2 text-[13px]">
+            <span class="text-slate-500">Anexos:</span>
+            <span class="inline-flex items-center gap-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5"><i data-lucide="paperclip"></i> Hemograma 05/08</span>
+            <button class="inline-flex items-center gap-1 rounded-md text-teal-700 font-semibold px-2 py-0.5 hover:bg-teal-50"><i data-lucide="plus"></i> Anexar exame</button>
+          </div>
+          <div>
+            <div class="lbl mb-2 text-teal-800 flex items-center gap-1"><i data-lucide="activity"></i> Sinais vitais</div>
+            <div class="grid grid-cols-7 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <label class="text-[11px] font-semibold text-slate-600 text-center">PA<input class="vital mt-1" value="120/80"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">FC<input class="vital mt-1" value="78"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">FR<input class="vital mt-1" value="16"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">Temp<input class="vital mt-1" value="36.5"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">SatO2<input class="vital mt-1" value="98"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">Dextro<input class="vital mt-1" value="95"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">Diurese<input class="vital mt-1" value="1400"></label>
+            </div>
+          </div>
+          <div>
+            <div class="lbl mb-2">Exame físico</div>
+            <div class="grid grid-cols-2 gap-2">
+              <input class="inp" value="Geral: REG, hidratado, anictérico, acianótico">
+              <input class="inp" value="AR: MV+ bilateralmente sem RA">
+              <input class="inp" value="ACV: RCR 2T BNF sem sopros">
+              <input class="inp" value="Abdome: flácido, indolor, RHA+">
+              <input class="inp" value="Membros: sem edemas, pulsos presentes">
+              <input class="inp" value="Neuro: consciente, orientado">
+            </div>
+          </div>
+          <div><div class="lbl mb-1 text-orange-800">Conduta / plano terapêutico</div><textarea class="inp" rows="2" placeholder="Condutas, prescrições, exames solicitados…"></textarea></div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 flex items-center gap-3 bg-slate-50 rounded-b-xl">
+          <span class="text-[13px] text-slate-600">Médico: <b class="text-slate-900">Dra. Marina Lopes</b> (CRM 145892/SP)</span>
+          <span class="text-[12px] text-slate-500 flex items-center gap-1"><i data-lucide="cloud-check"></i> salvo às 09:42</span>
+          <div class="ml-auto flex gap-2">
+            <button class="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 bg-slate-200 text-slate-800"><i data-lucide="save"></i> Salvar rascunho</button>
+            <button class="inline-flex items-center gap-1.5 text-sm font-semibold rounded-lg px-4 py-2 bg-teal-600 text-white"><i data-lucide="lock"></i> Finalizar e assinar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- histórico -->
+      <div class="bg-white border border-slate-200 rounded-xl p-5">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+          <div class="poppins font-bold text-slate-900 flex items-center gap-2"><i data-lucide="history"></i> Histórico da internação</div>
+          <div class="flex gap-1 bg-slate-100 rounded-lg p-1 text-[13px] font-semibold">
+            <span class="px-3 py-1 rounded-md bg-teal-600 text-white flex items-center gap-1"><i data-lucide="list"></i> Evoluções</span>
+            <span class="px-3 py-1 rounded-md text-rose-700 flex items-center gap-1"><i data-lucide="heart-pulse"></i> ECG</span>
+            <span class="px-3 py-1 rounded-md text-sky-700 flex items-center gap-1"><i data-lucide="scan-line"></i> Imagem</span>
+            <span class="px-3 py-1 rounded-md text-emerald-700 flex items-center gap-1"><i data-lucide="flask-conical"></i> Laboratório</span>
+          </div>
+        </div>
+        <div class="border border-slate-200 border-l-4 border-l-teal-600 rounded-lg p-4">
+          <div class="flex items-center gap-2 text-sm"><i data-lucide="clock"></i><b>05/08/2026 às 08:30</b>
+            <span class="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-800 flex items-center gap-1"><i data-lucide="lock"></i> Finalizada</span>
+            <span class="ml-auto text-[12px] bg-slate-100 rounded px-2 py-0.5">Cardiologia</span></div>
+          <div class="grid grid-cols-3 gap-3 text-[13px] mt-3">
+            <div><b>Diagnóstico:</b> IAMSSST, HAS, DM2</div>
+            <div><b>Comorbidades:</b> HAS, DM2</div>
+            <div class="text-emerald-800"><b>Lab:</b> Trop 0.42 (em queda), Hb 13.1</div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-md p-3 mt-3 text-[13px]"><b class="text-teal-800">Evolução:</b> Paciente refere estabilização da precordialgia. Sem dispneia.</div>
+          <div class="text-[13px] mt-2"><b class="text-orange-800">Conduta:</b> Mantida dupla antiagregação e Clexane.</div>
+          <div class="text-[12px] text-slate-500 mt-3 flex items-center gap-1"><i data-lucide="user-round"></i> Dra. Marina Lopes · Médica</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CELULAR ===================== -->
+  <div class="phone m shrink-0">
+    <div class="screen noscroll">
+      <!-- topo -->
+      <div class="bg-slate-900 text-white px-4 pt-10 pb-4">
+        <div class="flex items-center gap-2 text-slate-400 text-sm mb-3"><i data-lucide="arrow-left"></i> Internados</div>
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-teal-600 grid place-items-center poppins font-bold">MS</div>
+          <div class="min-w-0">
+            <div class="poppins text-lg font-bold leading-tight">Maria Silva Santos</div>
+            <div class="text-[12px] text-slate-300">68 anos · <b class="text-white">Leito 102 · UTI</b></div>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-3 text-[12px]">
+          <span class="rounded-full bg-slate-800 px-2.5 py-1">Cardiologia</span>
+          <span class="rounded-full bg-slate-800 px-2.5 py-1 text-teal-300">Bradesco Saúde</span>
+          <span class="rounded-full bg-slate-800 px-2.5 py-1">3 dias</span>
+        </div>
+      </div>
+
+      <!-- ações compactas -->
+      <div class="flex gap-2 px-4 py-3 bg-white border-b border-slate-200 overflow-x-auto noscroll">
+        <span class="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold rounded-full px-2.5 py-1.5 bg-amber-50 text-amber-800 border border-amber-200"><i data-lucide="pencil-line"></i> Rascunho</span>
+        <button class="shrink-0 inline-flex items-center gap-1 text-[13px] font-semibold rounded-full px-3 py-1.5 bg-slate-900 text-white"><i data-lucide="printer"></i> Imprimir</button>
+        <button class="shrink-0 inline-flex items-center gap-1 text-[13px] font-semibold rounded-full px-3 py-1.5 bg-rose-50 text-rose-700 border border-rose-200"><i data-lucide="log-out"></i> Dar alta</button>
+        <button class="shrink-0 inline-flex items-center gap-1 text-[13px] font-semibold rounded-full px-3 py-1.5 bg-slate-100 text-slate-700"><i data-lucide="file-text"></i> Dados</button>
+      </div>
+
+      <!-- ficha -->
+      <div class="p-3 space-y-3">
+        <div class="bg-white border border-slate-200 rounded-xl p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="poppins font-bold text-teal-800 text-[15px] flex items-center gap-1.5"><i data-lucide="file-pen-line"></i> Evolução de hoje</div>
+            <button class="text-[12px] font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg px-2 py-1 flex items-center gap-1"><i data-lucide="copy"></i> Copiar ontem</button>
+          </div>
+          <div><div class="lbl mb-1">Diagnóstico(s)</div><input class="inp" value="IAMSSST, HAS, DM2"></div>
+          <div class="grid grid-cols-2 gap-2">
+            <div><div class="lbl mb-1">Comorbidades</div><input class="inp" value="HAS, DM2"></div>
+            <div><div class="lbl mb-1">MUC</div><input class="inp" placeholder="Medicações"></div>
+          </div>
+          <div><div class="lbl mb-1">Evolução clínica</div><textarea class="inp" rows="3" placeholder="Relato, intercorrências…"></textarea></div>
+          <div>
+            <div class="lbl mb-2 text-teal-800 flex items-center gap-1"><i data-lucide="activity"></i> Sinais vitais</div>
+            <div class="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
+              <label class="text-[11px] font-semibold text-slate-600 text-center">PA<input class="vital mt-1" value="120/80"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">FC<input class="vital mt-1" value="78"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">FR<input class="vital mt-1" value="16"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">Temp<input class="vital mt-1" value="36.5"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">SatO2<input class="vital mt-1" value="98"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center">Dextro<input class="vital mt-1" value="95"></label>
+              <label class="text-[11px] font-semibold text-slate-600 text-center col-span-2">Diurese<input class="vital mt-1" value="1400"></label>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div><div class="lbl mb-1 text-rose-700 flex items-center gap-1"><i data-lucide="heart-pulse"></i> ECG</div><input class="inp" placeholder="Ritmo, ST…"></div>
+            <div><div class="lbl mb-1 text-sky-700 flex items-center gap-1"><i data-lucide="scan-line"></i> Imagem</div><input class="inp" placeholder="Raio-X, Eco…"></div>
+            <div><div class="lbl mb-1 text-emerald-700 flex items-center gap-1"><i data-lucide="flask-conical"></i> Laboratório</div><input class="inp" placeholder="Trop, Hb, Cr…"></div>
+            <button class="w-full text-[13px] font-semibold text-teal-700 border border-dashed border-teal-300 rounded-lg py-2 flex items-center justify-center gap-1"><i data-lucide="camera"></i> Anexar exame (foto ou PDF)</button>
+          </div>
+          <div>
+            <div class="lbl mb-1">Exame físico</div>
+            <div class="space-y-2">
+              <input class="inp" value="Geral: REG, hidratado, anictérico">
+              <input class="inp" value="AR: MV+ bilateralmente sem RA">
+              <input class="inp" value="ACV: RCR 2T BNF sem sopros">
+              <div class="text-[12px] text-slate-500 text-center">+ Abdome, Membros, Neuro</div>
+            </div>
+          </div>
+          <div><div class="lbl mb-1 text-orange-800">Conduta</div><textarea class="inp" rows="2" placeholder="Condutas, prescrições…"></textarea></div>
+        </div>
+
+        <!-- histórico -->
+        <div class="bg-white border border-slate-200 rounded-xl p-3">
+          <div class="poppins font-bold text-slate-900 text-[15px] flex items-center gap-1.5 mb-2"><i data-lucide="history"></i> Histórico</div>
+          <div class="flex gap-1 overflow-x-auto noscroll text-[12px] font-semibold mb-3">
+            <span class="shrink-0 px-3 py-1.5 rounded-full bg-teal-600 text-white">Evoluções</span>
+            <span class="shrink-0 px-3 py-1.5 rounded-full bg-rose-50 text-rose-700">ECG</span>
+            <span class="shrink-0 px-3 py-1.5 rounded-full bg-sky-50 text-sky-700">Imagem</span>
+            <span class="shrink-0 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700">Laboratório</span>
+          </div>
+          <div class="border border-slate-200 border-l-4 border-l-teal-600 rounded-lg p-3 text-[13px]">
+            <div class="flex items-center gap-1.5"><b>05/08 · 08:30</b><span class="text-[11px] rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-800">Finalizada</span></div>
+            <div class="mt-1"><b>Dx:</b> IAMSSST, HAS, DM2</div>
+            <div class="mt-1 text-slate-700">Estabilização da precordialgia. Sem dispneia.</div>
+            <div class="text-[12px] text-slate-500 mt-2">Dra. Marina Lopes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- rodapé fixo -->
+    <div class="absolute bottom-0 inset-x-0 bg-white border-t border-slate-200 px-3 py-3 flex items-center gap-2">
+      <span class="text-[11px] text-slate-500 leading-tight">salvo<br>09:42</span>
+      <button class="flex-1 text-[14px] font-semibold rounded-xl py-3 bg-slate-200 text-slate-800">Salvar</button>
+      <button class="flex-[1.4] text-[14px] font-semibold rounded-xl py-3 bg-teal-600 text-white flex items-center justify-center gap-1"><i data-lucide="lock"></i> Finalizar</button>
+    </div>
+  </div>
+
+  </div>
+
+  <div class="mt-8 bg-white rounded-xl border border-slate-300 p-5 max-w-3xl">
+    <h3 class="poppins font-bold text-slate-900 mb-2">O que mudou em relação a hoje</h3>
+    <ul class="list-disc pl-5 text-[14px] text-slate-700 space-y-1">
+      <li>Ações viram uma barra compacta (botões pequenos, coloridos por função) em vez de botões de tela inteira.</li>
+      <li>Ficha toda visível, sem seções recolhidas; no computador em 2–3 colunas como no protótipo.</li>
+      <li>Exame físico já vem com o texto normal para editar.</li>
+      <li>Histórico logo abaixo da ficha, com abas Evoluções / ECG / Imagem / Laboratório e as cores do protótipo.</li>
+      <li>Cabeçalho escuro com os dados do paciente; tipografia Inter + Poppins.</li>
+      <li>No celular: campos de 16px (evita zoom do iPhone) e Salvar/Finalizar fixos no rodapé.</li>
+    </ul>
+  </div>
+</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>
