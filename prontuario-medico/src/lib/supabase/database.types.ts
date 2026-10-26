@@ -209,6 +209,28 @@ export type Database = {
         };
         Relationships: [];
       };
+      convenios: {
+        Row: {
+          ativo: boolean;
+          criado_em: string;
+          id: string;
+          nome: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          ativo?: boolean;
+          criado_em?: string;
+          id?: string;
+          nome: string;
+        };
+        Update: {
+          ativo?: boolean;
+          criado_em?: string;
+          id?: string;
+          nome?: string;
+        };
+        Relationships: [];
+      };
       equipes: {
         Row: {
           ativo: boolean;
@@ -884,6 +906,25 @@ export type Database = {
       };
     };
     Views: {
+      vw_convenios_ordenados: {
+        Row: {
+          id: string;
+          nome: string;
+          usos: number | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          id?: string | null;
+          nome?: string | null;
+          usos?: never;
+        };
+        Update: {
+          id?: string | null;
+          nome?: string | null;
+          usos?: never;
+        };
+        Relationships: [];
+      };
       vw_evolucoes_timeline: {
         Row: {
           adendo_de: string | null;
@@ -1084,6 +1125,10 @@ export type Database = {
         }[];
       };
       admin_revogar_sessoes: { Args: { p_id: string }; Returns: undefined };
+      admin_salvar_convenio: {
+        Args: { p_ativo: boolean; p_id: string; p_nome: string };
+        Returns: string;
+      };
       admin_salvar_equipe: {
         Args: { p_ativo: boolean; p_id: string; p_nome: string };
         Returns: string;

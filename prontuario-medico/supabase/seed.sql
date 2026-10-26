@@ -123,6 +123,10 @@ insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000007', 'e0000000-0000-0000-0000-000000000001'),
   ('a0000000-0000-0000-0000-000000000008', 'e0000000-0000-0000-0000-000000000001');
 
+-- Convênios usados pelos pacientes fictícios e pelos e2e (a migration 0018 roda antes do seed)
+insert into public.convenios (nome) values ('SUS'), ('Particular'), ('Unimed'), ('Bradesco Saúde')
+on conflict do nothing;
+
 -- Pacientes fictícios
 insert into public.pacientes (id, nome, data_nascimento, convenio) values
   ('b0000000-0000-0000-0000-000000000001', 'Paciente Fictício 01', '1948-02-14', 'SUS'),
