@@ -337,11 +337,6 @@ test('médico vê a original do adendo na validação', async ({ page }) => {
   await expect(page.getByText('Adendo que corrige a original')).toBeVisible();
   await page.getByText('Ver evolução original').click();
   await expect(page.getByText('Evolução original do adendo', { exact: true })).toBeVisible();
-
-  const pasta = path.join(__dirname, '..', '..', '.superpowers', 'sdd', '2026-10-25-plano-3-multiprofissional');
-  const projeto = test.info().project.name === 'mobile' ? 'mobile' : 'desktop';
-  if (projeto === 'mobile') await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: path.join(pasta, `final-fix-validacao-adendo-${projeto}.png`), fullPage: true });
 });
 
 test('link de evolução já validada mostra aviso e volta à lista', async ({ page }) => {

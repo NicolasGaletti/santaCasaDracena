@@ -44,13 +44,21 @@ export default async function PaginaImprimir({ searchParams }: { searchParams: P
   if (error) throw new Error(error.message)
 
   const internacaoIds = [...new Set((evolucoes ?? []).map((e) => e.internacao_id))]
-  const { data: internacoes } = internacaoIds.length
-    ? await supabase
+  // .in() vai na URL: em lotes para não estourar o limite de tamanho com muitas pendências.
+  const lotes: string[][] = []
+  for (let i = 0; i < internacaoIds.length; i += 100) lotes.push(internacaoIds.slice(i, i + 100))
+  const respostas = await Promise.all(
+    lotes.map((ids) =>
+      supabase
         .from('vw_internacoes_lista')
         .select('internacao_id, nome, leito_ala, equipe_id, equipe_nome')
-        .in('internacao_id', internacaoIds)
-    : { data: [] }
-  const internacaoPorId = new Map((internacoes ?? []).map((i) => [i.internacao_id, i]))
+        .in('internacao_id', ids),
+    ),
+  )
+  const erroInternacoes = respostas.find((r) => r.error)?.error
+  if (erroInternacoes) throw new Error(erroInternacoes.message)
+  const internacoes = respostas.flatMap((r) => r.data ?? [])
+  const internacaoPorId = new Map(internacoes.map((i) => [i.internacao_id, i]))
 
   const linhas: LinhaFila[] = (evolucoes ?? []).flatMap((e) => {
     const internacao = internacaoPorId.get(e.internacao_id)
