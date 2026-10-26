@@ -1,5 +1,5 @@
 begin;
-select plan(33);
+select plan(39);
 
 select set_config('tst.m1', tests.criar_profissional('medico')::text, true);
 select set_config('tst.m2', tests.criar_profissional('medico')::text, true);
@@ -126,6 +126,25 @@ select tests.autenticar(current_setting('tst.m1')::uuid);
 select public.remover_assinatura_push('https://push.exemplo/1');
 reset role;
 select is((select count(*) from public.push_assinaturas), 1::bigint, 'remover só remove a própria');
+
+-- 9. endpoint de push só https (SSRF) e limites
+reset role;
+select tests.autenticar(current_setting('tst.m2')::uuid);
+select throws_ok($$select public.registrar_assinatura_push('http://push.exemplo/2', 'p', 'a')$$, 'P0001', 'Assinatura de push inválida.', 'endpoint http recusado');
+select throws_ok($$select public.registrar_assinatura_push('https://' || repeat('a', 1000), 'p', 'a')$$, 'P0001', 'Assinatura de push inválida.', 'endpoint > 1000 recusado');
+select throws_ok($$select public.registrar_assinatura_push('https://push.exemplo/3', repeat('p', 201), 'a')$$, 'P0001', 'Assinatura de push inválida.', 'p256dh > 200 recusado');
+select lives_ok($$select public.registrar_assinatura_push('https://push.exemplo/4', 'p', 'a')$$, 'endpoint https aceito');
+
+-- 10. médico que admite não notifica a si mesmo; outro médico da equipe sim
+reset role;
+select tests.autenticar(current_setting('tst.m1')::uuid);
+select public.admitir_paciente('Paciente 17b', '1961-01-01', 'SUS',
+  '17000000-0000-0000-0000-000000000001', 'A-03', null, null, null);
+reset role;
+select is((select count(*) from public.notificacoes where tipo = 'admissao_equipe' and texto like '%A-03'
+  and destinatario_id = current_setting('tst.m1')::uuid), 0::bigint, 'médico que admite não recebe a própria admissão');
+select is((select count(*) from public.notificacoes where tipo = 'admissao_equipe' and texto like '%A-03'
+  and destinatario_id = current_setting('tst.m2')::uuid), 1::bigint, 'outro médico da equipe recebe');
 
 select * from finish();
 rollback;

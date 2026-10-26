@@ -114,6 +114,11 @@ begin
      or nullif(trim(coalesce(p_auth, '')), '') is null then
     raise exception 'Assinatura de notificação inválida.' using errcode = 'P0001';
   end if;
+  -- só https (a Edge Function faz POST no endpoint: evita SSRF) e tamanhos limitados
+  if trim(p_endpoint) !~ '^https://' or length(trim(p_endpoint)) > 1000
+     or length(trim(p_p256dh)) > 200 or length(trim(p_auth)) > 200 then
+    raise exception 'Assinatura de push inválida.' using errcode = 'P0001';
+  end if;
   -- mesmo endpoint: o dono passa a ser quem registrou agora (dispositivo trocou de usuário)
   insert into public.push_assinaturas (profissional_id, endpoint, p256dh, auth)
   values (auth.uid(), trim(p_endpoint), trim(p_p256dh), trim(p_auth))
@@ -482,8 +487,8 @@ begin
   insert into public.leitos_historico (internacao_id, leito_ala, de, ate, por)
   values (v_internacao, trim(p_leito_ala), now(), null, auth.uid());
 
-  -- notificações (Plano 4, Task 7b): médicos ativos da equipe
-  perform app.notificar_medicos_equipe(p_equipe_id, array[]::uuid[], 'admissao_equipe',
+  -- notificações (Plano 4, Task 7b): médicos ativos da equipe, exceto quem admitiu
+  perform app.notificar_medicos_equipe(p_equipe_id, array[auth.uid()], 'admissao_equipe',
     v_internacao, null, 'Paciente admitido na equipe' || app.sufixo_leito(trim(p_leito_ala)));
 
   return v_internacao;

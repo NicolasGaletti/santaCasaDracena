@@ -72,6 +72,15 @@ Deno.serve(async (req) => {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  // destinatário desativado não recebe push
+  const { data: prof, error: errProf } = await admin
+    .from('profissionais')
+    .select('ativo')
+    .eq('id', r.destinatario_id)
+    .maybeSingle()
+  if (errProf) return json(500, { erro: 'Falha ao ler profissional.' })
+  if (prof?.ativo === false) return json(200, { enviados: 0, ignorado: 'inativo' })
+
   // preferências: sem linha = tudo ligado
   const { data: pref, error: errPref } = await admin
     .from('preferencias_notificacao')
@@ -87,7 +96,13 @@ Deno.serve(async (req) => {
     .select('id, endpoint, p256dh, auth')
     .eq('profissional_id', r.destinatario_id)
   if (errAss) return json(500, { erro: 'Falha ao ler assinaturas.' })
-  if (!assinaturas || assinaturas.length === 0) return json(200, { enviados: 0 })
+  // só endpoints https (defesa em profundidade contra SSRF; o banco já recusa os demais)
+  const validas = (assinaturas ?? []).filter((a) => {
+    if (a.endpoint.startsWith('https://')) return true
+    console.error('enviar-push: endpoint não-https ignorado', a.id)
+    return false
+  })
+  if (validas.length === 0) return json(200, { enviados: 0 })
 
   const pub = Deno.env.get('VAPID_PUBLIC_KEY')
   const priv = Deno.env.get('VAPID_PRIVATE_KEY')
@@ -100,7 +115,7 @@ Deno.serve(async (req) => {
   let enviados = 0
   let removidas = 0
   await Promise.all(
-    assinaturas.map(async (a) => {
+    validas.map(async (a) => {
       try {
         await webpush.sendNotification({ endpoint: a.endpoint, keys: { p256dh: a.p256dh, auth: a.auth } }, payload, {
           TTL: 60 * 60,
