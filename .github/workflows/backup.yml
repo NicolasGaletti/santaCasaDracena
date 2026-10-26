@@ -31,17 +31,6 @@ jobs:
       matrix:
         ambiente: [staging, prod]
     env:
-      # R2 via aws cli (compatibilidade com checksums do R2).
-      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: auto
-      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
-      DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
-      DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
       ESCOLHA: ${{ inputs.ambiente }}
       EVENTO: ${{ github.event_name }}
       AMBIENTE: ${{ matrix.ambiente }}
@@ -49,6 +38,14 @@ jobs:
       - name: Decidir se este ambiente roda
         id: decidir
         shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+          DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           set -euo pipefail
           if [ "$EVENTO" = "workflow_dispatch" ] && [ "$ESCOLHA" != "ambos" ] && [ "$ESCOLHA" != "$AMBIENTE" ]; then
@@ -88,14 +85,35 @@ jobs:
       - name: Dump do banco, compactar, criptografar e enviar ao R2
         if: steps.decidir.outputs.rodar == 'true'
         shell: bash
+        env:
+          # R2 via aws cli (compatibilidade com checksums do R2).
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+          DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
           set -euo pipefail
           if [ "$AMBIENTE" = "prod" ]; then DB_URL="$DB_URL_PROD"; else DB_URL="$DB_URL_STAGING"; fi
+          export DB_URL
+          # Conexão por variáveis PG*: a senha não aparece em argv (ps) nem em log.
+          campo() {
+            python3 -c 'import os,sys,urllib.parse as u; p=u.urlparse(os.environ["DB_URL"]); d={"host":p.hostname,"port":p.port,"user":u.unquote(p.username or ""),"password":u.unquote(p.password or ""),"db":p.path.lstrip("/")}; v=d[sys.argv[1]]; sys.stdout.write("" if v is None else str(v))' "$1"
+          }
+          PGHOST="$(campo host)"; PGPORT="$(campo port)"; PGUSER="$(campo user)"
+          PGPASSWORD="$(campo password)"; PGDATABASE="$(campo db)"
+          export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+          unset DB_URL DB_URL_STAGING DB_URL_PROD
           carimbo="$(date -u +%Y-%m-%dT%H%M%SZ)"
           alvo="s3://${R2_BUCKET}/db/${AMBIENTE}/${carimbo}.sql.gz.age"
           arquivo="$RUNNER_TEMP/dump.sql.gz.age"
           # O texto puro nunca toca o disco: pg_dump -> gzip -> age -> arquivo já criptografado.
-          /usr/lib/postgresql/17/bin/pg_dump --dbname="$DB_URL" --no-owner --no-privileges \
+          /usr/lib/postgresql/17/bin/pg_dump --no-owner --no-privileges \
             | gzip -9 \
             | age -r "$BACKUP_AGE_PUBLIC_KEY" > "$arquivo"
           tamanho="$(stat -c %s "$arquivo")"
@@ -111,6 +129,12 @@ jobs:
         if: steps.decidir.outputs.rodar == 'true'
         shell: bash
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           SB_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
           SB_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
           SB_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
@@ -122,6 +146,16 @@ jobs:
           if [ -z "$SB_ENDPOINT" ] || [ -z "$SB_ACCESS_KEY_ID" ] || [ -z "$SB_SECRET_ACCESS_KEY" ] || [ -z "$CRYPT_SENHA" ]; then
             echo "::warning title=Anexos $AMBIENTE::Ignorado: secrets do Storage (SUPABASE_STORAGE_S3_* / RCLONE_CRYPT_PASSWORD) não configurados. O banco foi copiado, os anexos NÃO."
             exit 0
+          fi
+          # Trava: o Storage tem de ser do mesmo projeto Supabase que o banco deste ambiente.
+          # Com copy (irreversível) um secret de Storage trocado poria anexos de outro projeto aqui.
+          if [ "$AMBIENTE" = "prod" ]; then db_url="$DB_URL_PROD"; else db_url="$DB_URL_STAGING"; fi
+          ref_storage="$(printf '%s' "$SB_ENDPOINT" | sed -E 's#^[a-z]+://([^./]+)\..*#\1#')"
+          usuario="$(printf '%s' "$db_url" | sed -E 's#^[a-z]+://([^:@/]+).*#\1#')"
+          ref_banco="${usuario#postgres.}"
+          if [ "$ref_banco" = "$usuario" ] || [ -z "$ref_banco" ] || [ "$ref_storage" != "$ref_banco" ]; then
+            echo "::error title=Anexos $AMBIENTE::Storage e banco não são do mesmo projeto Supabase (ou a URL do banco não é o Session pooler 'postgres.<ref>'). Corrija os secrets deste Environment. Anexos NÃO copiados."
+            exit 1
           fi
           # Remotos do rclone só por variáveis de ambiente: nenhum arquivo de configuração.
           export RCLONE_CONFIG_SB_TYPE=s3
@@ -146,5 +180,5 @@ jobs:
             export RCLONE_CONFIG_CRIPTO_PASSWORD2
           fi
           # copy (não sync): o que sumir da origem permanece no destino (retenção legal).
-          rclone copy SB:anexos CRIPTO: --transfers 8 --checksum --stats-one-line --stats 30s -v
+          rclone copy SB:anexos CRIPTO: --transfers 8 --checksum --stats-one-line --stats 30s --log-level NOTICE
           echo "Anexos ($AMBIENTE) copiados para anexos/${AMBIENTE}/ (nomes e conteúdo criptografados)."

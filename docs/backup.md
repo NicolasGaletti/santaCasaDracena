@@ -9,6 +9,8 @@ O workflow `.github/workflows/backup.yml` roda todo dia às 06:00 UTC (e sob dem
 
 O backup do Supabase **não** inclui os arquivos do Storage, por isso os anexos são copiados à parte. A cópia usa `rclone copy`, nunca `sync`: o que for apagado na origem continua no destino.
 
+O agendamento (`schedule`) só roda a partir do branch padrão (`main`). Antes do go-live, teste pelo `workflow_dispatch` (Actions -> Backup -> Run workflow, escolhendo o branch e o ambiente).
+
 Nada de dado vai para artefato ou log do GitHub. O dump em texto puro nunca é gravado em disco: sai do `pg_dump` direto para o `gzip` e o `age`.
 
 Se o secret `SUPABASE_DB_URL_PROD` não existir, o job `prod` termina com uma anotação "Ignorado" e o agendamento só faz staging. Se o ambiente está configurado e falta qualquer secret de destino (R2 ou chave age), o job **falha** em vez de pular.
@@ -78,6 +80,9 @@ Os secrets de Storage têm o mesmo nome para staging e produção, mas o valor �
 
 - Enquanto só existe staging, os secrets de repositório acima bastam.
 - Ao criar a produção, crie os Environments `staging` e `prod` (Settings -> Environments) e cadastre `SUPABASE_STORAGE_S3_*` em cada um com os valores do respectivo projeto (`gh secret set NOME --env prod`). O secret do Environment prevalece sobre o do repositório. **Não** deixe a produção rodar com as chaves de staging: os anexos de staging iriam parar em `anexos/prod/`.
+- **Trava automática:** o passo de anexos extrai o *project ref* do `SUPABASE_STORAGE_S3_ENDPOINT` (host `<ref>.storage.supabase.co`) e do usuário do `SUPABASE_DB_URL_<AMBIENTE>` (Session pooler: `postgres.<ref>`). Se forem diferentes, ou se a URL do banco não tiver `postgres.<ref>`, o passo de anexos **falha** com a mensagem "Storage e banco não são do mesmo projeto" (o dump do banco já foi enviado). Nenhum valor secreto vai para o log.
+- Os secrets de Storage devem ser cadastrados **por Environment** (`staging` e `prod`) quando houver produção.
+- Os logs do `rclone` mostram só erros e o progresso agregado, nunca nomes de arquivos (são dados de pacientes).
 - Se os secrets de Storage ou `RCLONE_CRYPT_PASSWORD` estiverem vazios, o banco ainda é copiado e o job emite um aviso `Anexos ... Ignorado`.
 
 ## 4. Rodar manualmente
