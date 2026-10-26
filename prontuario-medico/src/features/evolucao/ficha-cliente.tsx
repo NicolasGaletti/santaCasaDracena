@@ -13,7 +13,7 @@ type Rascunho<D> = { id: string; dados: D; textoLivre: string; devolvidaMotivo: 
 type Comum = { internacaoId: string; userId: string; anexos: AnexoRascunho[]; adendo: EvolucaoTimeline | null }
 
 type Props =
-  | (Comum & { tipo: 'medica'; perfil: string; rascunho: Rascunho<DadosMedica> | null; anterior: DadosMedica | null })
+  | (Comum & { tipo: 'medica'; perfil: string; rascunho: Rascunho<DadosMedica> | null; anterior: DadosMedica | null; inicial: DadosMedica | null })
   | (Comum & { tipo: 'simples'; categoria: string; rascunho: Rascunho<DadosSimples> | null })
 
 /**
@@ -50,6 +50,7 @@ export function FichaCliente({ ciclo, ...props }: Props & { ciclo: string }) {
       perfil={props.perfil}
       rascunho={velho ? null : props.rascunho}
       anterior={props.anterior}
+      inicial={props.inicial}
       aoDescartar={aoDescartar}
     />
   )

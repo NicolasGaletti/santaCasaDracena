@@ -227,3 +227,36 @@ test('chips de equipe por teclado', async ({ page }) => {
   await expect(chips.first()).toHaveAttribute('aria-checked', 'true');
   await expect(grupo.locator('[aria-checked="true"]')).toHaveCount(1);
 });
+
+test('primeira evolução médica já traz o quadro de admissão; a seguinte vem vazia', async ({ page }) => {
+  const nome = nomeUnico();
+  await entrar(page, 'medico1@teste.local');
+  await page.getByRole('link', { name: 'Admitir paciente' }).click();
+  await page.getByLabel('Nome completo').fill(nome);
+  await page.getByLabel('Data de nascimento').fill('1970-03-10');
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
+  await page.getByLabel('Leito / ala').fill('E2E-02');
+  await page.getByLabel('Diagnóstico inicial').fill('IAMSSST');
+  await page.getByLabel('Comorbidades').fill('HAS, DM2');
+  await page.getByLabel('MUC (medicamentos de uso contínuo)').fill('AAS 100mg');
+  await page.getByRole('button', { name: 'Confirmar admissão' }).click();
+  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, { timeout: 20_000 });
+
+  const ficha = page.locator('#ficha');
+  await expect(ficha.getByLabel('Diagnósticos')).toHaveValue('IAMSSST');
+  await expect(ficha.getByLabel('Comorbidades')).toHaveValue('HAS, DM2');
+  await expect(ficha.getByLabel('MUC')).toHaveValue('AAS 100mg');
+
+  await page.getByLabel('Evolução clínica').fill('Estável');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Manter');
+  await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+
+  await expect(ficha.getByLabel('Diagnósticos')).toHaveValue('');
+  await expect(ficha.getByLabel('Comorbidades')).toHaveValue('');
+  await expect(ficha.getByLabel('MUC')).toHaveValue('');
+  await page.getByRole('button', { name: 'Copiar evolução anterior' }).click();
+  await expect(ficha.getByLabel('Diagnósticos')).toHaveValue('IAMSSST');
+});

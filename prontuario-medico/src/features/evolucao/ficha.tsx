@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { lerDadosMedica, type EvolucaoTimeline } from './cartao-evolucao'
 import { FichaCliente } from './ficha-cliente'
 import { lerDadosSimples } from './modelos/simples'
+import { rascunhoMedicaInicial } from './quadro-admissao'
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
 
@@ -23,7 +24,7 @@ export async function Ficha({
   // Multiprofissional escreve com o modelo da própria categoria; médico, residente e acadêmico com o médico.
   const formularioMedico = profissional.perfil !== 'multiprofissional'
 
-  const [{ data: rascunho }, { data: anterior }] = await Promise.all([
+  const [{ data: rascunho }, { data: anterior }, { data: quadro }] = await Promise.all([
     supabase
       .from('evolucoes')
       .select('id, dados, texto_livre, devolvida_motivo, devolvida_por, adendo_de')
@@ -41,6 +42,10 @@ export async function Ficha({
           .order('finalizada_em', { ascending: false })
           .limit(1)
           .maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Só a ficha médica usa o quadro; a página só monta a ficha para perfis clínicos.
+    formularioMedico
+      ? supabase.from('internacoes_clinico').select('diagnostico_inicial, comorbidades, muc').eq('internacao_id', internacaoId).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
   const { data: devolvedor } = rascunho?.devolvida_por
@@ -75,6 +80,8 @@ export async function Ficha({
       perfil={profissional.perfil}
       rascunho={comum ? { ...comum, dados: lerDadosMedica(rascunho.dados) } : null}
       anterior={anterior ? lerDadosMedica(anterior.dados) : null}
+      // Primeira evolução médica da internação: já traz o quadro de admissão.
+      inicial={anterior ? null : rascunhoMedicaInicial(quadro)}
     />
   )
 }

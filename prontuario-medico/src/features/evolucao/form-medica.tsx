@@ -27,6 +27,8 @@ type Props = {
   aoDescartar?: (idRascunho: string) => void
   rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null; devolvidaPorNome?: string | null } | null
   anterior: DadosMedica | null
+  /** Valores de um rascunho novo (quadro de admissão na primeira evolução); sem isso, rascunho vazio. */
+  inicial?: DadosMedica | null
   anexos: AnexoRascunho[]
   /** Evolução original quando o rascunho é um adendo. */
   adendo: EvolucaoTimeline | null
@@ -55,11 +57,11 @@ const CAMPOS_EXAME: { chave: CampoExame; rotulo: string }[] = [
   { chave: 'neuro', rotulo: 'Neurológico' },
 ]
 
-export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, anexos, adendo, aoDescartar }: Props) {
+export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, inicial, anexos, adendo, aoDescartar }: Props) {
   const podeFinalizar = perfil === 'medico'
   const titulo = adendo ? tituloAdendo(adendo.finalizada_em ?? adendo.criado_em) : 'Evolução médica'
 
-  const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? rascunhoMedicaVazio()).sinais))
+  const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? inicial ?? rascunhoMedicaVazio()).sinais))
   const [erros, setErros] = useState<string[]>([])
   const [dialogo, setDialogo] = useState(false)
   const [descartarAberto, setDescartarAberto] = useState(false)
@@ -85,7 +87,7 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, a
     internacaoId,
     userId,
     rascunho,
-    dadosVazios: rascunhoMedicaVazio(),
+    dadosVazios: inicial ?? rascunhoMedicaVazio(),
     aoRestaurar: (d) => setBrutos(brutosDeSinais(d.sinais)),
     aoDescartar,
   })
