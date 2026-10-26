@@ -28,7 +28,8 @@ export async function finalizar(evolucaoId: string): Promise<{ erro?: string }> 
   if (error) return { erro: mensagemDeErro(error) }
 
   revalidatePath(`/internacoes/${evolucao.internacao_id}`)
-  redirect(`/internacoes/${evolucao.internacao_id}`)
+  revalidatePath('/')
+  redirect('/?aviso=finalizada')
 }
 
 /** Envio do autor (residente, acadêmico, multiprofissional) para validação do médico da equipe. */
@@ -47,7 +48,8 @@ export async function enviarParaValidacao(evolucaoId: string): Promise<{ erro?: 
   if (error) return { erro: mensagemDeErro(error) }
 
   revalidatePath(`/internacoes/${evolucao.internacao_id}`)
-  redirect(`/internacoes/${evolucao.internacao_id}`)
+  revalidatePath('/')
+  redirect('/?aviso=enviada')
 }
 
 /** Adendo de evolução finalizada: abre rascunho ligado à original e leva ao formulário. */

@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { expect, test, type APIResponse, type Page } from '@playwright/test'
 import { anexarPeloCampo } from './helpers/anexos'
+import { confirmarConclusao } from './helpers/conclusao'
 
 const SENHA = 'Teste@123'
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -101,7 +102,7 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
   await page.getByLabel('Evolução clínica').fill('Evolução para headers')
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta headers')
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await confirmarConclusao(page, 'finalizada')
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden()
 

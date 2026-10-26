@@ -3,6 +3,7 @@ import path from 'node:path'
 import { PDFParse } from 'pdf-parse'
 import { expect, test, type Page } from '@playwright/test'
 import { anexarPeloCampo } from './helpers/anexos'
+import { confirmarConclusao } from './helpers/conclusao'
 
 const SENHA = 'Teste@123'
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -44,7 +45,7 @@ async function finalizarEvolucao(page: Page, internacaoId: string, texto: string
   await page.getByLabel('Evolução clínica').fill(texto)
   await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await confirmarConclusao(page, 'finalizada')
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden()
   const link = page.locator('a[href$="/pdf"]').first()
@@ -176,7 +177,7 @@ async function finalizarComAnexos(page: Page, internacaoId: string, texto: strin
   await page.getByLabel('Evolução clínica').fill(texto)
   await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await confirmarConclusao(page, 'finalizada')
   // Finalizar com anexos leva mais que o padrão de 5 s sob carga (o botão fica desabilitado enquanto grava).
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 })
   const link = page.locator('a[href$="/pdf"]').first()
@@ -245,7 +246,7 @@ test('PDF de evolução de acadêmico mostra Acadêmico(a) e validador', async (
   await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico')
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico')
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar envio' }).click()
+  await confirmarConclusao(page, 'enviada')
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden()
 
@@ -271,7 +272,7 @@ test('PDF de enfermagem validado pelo médico: título, Registrado por e Validad
   await page.locator('#ev-texto').fill('Paciente sem queixas de dor')
   await page.locator('#ev-plano').fill('Curativo a cada 24 horas')
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar envio' }).click()
+  await confirmarConclusao(page, 'enviada')
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden()
 
@@ -295,7 +296,7 @@ test('PDF de adendo tem título com data e código da original', async ({ page }
   await page.getByLabel('Evolução clínica').fill('Complemento para o PDF do adendo')
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo para PDF')
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click()
+  await confirmarConclusao(page, 'finalizada')
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden()
 

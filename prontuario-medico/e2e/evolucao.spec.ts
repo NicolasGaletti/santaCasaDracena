@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const INTERNACAO_SEED_A01 = 'c0000000-0000-0000-0000-000000000001';
@@ -46,7 +47,7 @@ async function finalizarEvolucao(page: Page, evolucao: string, conduta: string) 
   await page.getByRole('textbox', { name: 'Conduta' }).fill(conduta);
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 }
@@ -250,8 +251,10 @@ test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para duplo clique');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar finalização' }).dblclick();
-  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
-  await expect(page.getByRole('dialog')).toBeHidden();
+  // Conclusão leva à lista de Internados com o aviso; volta ao prontuário para conferir.
+  await expect(page).toHaveURL(/\/(\?.*)?$/, { timeout: 20_000 });
+  await expect(page.getByText('Evolução finalizada.')).toBeVisible();
+  await page.goto(`/internacoes/${id}`);
   await expect(page.getByTestId('cartao-evolucao')).toHaveCount(1);
   await expect(alertas(page)).toHaveCount(0);
 });
@@ -350,7 +353,7 @@ test('finalizar com a ação de servidor interrompida: aviso, botão volta a fun
   await expect(alertas(page)).toContainText('Sem conexão: a evolução não foi finalizada');
 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   expect(abortada).toBe(true);

@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -57,7 +58,7 @@ async function medicoFinalizaOriginal(page: Page, id: string, evolucao: string) 
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta da original');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 }
@@ -76,7 +77,7 @@ test('médico cria adendo e finaliza', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByTestId('rotulo-adendo')).toHaveCount(1);
@@ -105,7 +106,7 @@ test('adendo em internação com alta', async ({ page }) => {
   await page.getByLabel('Evolução clínica').fill('Adendo após a alta');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta após a alta');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Adendo após a alta')).toBeVisible();
@@ -131,7 +132,7 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
   await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 
@@ -151,7 +152,7 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
   await page.getByLabel('Evolução clínica').fill('Adendo do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
@@ -185,7 +186,7 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
   await page.getByLabel('Evolução clínica').fill('Primeira evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 
@@ -201,7 +202,7 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
   await page.getByLabel('Evolução clínica').fill('Segunda evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Outra conduta');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 

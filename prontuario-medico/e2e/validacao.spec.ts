@@ -3,6 +3,7 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { anexarPeloCampo } from './helpers/anexos';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -61,7 +62,7 @@ async function academicoEnvia(page: Page, id: string, evolucao: string, conduta:
   await page.getByRole('textbox', { name: 'Conduta' }).fill(conduta);
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de enviada, a evolução só pode ser alterada se o médico devolver.');
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
 }
@@ -117,7 +118,7 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
   // Corrige, reenvia: o motivo some do rascunho e a evolução volta a aguardar validação.
   await page.getByLabel('Evolução clínica').fill('Evolução corrigida com a dose do diurético');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
@@ -269,7 +270,7 @@ test.describe.serial('validação: anexos e menu', () => {
     await anexarPeloCampo(page, 'IMAGEM', path.join(__dirname, 'fixtures', 'exame.jpg'));
     await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
     await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-    await page.getByRole('button', { name: 'Confirmar envio' }).click();
+    await confirmarConclusao(page, 'enviada');
     // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
     await expect(page.getByRole('dialog')).toBeHidden();
 
@@ -324,7 +325,7 @@ test('médico vê a original do adendo na validação', async ({ page }) => {
   await page.getByLabel('Evolução clínica').fill('Adendo que corrige a original');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(page, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
   const adendoId = sqlLocal(

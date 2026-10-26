@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { clienteAdmin, convenioOrdenados, salvarConvenio } from './helpers/convenios';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const EQUIPE_NEFROLOGIA = 'e0000000-0000-0000-0000-000000000003';
@@ -251,7 +252,7 @@ test('primeira evolução médica já traz o quadro de admissão; a seguinte vem
   await page.getByLabel('Evolução clínica').fill('Estável');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Manter');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   await expect(page.getByRole('dialog')).toBeHidden();
 
   await expect(ficha.getByLabel('Diagnósticos')).toHaveValue('');

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -59,7 +60,7 @@ test('acadêmico envia e o médico vê o contador subir', async ({ page, browser
   await outra.getByLabel('Evolução clínica').fill('Evolução para notificar');
   await outra.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para notificar');
   await outra.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
-  await outra.getByRole('button', { name: 'Confirmar envio' }).click();
+  await confirmarConclusao(outra, 'enviada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(outra.getByRole('dialog')).toBeHidden();
   await ctx.close();

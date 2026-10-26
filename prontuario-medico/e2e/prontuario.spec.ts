@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -68,7 +69,7 @@ test('abas do histórico: ECG mostra o ECG do dia e anexos ECG', async ({ page }
   await page.getByRole('textbox', { name: 'ECG' }).fill('Ritmo sinusal sem alterações do ST');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Manter conduta');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   await expect(page.getByTestId('cartao-evolucao')).toHaveCount(1);
 
   await page.getByRole('tab', { name: 'ECG' }).click();
@@ -105,7 +106,7 @@ test('360px sem rolagem horizontal com nome e evolução longos', async ({ page 
   await page.getByLabel('Evolução clínica').fill('Texto longo '.repeat(170) + 'palavrasemquebra'.repeat(12));
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await confirmarConclusao(page, 'finalizada');
   await expect(page.getByTestId('cartao-evolucao')).toHaveCount(1);
 
   const medidas = await page.evaluate(() => ({

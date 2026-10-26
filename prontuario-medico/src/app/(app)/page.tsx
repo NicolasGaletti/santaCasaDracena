@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { exigirNaoAdmin } from '@/lib/auth'
+import { AvisoEvolucao } from '@/features/evolucao/aviso-evolucao'
 import { ListaInternacoes } from '@/features/internacoes/lista-internacoes'
 import { listarConvenios, listarEquipes, listarInternacoes } from '@/features/internacoes/consultas'
 
@@ -17,6 +19,9 @@ export default async function PaginaInternados({
   return (
     <>
       <h1 className="sr-only">Internados</h1>
+      <Suspense>
+        <AvisoEvolucao />
+      </Suspense>
       <ListaInternacoes
         internacoes={internacoes}
         equipes={equipes}
