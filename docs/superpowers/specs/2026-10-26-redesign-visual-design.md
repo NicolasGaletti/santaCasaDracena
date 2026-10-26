@@ -1,6 +1,6 @@
 # Redesign visual do prontuário (Plano 5) — design
 
-Data: 2026-10-26. Spec base: `2026-10-25-prontuario-design.md` (continua valendo; este documento só muda visual/layout e acrescenta a lista de convênios).
+Data: 2026-10-26. **Aprovado pelo usuário em 2026-10-26.** Spec base: `2026-10-25-prontuario-design.md` (continua valendo; este documento só muda visual/layout e acrescenta a lista de convênios).
 Protótipos aprovados pelo usuário (abrir no navegador): `mockups/2026-10-26-prontuario.html`, `mockups/2026-10-26-admissao.html`. Referência original: `~/Downloads/medsystem_pro_v3.html` (MedSystem Pro v3).
 
 ## Intenção
@@ -18,7 +18,7 @@ O usuário achou o visual atual pior que o protótipo original: campos grandes e
 ## Não objetivos
 
 - CID-10 e SIGTAP (analisados; adiados — CID-10 será um plano próprio quando o usuário pedir).
-- Mudar regras de negócio além das duas pedidas pelo usuário (lista de convênios; anexo só em Imagem e Laboratório), fluxo legal (enviar/validar/devolver/finalizar/adendo/alta), RLS, PDFs (folha de evolução e de alta continuam iguais).
+- Mudar regras de negócio além das duas pedidas pelo usuário (lista de convênios; anexo só em ECG, Imagem e Laboratório), fluxo legal (enviar/validar/devolver/finalizar/adendo/alta), RLS, PDFs (folha de evolução e de alta continuam iguais).
 - Modo escuro do sistema (o protótipo é claro; tokens podem ficar prontos, mas não é entregável).
 
 ## Antiobjetivos (falharia mesmo "funcionando")
@@ -61,9 +61,9 @@ Rótulos de campo: 11px, peso 700, caixa alta, `slate-700`. Campos: fundo `slate
 Uma página, nesta ordem: cabeçalho do paciente → barra de ações → ficha de evolução (quando o usuário pode evoluir) → histórico com abas.
 - A ficha passa a ficar **na própria página do prontuário** (como no protótipo). A rota `/internacoes/[id]/evolucao` continua existindo só para redirecionar à página do prontuário (âncora da ficha), preservando links de notificações e e2e.
 - Ficha médica: Diagnóstico(s) / Comorbidades / MUC em 3 colunas; Evolução clínica; ECG / Imagem / Laboratório em 3 colunas com ícones coloridos.
-- **Anexos (decisão do usuário):** só os campos **Imagem** e **Laboratório** têm "Anexar" (foto ou PDF), e o tipo do anexo vem do campo (IMAGEM / LABORATORIO) — não há mais escolha de tipo. ECG e Evolução não têm anexo. Os anexos aparecem como chips logo abaixo do seu campo, com o mesmo envio/remoção/retentativa de hoje. Os tipos ECG e OUTRO continuam no enum (anexos antigos seguem aparecendo no histórico), só não são mais oferecidos para envios novos — *decisão do Claude: não mexer no enum do banco evita migration e preserva dados existentes.* Na ficha simples (multiprofissional), o botão de anexo é único e envia como LABORATORIO ou IMAGEM conforme a escolha entre esses dois. sinais vitais numa linha de 7 no computador e grade de 4 no celular; exame físico 2 colunas já preenchido com o texto padrão; Conduta. Nada recolhido. Ficha simples (multiprofissional/acadêmico) segue o mesmo estilo com seus campos.
+- **Anexos (decisão do usuário, 2026-10-26):** os campos **ECG**, **Imagem** e **Laboratório** têm "Anexar" (foto ou PDF), e o tipo do anexo vem do campo (ECG / IMAGEM / LABORATORIO) — não há mais escolha de tipo. Evolução clínica não tem anexo. Os anexos aparecem como chips logo abaixo do seu campo, com o mesmo envio/remoção/retentativa de hoje. O tipo OUTRO continua no enum (anexos antigos seguem aparecendo no histórico), só não é mais oferecido para envios novos — *decisão do Claude: não mexer no enum do banco evita migration e preserva dados existentes.* Na ficha simples (multiprofissional), o botão de anexo é único e envia como ECG, IMAGEM ou LABORATORIO conforme a escolha entre esses três. sinais vitais numa linha de 7 no computador e grade de 4 no celular; exame físico 2 colunas já preenchido com o texto padrão; Conduta. Nada recolhido. Ficha simples (multiprofissional/acadêmico) segue o mesmo estilo com seus campos.
 - Rodapé da ficha: "Médico: <nome> (CRM)", indicador "salvo às hh:mm", Salvar rascunho, Finalizar (ou Enviar para validação, conforme o perfil). Todas as regras atuais de botões/estados continuam.
-- Histórico: aba Evoluções = cartões com borda esquerda teal, data/hora, status, diagnóstico/comorbidades/lab resumidos, evolução, conduta, autor; ações existentes (Imprimir, Adendo) no rodapé do cartão. Aba ECG = só o texto do campo ECG por evolução (sem anexos novos; anexos antigos do tipo ECG, se existirem, aparecem ali). Abas Imagem e Laboratório = texto do campo por evolução + anexos daquele tipo (galeria existente reaproveitada).
+- Histórico: aba Evoluções = cartões com borda esquerda teal, data/hora, status, diagnóstico/comorbidades/lab resumidos, evolução, conduta, autor; ações existentes (Imprimir, Adendo) no rodapé do cartão. Abas ECG, Imagem e Laboratório = texto do campo por evolução + anexos daquele tipo (galeria existente reaproveitada).
 - Dar alta: botão pequeno rose na barra de ações (mesma regra de visibilidade de hoje); folha de alta e "Internação com alta" também na barra.
 
 ### Admissão (`/internacoes/nova`)
@@ -88,7 +88,7 @@ Nomes exatos de componentes e arquivos; detalhes de espaçamento; se o shell usa
 ## Respostas à verificação do builder (decisões do Claude, salvo indicação)
 1. **Convênio histórico:** `pacientes.convenio` é texto histórico; só `admitir_paciente` valida contra a lista ativa. Nada mais é revalidado (cabeçalho, PDFs, Anteriores mostram o texto gravado). Renomear um convênio na lista **não** altera pacientes já admitidos. Sem FK.
 2. **Prontuário com a ficha:** a página continua server component carregando os dados; a ficha é o mesmo componente cliente de hoje (`FormMedica`/`FormSimples` com `useRascunhoEvolucao`, `useAnexosEvolucao`, autosave, avisos e confirmação de saída), montado na página quando o usuário pode evoluir. Modo adendo e o aviso de devolvida (com "Devolvida por") também ficam na página. `/internacoes/[id]/evolucao` redireciona para `/internacoes/[id]#ficha` **preservando a query string** (ex.: alvo de adendo).
-3. **Abas do histórico:** sem schema novo. Os textos já são campos separados em `dados` da evolução médica (ECG, exames de imagem, laboratório); os anexos têm tipo (LABORATORIO/IMAGEM/ECG/OUTRO). Aba Imagem = IMAGEM; Laboratório = LABORATORIO; ECG = texto + anexos ECG antigos; anexos OUTRO antigos aparecem na aba Evoluções, no cartão da evolução.
+3. **Abas do histórico:** sem schema novo. Os textos já são campos separados em `dados` da evolução médica (ECG, exames de imagem, laboratório); os anexos têm tipo (LABORATORIO/IMAGEM/ECG/OUTRO). Aba ECG = ECG; Imagem = IMAGEM; Laboratório = LABORATORIO; anexos OUTRO antigos aparecem na aba Evoluções, no cartão da evolução.
 4. **Acessibilidade:** sai Atkinson, entram Inter + Poppins. As regras de 16px nos campos (celular) e **44px de alvo de toque valem também para as pílulas e botões pequenos** — "pequeno" é visual (texto 13px, padding horizontal curto), a altura mínima de toque continua 44px no celular. Contraste AA.
 5. **E2E:** cada task deixa a suíte verde ao terminar (ajusta os e2e das telas que tocou); sem camada de compatibilidade.
 6. **Rodapé fixo:** respeita `env(safe-area-inset-bottom)`; z-index abaixo de diálogos e toasts; o conteúdo ganha padding inferior igual à altura do rodapé. O app não tem barra de navegação inferior.
