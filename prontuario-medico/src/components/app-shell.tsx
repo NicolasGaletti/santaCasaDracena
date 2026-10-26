@@ -42,6 +42,8 @@ const ITEM_ADMIN: ItemNavegacao = {
   prefixo: '/admin',
 }
 
+const ITEM_AUDITORIA: ItemNavegacao = { href: '/auditoria', chave: 'auditoria', rotulo: 'Auditoria', rotuloCurto: 'Auditoria' }
+
 const ITEM_IMPRIMIR: ItemNavegacao = { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' }
 
 export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoLidas = 0, children }: Props) {
@@ -56,7 +58,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
     ? [ITEM_ADMIN]
     : !clinico
       ? NAVEGACAO
-      : [...NAVEGACAO, ...(medico ? [ITEM_VALIDACAO] : []), ITEM_IMPRIMIR]
+      : [...NAVEGACAO, ...(medico ? [ITEM_VALIDACAO] : []), ITEM_IMPRIMIR, ...(profissional.perfil === 'auditoria' ? [ITEM_AUDITORIA] : [])]
   const identificacao = rotuloIdentificacao(profissional)
 
   return (

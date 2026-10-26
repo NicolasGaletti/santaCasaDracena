@@ -64,6 +64,10 @@ insert into auth.users (
   -- Admin sem fator TOTP: usado só por e2e/mfa.spec.ts (cadastro obrigatório).
   ('a0000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'admin.semmfa@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+  -- Perfil auditoria: lê acessos e alterações (e2e/auditoria.spec.ts).
+  ('a0000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'auditoria@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
@@ -102,7 +106,8 @@ insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_
   ('a0000000-0000-0000-0000-000000000009', 'Admin Teste', 'admin', null, null, null, null),
   ('a0000000-0000-0000-0000-00000000000a', 'Fisioterapeuta Sessão (teste)', 'multiprofissional', 'fisioterapia', 'CREFITO', '55555', 'SP'),
   ('a0000000-0000-0000-0000-00000000000b', 'Recepção Desativável (teste)', 'recepcao', null, null, null, null),
-  ('a0000000-0000-0000-0000-00000000000c', 'Admin Sem MFA (teste)', 'admin', null, null, null, null);
+  ('a0000000-0000-0000-0000-00000000000c', 'Admin Sem MFA (teste)', 'admin', null, null, null, null),
+  ('a0000000-0000-0000-0000-00000000000d', 'Auditor Teste', 'auditoria', null, null, null, null);
 
 -- Fator TOTP verificado do admin@teste.local. Secret fictício, só para dev/e2e
 -- (e2e/helpers/mfa.ts usa o mesmo valor para gerar os códigos).

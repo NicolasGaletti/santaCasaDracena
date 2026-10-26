@@ -76,3 +76,10 @@ export async function exigirAdmin(): Promise<Profissional> {
   if (profissional.perfil !== 'admin') redirect('/')
   return profissional
 }
+
+/** Rota /auditoria: só o perfil auditoria; os demais voltam ao início. */
+export async function exigirAuditoria(): Promise<Profissional> {
+  const profissional = await exigirProfissional()
+  if (profissional.perfil !== 'auditoria') redirect('/')
+  return profissional
+}
