@@ -205,3 +205,39 @@ grant execute on function public.admin_vincular(uuid, uuid) to authenticated;
 grant execute on function public.admin_desvincular(uuid, uuid) to authenticated;
 grant execute on function public.admin_atualizar_profissional(uuid, text, public.perfil_profissional, public.categoria_evolucao, text, text, text) to authenticated;
 grant execute on function public.admin_definir_ativo(uuid, boolean) to authenticated;
+
+-- Lista para a tela de administração: profissionais com e-mail (auth.users, ilegível para o
+-- admin via API) e se o convite ainda está pendente (nunca entrou).
+create function public.admin_listar_profissionais()
+returns table (
+  id uuid,
+  nome text,
+  perfil public.perfil_profissional,
+  categoria public.categoria_evolucao,
+  conselho text,
+  numero_conselho text,
+  uf_conselho text,
+  ativo boolean,
+  email text,
+  convite_pendente boolean,
+  equipe_ids uuid[]
+)
+language plpgsql stable security definer set search_path = ''
+as $$
+begin
+  perform app.exige_admin();
+  return query
+  select p.id, p.nome, p.perfil, p.categoria, p.conselho, p.numero_conselho, p.uf_conselho, p.ativo,
+         u.email::text,
+         (u.last_sign_in_at is null),
+         coalesce(
+           (select array_agg(m.equipe_id order by m.equipe_id) from public.membros_equipe m where m.profissional_id = p.id),
+           '{}'::uuid[])
+    from public.profissionais p
+    left join auth.users u on u.id = p.id
+   order by lower(p.nome);
+end;
+$$;
+
+revoke all on function public.admin_listar_profissionais() from public, anon;
+grant execute on function public.admin_listar_profissionais() to authenticated;

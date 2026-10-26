@@ -48,7 +48,7 @@ test('admin convida e o e-mail chega no Inbucket', async () => {
     conselho: 'COREN', numero: '998877', uf: 'SP',
   })
   expect(r.status).toBe(200)
-  expect(r.corpo).toEqual({ ok: true })
+  expect(r.corpo).toMatchObject({ ok: true, id: expect.any(String) })
 
   await expect
     .poll(async () => {

@@ -4,13 +4,13 @@ import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { buscarRevisao, listarPendentes } from '@/features/validacao/consultas'
 import { ListaPendentes } from '@/features/validacao/lista-pendentes'
 import { RevisaoEvolucao } from '@/features/validacao/revisao-evolucao'
-import { exigirProfissional } from '@/lib/auth'
+import { exigirNaoAdmin } from '@/lib/auth'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** Validação é exclusiva do médico. Com `?evolucao=`, mostra a leitura completa para validar ou devolver. */
 export default async function PaginaValidacao({ searchParams }: { searchParams: Promise<{ evolucao?: string }> }) {
-  const profissional = await exigirProfissional()
+  const profissional = await exigirNaoAdmin()
   if (profissional.perfil !== 'medico') notFound()
 
   const { evolucao } = await searchParams

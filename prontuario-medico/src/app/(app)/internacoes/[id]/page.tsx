@@ -17,7 +17,7 @@ import {
 import { DialogAlta } from '@/features/alta/dialog-alta'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
 import { GaleriaExames } from '@/features/anexos/galeria-exames'
-import { exigirProfissional } from '@/lib/auth'
+import { exigirNaoAdmin } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -27,7 +27,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   const { id } = await params
   if (!UUID.test(id)) notFound()
 
-  const profissional = await exigirProfissional()
+  const profissional = await exigirNaoAdmin()
   const supabase = await createClient()
 
   const { data: linha } = await supabase

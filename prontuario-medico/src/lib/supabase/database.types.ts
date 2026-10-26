@@ -877,6 +877,22 @@ export type Database = {
         Args: { p_equipe_id: string; p_profissional_id: string };
         Returns: undefined;
       };
+      admin_listar_profissionais: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          ativo: boolean;
+          categoria: Database["public"]["Enums"]["categoria_evolucao"];
+          conselho: string;
+          convite_pendente: boolean;
+          email: string;
+          equipe_ids: string[];
+          id: string;
+          nome: string;
+          numero_conselho: string;
+          perfil: Database["public"]["Enums"]["perfil_profissional"];
+          uf_conselho: string;
+        }[];
+      };
       admin_revogar_sessoes: { Args: { p_id: string }; Returns: undefined };
       admin_salvar_equipe: {
         Args: { p_ativo: boolean; p_id: string; p_nome: string };

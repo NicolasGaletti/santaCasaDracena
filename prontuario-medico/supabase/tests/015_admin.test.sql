@@ -1,5 +1,5 @@
 begin;
-select plan(37);
+select plan(41);
 
 select set_config('tst.admin', tests.criar_profissional('admin', false)::text, true);
 select set_config('tst.medico', tests.criar_profissional('medico')::text, true);
@@ -59,6 +59,19 @@ select throws_ok($$select public.admin_atualizar_profissional(current_setting('t
 select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin2')::uuid, 'Admin Dois', 'recepcao', null, null, null, null)$$, 'admin rebaixa outro admin (resta um ativo)');
 select is((select perfil::text from public.profissionais where id = current_setting('tst.admin2')::uuid), 'recepcao', 'outro admin rebaixado');
 select lives_ok($$select public.admin_atualizar_profissional(current_setting('tst.admin2')::uuid, 'Admin Dois', 'admin', null, null, null, null)$$, 'admin promove outro a admin');
+
+-- 4c. listagem com e-mail e convite pendente
+select is((select count(*)::int from public.admin_listar_profissionais() where id = current_setting('tst.alvo')::uuid and email is not null and convite_pendente), 1, 'admin lista profissional com e-mail e convite pendente');
+select is((select array_length(equipe_ids, 1) from public.admin_listar_profissionais() where id = current_setting('tst.alvo')::uuid), null, 'listagem traz equipes (vazio)');
+reset role;
+select tests.autenticar(current_setting('tst.medico')::uuid);
+select throws_ok($$select * from public.admin_listar_profissionais()$$, 'P0001', 'Acesso negado.', 'médico não lista profissionais');
+reset role;
+select set_config('role', 'anon', true);
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select throws_ok($$select * from public.admin_listar_profissionais()$$, '42501', null, 'anon não lista profissionais');
+reset role;
+select tests.autenticar(current_setting('tst.admin')::uuid);
 
 -- 5. admin vê todos os profissionais, mas não conteúdo clínico
 select cmp_ok((select count(*) from public.profissionais), '>=', 4::bigint, 'admin lê todos os profissionais');

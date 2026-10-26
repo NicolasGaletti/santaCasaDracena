@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import { FormAdmissao } from '@/features/internacoes/form-admissao'
 import { listarEquipes } from '@/features/internacoes/consultas'
-import { exigirProfissional } from '@/lib/auth'
+import { exigirNaoAdmin } from '@/lib/auth'
 
 export default async function PaginaAdmissao() {
-  const profissional = await exigirProfissional()
+  const profissional = await exigirNaoAdmin()
   if (profissional.perfil !== 'medico' && profissional.perfil !== 'recepcao') redirect('/')
 
   const equipes = await listarEquipes()

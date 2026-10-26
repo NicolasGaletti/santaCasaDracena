@@ -55,6 +55,9 @@ insert into auth.users (
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
   ('a0000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'sessao@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''),
+  ('a0000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'desativavel@teste.local', extensions.crypt('Teste@123', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '');
 
 insert into auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
@@ -91,7 +94,8 @@ insert into public.profissionais (id, nome, perfil, ativo) values
 
 insert into public.profissionais (id, nome, perfil, categoria, conselho, numero_conselho, uf_conselho) values
   ('a0000000-0000-0000-0000-000000000009', 'Admin Teste', 'admin', null, null, null, null),
-  ('a0000000-0000-0000-0000-00000000000a', 'Fisioterapeuta Sessão (teste)', 'multiprofissional', 'fisioterapia', 'CREFITO', '55555', 'SP');
+  ('a0000000-0000-0000-0000-00000000000a', 'Fisioterapeuta Sessão (teste)', 'multiprofissional', 'fisioterapia', 'CREFITO', '55555', 'SP'),
+  ('a0000000-0000-0000-0000-00000000000b', 'Recepção Desativável (teste)', 'recepcao', null, null, null, null);
 
 insert into public.membros_equipe (profissional_id, equipe_id) values
   ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001'),

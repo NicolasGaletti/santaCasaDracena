@@ -20,7 +20,7 @@ type Props = {
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
 
-type ItemNavegacao = { href: string; chave: string; rotulo: string; rotuloCurto: string }
+type ItemNavegacao = { href: string; chave: string; rotulo: string; rotuloCurto: string; prefixo?: string }
 
 const NAVEGACAO: ItemNavegacao[] = [
   { href: '/', chave: 'internados', rotulo: 'Internados', rotuloCurto: 'Internados' },
@@ -28,6 +28,14 @@ const NAVEGACAO: ItemNavegacao[] = [
 ]
 
 const ITEM_VALIDACAO: ItemNavegacao = { href: '/validacao', chave: 'validacao', rotulo: 'Validar', rotuloCurto: 'Validar' }
+
+const ITEM_ADMIN: ItemNavegacao = {
+  href: '/admin/profissionais',
+  chave: 'admin',
+  rotulo: 'Administração',
+  rotuloCurto: 'Administração',
+  prefixo: '/admin',
+}
 
 const ITEM_IMPRIMIR: ItemNavegacao = { href: '/imprimir', chave: 'imprimir', rotulo: 'Imprimir', rotuloCurto: 'Imprimir' }
 
@@ -37,9 +45,13 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
   const podeAdmitir = (PERFIS_QUE_ADMITEM as readonly string[]).includes(profissional.perfil)
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
   const medico = profissional.perfil === 'medico'
-  const navegacao: ItemNavegacao[] = !clinico
-    ? NAVEGACAO
-    : [...NAVEGACAO, ...(medico ? [ITEM_VALIDACAO] : []), ITEM_IMPRIMIR]
+  const admin = profissional.perfil === 'admin'
+  // Admin não vê conteúdo clínico: só a aba de administração.
+  const navegacao: ItemNavegacao[] = admin
+    ? [ITEM_ADMIN]
+    : !clinico
+      ? NAVEGACAO
+      : [...NAVEGACAO, ...(medico ? [ITEM_VALIDACAO] : []), ITEM_IMPRIMIR]
   const identificacao = rotuloIdentificacao(profissional)
 
   return (
@@ -70,7 +82,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, children }: Pro
                 ? abaMarcada === item.chave
                 : item.href === '/'
                   ? pathname === '/'
-                  : pathname.startsWith(item.href)
+                  : pathname.startsWith(item.prefixo ?? item.href)
               return (
                 <Link
                   key={item.href}

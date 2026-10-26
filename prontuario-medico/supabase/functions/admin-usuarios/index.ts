@@ -92,7 +92,7 @@ function jaCadastrado(e: { status?: number; code?: string; message?: string }): 
   return e.code === 'email_exists' || e.code === 'user_already_exists' || /already (been )?registered/i.test(e.message ?? '')
 }
 
-async function convidar(corpo: Record<string, unknown>, adminId: string) {
+async function convidar(corpo: Record<string, unknown>, adminId: string): Promise<string> {
   const email = texto(corpo.email).toLowerCase()
   const nome = texto(corpo.nome)
   const funcao = FUNCOES[texto(corpo.funcao)]
@@ -145,6 +145,7 @@ async function convidar(corpo: Record<string, unknown>, adminId: string) {
     await desfazerConvite(admin, data.user.id, true)
     throw new ErroHttp(500, 'Não foi possível concluir o convite. Tente novamente.')
   }
+  return data.user.id
 }
 
 /** Remove o que o convite criou (sem usuário órfão). Falhas de limpeza são logadas. */
@@ -233,8 +234,8 @@ Deno.serve(async (req) => {
 
     switch (corpo?.acao) {
       case 'convidar':
-        await convidar(corpo, adminId)
-        break
+        // devolve o id para a tela vincular as equipes logo após o convite
+        return json(req, 200, { ok: true, id: await convidar(corpo, adminId) })
       case 'reenviar':
         await reenviar(corpo)
         break

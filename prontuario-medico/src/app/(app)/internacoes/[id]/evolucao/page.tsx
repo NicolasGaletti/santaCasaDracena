@@ -5,7 +5,7 @@ import { FormSimples } from '@/features/evolucao/form-simples'
 import { lerDadosMedica, type EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { categoriaAusente, exigeConselho, PERFIS_QUE_EVOLUEM, podeEvoluirNaInternacao } from '@/features/evolucao/permissoes'
 import { lerDadosSimples } from '@/features/evolucao/modelos/simples'
-import { exigirProfissional } from '@/lib/auth'
+import { exigirNaoAdmin } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 type Supabase = Awaited<ReturnType<typeof createClient>>
@@ -16,7 +16,7 @@ export default async function PaginaNovaEvolucao({ params }: { params: Promise<{
   const { id } = await params
   if (!UUID.test(id)) notFound()
 
-  const profissional = await exigirProfissional()
+  const profissional = await exigirNaoAdmin()
   if (!(PERFIS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil)) redirect(`/internacoes/${id}`)
 
   const conselhoCompleto = Boolean(

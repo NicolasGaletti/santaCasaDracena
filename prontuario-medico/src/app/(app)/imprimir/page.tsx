@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { FilaImpressao, type LinhaFila } from '@/features/impressao/fila-impressao'
 import { formatarDataHora } from '@/features/evolucao/cartao-evolucao'
 import { listarEquipes, listarMedicos } from '@/features/internacoes/consultas'
-import { exigirProfissional } from '@/lib/auth'
+import { exigirNaoAdmin } from '@/lib/auth'
 import { hojeSP } from '@/lib/datas'
 import { createClient } from '@/lib/supabase/server'
 
@@ -18,7 +18,7 @@ function intervaloDoDia(dia: string): { inicio: string; fim: string } {
 }
 
 export default async function PaginaImprimir({ searchParams }: { searchParams: Promise<Params> }) {
-  const profissional = await exigirProfissional()
+  const profissional = await exigirNaoAdmin()
   if ((PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)) redirect('/')
 
   const params = await searchParams
