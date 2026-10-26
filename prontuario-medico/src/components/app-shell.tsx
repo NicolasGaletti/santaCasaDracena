@@ -94,7 +94,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <nav
             aria-label="Principal"
-            className="-mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+            className="flex gap-1.5 py-1.5 sm:gap-2"
           >
             {navegacao.map((item) => {
               // Página de conteúdo (ex.: prontuário) pode marcar a aba pelo status da internação.
@@ -108,7 +108,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
                   key={item.href}
                   href={item.href}
                   aria-current={ativo ? 'page' : undefined}
-                  className={`inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors ${
+                  className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-full px-1.5 text-center text-[13px] font-semibold leading-tight transition-colors sm:flex-none sm:px-4 sm:text-sm sm:whitespace-nowrap ${
                     ativo
                       ? 'bg-primary text-primary-foreground'
                       : 'border border-border bg-card text-texto-forte hover:bg-muted'
@@ -117,7 +117,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
                   <span className="sm:hidden">{item.rotuloCurto}</span>
                   <span className="hidden sm:inline">{item.rotulo}</span>
                   {item.chave === 'validacao' && pendentesValidacao > 0 && (
-                    <Badge data-testid="contador-validacao" aria-label={`${pendentesValidacao} pendentes`} className="ml-2 min-w-6 justify-center px-1.5 text-xs tabular-nums">
+                    <Badge data-testid="contador-validacao" aria-label={`${pendentesValidacao} pendentes`} className="ml-1 min-w-6 justify-center px-1.5 text-xs tabular-nums">
                       {pendentesValidacao}
                     </Badge>
                   )}
@@ -126,7 +126,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
             })}
           </nav>
           {podeAdmitir && pathname === '/' && (
-            <Button asChild variant="primaria" size="lg" className="w-full lg:w-auto">
+            <Button asChild variant="primaria" size="lg" className="w-full sm:w-auto sm:self-start lg:self-auto">
               <Link href="/internacoes/nova">Admitir paciente</Link>
             </Button>
           )}

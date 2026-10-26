@@ -284,7 +284,7 @@ test.describe.serial('validação: anexos e menu', () => {
       .toBe(true);
   });
 
-  test('menu do médico rola na horizontal e a página não rola em 360 px', async ({ page }) => {
+  test('menu do médico cabe sem rolagem e a página não rola em 360 px', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await entrar(page, 'medico1@teste.local');
     for (const rota of ['/', '/validacao']) {
@@ -292,10 +292,13 @@ test.describe.serial('validação: anexos e menu', () => {
       await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible();
       const medidas = await page.evaluate(() => ({
         pagina: [document.documentElement.scrollWidth, document.documentElement.clientWidth],
-        nav: getComputedStyle(document.querySelector('nav[aria-label="Principal"]')!).overflowX,
+        nav: (() => {
+          const n = document.querySelector('nav[aria-label="Principal"]')!;
+          return [n.scrollWidth, n.clientWidth];
+        })(),
       }));
       expect(medidas.pagina[0]).toBe(medidas.pagina[1]);
-      expect(medidas.nav).toBe('auto');
+      expect(medidas.nav[0]).toBeLessThanOrEqual(medidas.nav[1]);
     }
   });
 });

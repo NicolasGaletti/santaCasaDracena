@@ -5,7 +5,7 @@ import type { LinhaInternacao } from './consultas'
 type Filtros = { equipe?: string; convenio?: string }
 
 const CLASSE_CHIP =
-  'inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-md border px-4 text-sm font-semibold transition-colors'
+  'inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors'
 
 function hrefFiltros(caminho: string, filtros: Filtros): string {
   const query = new URLSearchParams()
@@ -40,7 +40,7 @@ function FiltroChips({
             aria-current={ativo ? 'true' : undefined}
             className={`${CLASSE_CHIP} ${
               ativo
-                ? 'border-primary bg-primary text-primary-foreground'
+                ? 'border-primary-suave-borda bg-primary-suave text-primary-suave-foreground'
                 : 'border-input bg-card text-foreground hover:bg-muted'
             }`}
           >
