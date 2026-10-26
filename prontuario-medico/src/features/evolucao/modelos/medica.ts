@@ -26,6 +26,16 @@ export const modeloMedicaV1 = z.object({
 
 export type DadosMedica = z.infer<typeof modeloMedicaV1>;
 
+/** Texto de exame normal: só aparece como placeholder dos campos, nunca como valor salvo. */
+export const SUGESTOES_EXAME_FISICO: DadosMedica['exame_fisico'] = {
+  geral: 'REG, hidratada, hipocorada +2/+4, anictérica, acianótica, afebril',
+  ar: 'MV + bilateralmente, SRA',
+  acv: 'RCR, 2T, BNF, taquicárdicas, sem sopro audível',
+  abdome: 'globoso, RHA +, flácido, sem VCM, indolor a palpação.',
+  membros: 'simétricos, panturrilhas livres, sem edemas, TEC < 3 seg.',
+  neuro: 'pupilas isocóricas e fotorreagentes',
+};
+
 export function rascunhoMedicaVazio(): DadosMedica {
   return {
     modelo_versao: 'medica@1',
@@ -37,14 +47,7 @@ export function rascunhoMedicaVazio(): DadosMedica {
     exames_imagem: '',
     exames_laboratoriais: '',
     sinais: sinaisVazios(),
-    exame_fisico: {
-      geral: 'REG, hidratada, hipocorada +2/+4, anictérica, acianótica, afebril',
-      ar: 'MV + bilateralmente, SRA',
-      acv: 'RCR, 2T, BNF, taquicárdicas, sem sopro audível',
-      abdome: 'globoso, RHA +, flácido, sem VCM, indolor a palpação.',
-      membros: 'simétricos, panturrilhas livres, sem edemas, TEC < 3 seg.',
-      neuro: 'pupilas isocóricas e fotorreagentes',
-    },
+    exame_fisico: { geral: '', ar: '', acv: '', abdome: '', membros: '', neuro: '' },
     conduta: '',
   };
 }

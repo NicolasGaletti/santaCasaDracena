@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   modeloMedicaV1,
   rascunhoMedicaVazio,
+  SUGESTOES_EXAME_FISICO,
   validarParaFinalizar,
 } from './medica';
 
@@ -30,12 +31,17 @@ describe('modelo medica v1', () => {
     expect(validarParaFinalizar(ok)).toEqual([]);
   });
 
-  it('rascunho traz exame físico padrão e sinais nulos', () => {
+  it('rascunho traz exame físico vazio e sinais nulos', () => {
     const d = rascunhoMedicaVazio();
     expect(d.modelo_versao).toBe('medica@1');
     expect(d.sinais.fc).toBeNull();
     expect(d.sinais.pa).toBe('');
-    expect(d.exame_fisico.geral).toBe('REG, hidratada, hipocorada +2/+4, anictérica, acianótica, afebril');
-    expect(d.exame_fisico.neuro).toBe('pupilas isocóricas e fotorreagentes');
+    expect(Object.values(d.exame_fisico)).toEqual(['', '', '', '', '', '']);
+  });
+
+  it('sugestões de exame físico têm as mesmas chaves e texto padrão', () => {
+    expect(Object.keys(SUGESTOES_EXAME_FISICO)).toEqual(Object.keys(rascunhoMedicaVazio().exame_fisico));
+    expect(SUGESTOES_EXAME_FISICO.geral).toBe('REG, hidratada, hipocorada +2/+4, anictérica, acianótica, afebril');
+    expect(SUGESTOES_EXAME_FISICO.neuro).toBe('pupilas isocóricas e fotorreagentes');
   });
 });

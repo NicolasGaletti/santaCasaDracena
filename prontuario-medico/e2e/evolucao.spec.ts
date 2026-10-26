@@ -265,9 +265,10 @@ test('ficha médica mostra todos os campos sem abrir seções', async ({ page })
     await expect(page.getByRole('textbox', { name: nome, exact: true }).or(page.getByLabel(nome, { exact: true })).first()).toBeVisible();
   }
   await expect(page.getByRole('textbox', { name: 'Conduta' })).toBeVisible();
-  // Nada recolhível e exame físico já preenchido com o texto padrão.
+  // Nada recolhível; exame físico começa vazio e o texto normal é só sugestão (placeholder).
   await expect(page.locator('[data-slot="accordion-trigger"]')).toHaveCount(0);
-  await expect(page.getByLabel('Geral', { exact: true })).toHaveValue(/REG, hidratada/);
+  await expect(page.getByLabel('Geral', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Geral', { exact: true })).toHaveAttribute('placeholder', /REG, hidratada/);
   for (const tipo of ['ECG', 'IMAGEM', 'LABORATORIO']) {
     await expect(page.getByTestId(`anexos-${tipo}`).getByRole('button', { name: /^Anexar/ })).toBeVisible();
   }
