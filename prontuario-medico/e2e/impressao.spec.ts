@@ -237,6 +237,8 @@ async function medicoValida(page: Page, leito: string) {
   await page.getByRole('link', { name: new RegExp(`Paciente Impressão ${leito}`) }).click()
   await page.getByRole('button', { name: 'Validar', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar validação' }).click()
+  // Só volta à lista depois que a validação foi gravada; antes disso a revisão não tem o link.
+  await expect(page).toHaveURL(/\/validacao$/)
   await expect(page.getByRole('link', { name: new RegExp(`Paciente Impressão ${leito}`) })).toHaveCount(0)
 }
 
