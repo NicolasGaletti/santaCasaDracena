@@ -14,8 +14,6 @@ import { formatarDataAnexo, ROTULO_TIPO_ANEXO, TIPOS_ANEXO, type TipoAnexo } fro
 const ACEITOS = 'image/jpeg,image/png,image/webp,application/pdf'
 const MENSAGEM_DATA = 'Informe a data do exame.'
 const MENSAGEM_REMOCAO = 'Não foi possível remover o anexo. Tente novamente.'
-/** Mostrada ao tentar finalizar com envio em andamento ou falho (não confirmado). */
-
 type Metadados = { tipo: TipoAnexo; descricao: string; dataExame: string }
 type Envio = Metadados & { chave: string; arquivo: File; estado: 'enviando' | 'erro'; mensagem?: string }
 

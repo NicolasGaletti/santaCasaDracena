@@ -39,10 +39,7 @@ Ordem: 1) `npx supabase db push` no staging (de dentro de `prontuario-medico/`);
 
 Migrations pendentes para o próximo deploy (aplicar com `npx supabase db push` antes de dar push em `staging`):
 
-- `20261025000009_perfil_academico.sql`: novo perfil `academico` (acadêmico de medicina, sem conselho; envia evoluções para validação).
-- `20261025000010_validacao.sql`: fluxo de validação (`enviar_evolucao`, `finalizar_evolucao`, devolução com motivo).
-- `20261025000011_adendo.sql`: adendo a evolução finalizada (`criar_adendo`).
-- `20261025000012_anexos_validacao.sql`: médicos da equipe leem anexos de evoluções `AGUARDANDO_VALIDACAO`.
+- `20261025000013_snapshot_perfil.sql`: `finalizar_core` grava o perfil do autor em `snapshot_autor`, para a 2ª via não mudar quando o autor é promovido. Não altera o hash. As migrações 0009–0012 já foram aplicadas no staging em 2026-10-25.
 
 Seed (dados fictícios) só em staging:
 
