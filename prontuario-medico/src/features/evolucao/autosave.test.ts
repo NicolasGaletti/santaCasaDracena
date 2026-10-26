@@ -84,7 +84,7 @@ describe('fila de autosave', () => {
     await vi.waitFor(() => expect(fila.estado).toBe('salvo'));
 
     expect(salvar).toHaveBeenCalledTimes(2);
-    expect(await armazenamento.get(CHAVE)).toBeUndefined();
+    expect((await armazenamento.get(CHAVE))?.sincronizado).toBe(true);
     window.removeEventListener('online', fila.aoVoltarConexao);
     fila.encerrar();
   });
@@ -140,7 +140,7 @@ describe('fila de autosave', () => {
     envio.resolver(RETORNO());
     await cancelamento;
     expect(concluido).toBe(true);
-    expect(await armazenamento.get(CHAVE)).toBeUndefined();
+    expect((await armazenamento.get(CHAVE))?.sincronizado).toBe(true);
 
     fila.agendar(payload('depois do cancelamento'));
     await vi.advanceTimersByTimeAsync(5000);
@@ -226,5 +226,54 @@ describe('fila de autosave', () => {
 
     window.removeEventListener('online', fila.aoVoltarConexao);
     fila.encerrar();
+  });
+
+  it('marca a cópia como sincronizada só depois do sucesso do servidor, e como não sincronizada a cada digitação', async () => {
+    const armazenamento = memoria();
+    const envio = adiado<{ id: string; atualizado_em: string }>();
+    const salvar = vi
+      .fn<(p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>>()
+      .mockImplementationOnce(() => envio.promessa)
+      .mockImplementation(async () => RETORNO());
+    const fila = criarFilaAutosave({ salvar, armazenamento, chave: CHAVE });
+
+    fila.agendar(payload('v1'));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await armazenamento.get(CHAVE))?.sincronizado).toBe(false);
+
+    // Digitação durante o envio: o sucesso de v1 NÃO pode marcar a cópia (v2) como sincronizada.
+    fila.agendar(payload('v2'));
+    envio.resolver(RETORNO());
+    await vi.advanceTimersByTimeAsync(0);
+    const durante = await armazenamento.get(CHAVE);
+    expect(durante?.dados.conduta).toBe('v2');
+    expect(durante?.sincronizado).toBe(false);
+
+    await fila.forcar();
+    const depois = await armazenamento.get(CHAVE);
+    expect(depois?.dados.conduta).toBe('v2');
+    expect(depois?.sincronizado).toBe(true);
+
+    fila.agendar(payload('v3'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect((await armazenamento.get(CHAVE))?.sincronizado).toBe(false);
+    fila.encerrar();
+  });
+
+  it('falha do servidor deixa a cópia não sincronizada', async () => {
+    const armazenamento = memoria();
+    const salvar = vi.fn<(p: PayloadRascunho) => Promise<{ id: string; atualizado_em: string }>>().mockRejectedValue(new Error('rede'));
+    const fila = criarFilaAutosave({ salvar, armazenamento, chave: CHAVE });
+    fila.agendar(payload('x'));
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await armazenamento.get(CHAVE))?.sincronizado).toBe(false);
+  });
+
+  it('cópia local já sincronizada ou antiga sem marcador: sincronizada perde para o servidor, sem marcador vence', () => {
+    const base = { ...payload('local'), salvoLocalEm: '2026-10-25T11:00:00.000Z' };
+    const servidor = { dados: { ...rascunhoMedicaVazio(), conduta: 'servidor' }, textoLivre: '' };
+    expect(resolverRascunho({ ...base, sincronizado: true }, servidor)?.origem).toBe('servidor');
+    expect(resolverRascunho({ ...base, sincronizado: false }, servidor)?.origem).toBe('local');
+    expect(resolverRascunho(base, servidor)?.origem).toBe('local');
   });
 });

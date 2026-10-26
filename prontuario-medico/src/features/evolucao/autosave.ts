@@ -3,8 +3,11 @@ import type { DadosMedica } from './modelos/medica';
 
 export type PayloadRascunho<D = DadosMedica> = { internacaoId: string; dados: D; textoLivre: string };
 
-/** Cópia local: existe só enquanto o último envio não foi confirmado pelo servidor. */
-export type CopiaLocal<D = DadosMedica> = PayloadRascunho<D> & { salvoLocalEm: string };
+/**
+ * Cópia local do rascunho. `sincronizado: true` só depois que o servidor confirmou esta mesma versão;
+ * ausente (registro antigo) ou false conta como NÃO sincronizado e nunca é apagado na saída da sessão.
+ */
+export type CopiaLocal<D = DadosMedica> = PayloadRascunho<D> & { salvoLocalEm: string; sincronizado?: boolean };
 
 export type Armazenamento<D = DadosMedica> = {
   get(chave: string): Promise<CopiaLocal<D> | undefined>;
@@ -98,7 +101,10 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
         versaoSalva = versaoEnviada;
         // Se houve digitação depois deste envio, a cópia local e o timer novos continuam valendo.
         if (versaoEnviada === versao) {
-          await armazenamento.del(chave);
+          // Marca como sincronizada na mesma cadeia das gravações locais: nenhuma gravação mais nova é sobrescrita.
+          const marcada: CopiaLocal<D> = { ...enviado, salvoLocalEm: new Date().toISOString(), sincronizado: true };
+          gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, marcada)).catch(() => {});
+          await gravacaoLocal;
           mudar('salvo');
         }
       } catch (erro) {
@@ -116,7 +122,7 @@ export function criarFilaAutosave<D = DadosMedica>(opts: OpcoesFila<D>): FilaAut
       if (cancelado) return;
       atual = p;
       versao += 1;
-      const copia: CopiaLocal<D> = { ...p, salvoLocalEm: new Date().toISOString() };
+      const copia: CopiaLocal<D> = { ...p, salvoLocalEm: new Date().toISOString(), sincronizado: false };
       gravacaoLocal = gravacaoLocal.then(() => armazenamento.set(chave, copia));
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -189,14 +195,14 @@ export type RascunhoResolvido<D = DadosMedica> = {
 };
 
 /**
- * Ao abrir o form: se existe cópia local, ela vence. Ela só existe quando o último envio não
- * completou, então é mais nova que o servidor por definição. Sem comparação de relógios.
+ * Ao abrir o form: cópia local não sincronizada vence o servidor: é mais nova por definição. Sem comparação de relógios.
  */
 export function resolverRascunho<D = DadosMedica>(
   local: CopiaLocal<D> | undefined,
   servidor: { dados: D; textoLivre: string } | null,
 ): RascunhoResolvido<D> | null {
-  if (local) return { origem: 'local', dados: local.dados, textoLivre: local.textoLivre };
+  // Cópia já confirmada pelo servidor não vence: o servidor pode ter versão mais nova (outro aparelho).
+  if (local && local.sincronizado !== true) return { origem: 'local', dados: local.dados, textoLivre: local.textoLivre };
   if (servidor) return { origem: 'servidor', dados: servidor.dados, textoLivre: servidor.textoLivre };
   return null;
 }

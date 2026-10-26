@@ -1,10 +1,11 @@
-import { del, keys } from 'idb-keyval'
+import { del, get, keys } from 'idb-keyval'
 
 export type FilaRegistravel = {
   /** Chave IndexedDB da cópia local desta fila (`rascunho:<internação>:<usuário>`). */
   chave: string
   forcar(): Promise<void>
   cancelar(): Promise<void>
+  reabrir(): void
 }
 
 export type ResultadoFilas = { salvas: FilaRegistravel[]; naoSalvas: FilaRegistravel[] }
@@ -43,27 +44,60 @@ export async function aguardarFilas(timeoutMs: number): Promise<ResultadoFilas> 
   return { salvas: todas.filter((f) => ok.has(f)), naoSalvas: todas.filter((f) => !ok.has(f)) }
 }
 
-/**
- * Cancela as filas (nenhuma escrita tardia recria chave) e apaga as cópias locais, exceto as das filas
- * não sincronizadas: perder o único exemplar de um rascunho clínico é pior que deixá-lo no aparelho.
- * Devolve true se alguma cópia não sincronizada ficou guardada.
- */
-export async function finalizarSaida(r: ResultadoFilas): Promise<boolean> {
-  r.naoSalvas.forEach((f) => void f.cancelar().catch(() => {}))
-  await Promise.all(r.salvas.map((f) => f.cancelar().catch(() => {})))
-  await limparCopiasLocais(r.naoSalvas.map((f) => f.chave))
-  return r.naoSalvas.length > 0
+/** Cancela as filas registradas (nenhuma escrita tardia recria chave). Não espera filas travadas na rede. */
+export async function cancelarFilas(): Promise<void> {
+  const todas = [...filas]
+  const esperar = todas.map((f) => f.cancelar().catch(() => {}))
+  await Promise.race([Promise.all(esperar), new Promise<void>((r) => setTimeout(r, 2000))])
 }
 
-/** Apaga as cópias locais de rascunho (IndexedDB, chaves `rascunho:*`), exceto `manter`. Falha de IndexedDB não impede o logout. */
-export async function limparCopiasLocais(manter: readonly string[] = []): Promise<void> {
+/** Devolve as filas ao normal quando a saída falhou: o usuário volta a editar e o autosave a enviar. */
+export function reabrirFilas(): void {
+  filas.forEach((f) => f.reabrir())
+}
+
+/** Chaves `rascunho:*` cuja cópia NÃO está marcada como sincronizada (registro sem marcador conta como não sincronizado). */
+async function chavesRascunho(): Promise<string[]> {
+  const todas = await keys()
+  return todas.filter((k): k is string => typeof k === 'string' && k.startsWith('rascunho:'))
+}
+
+function sincronizada(registro: unknown): boolean {
+  return typeof registro === 'object' && registro !== null && (registro as { sincronizado?: unknown }).sincronizado === true
+}
+
+/** Há cópia local (de qualquer aba ou fila) ainda não confirmada pelo servidor? Em dúvida (erro de IndexedDB), responde false. */
+export async function haCopiaNaoSincronizada(): Promise<boolean> {
   try {
-    const todas = await keys()
-    await Promise.all(
-      todas
-        .filter((k) => typeof k === 'string' && k.startsWith('rascunho:') && !manter.includes(k))
-        .map((k) => del(k)),
-    )
+    for (const k of await chavesRascunho()) {
+      if (!sincronizada(await get(k))) return true
+    }
+  } catch {
+    // IndexedDB indisponível: não há cópia a preservar.
+  }
+  return false
+}
+
+/**
+ * Fecha a saída: cancela as filas, apaga as cópias já sincronizadas e devolve true se sobrou alguma
+ * cópia (não sincronizada) neste aparelho. A decisão é por chave, na hora de apagar.
+ */
+export async function finalizarSaida(): Promise<boolean> {
+  await cancelarFilas()
+  await limparCopiasLocais()
+  return haCopiaNaoSincronizada()
+}
+
+/**
+ * Apaga as cópias locais de rascunho (IndexedDB, `rascunho:*`) que o servidor já confirmou. Cópias sem
+ * marcador ou não sincronizadas (inclusive de outras abas e filas desmontadas) ficam: perder o único
+ * exemplar de um rascunho clínico é pior que deixá-lo no aparelho. Falha de IndexedDB não impede o logout.
+ */
+export async function limparCopiasLocais(): Promise<void> {
+  try {
+    for (const k of await chavesRascunho()) {
+      if (sincronizada(await get(k))) await del(k)
+    }
   } catch {
     // IndexedDB indisponível: não há cópia a apagar.
   }

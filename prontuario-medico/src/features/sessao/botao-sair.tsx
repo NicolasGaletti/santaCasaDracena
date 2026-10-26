@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { sairLimpando, sincronizarAntesDeSair } from './encerrar'
-import type { ResultadoFilas } from './limpeza'
+import { haCopiaNaoSincronizada } from './limpeza'
 
 /**
  * "Sair" que envia o rascunho pendente e apaga as cópias locais já sincronizadas. Se algo não puder ser
@@ -23,20 +23,21 @@ export function BotaoSair({
   variant = 'outline',
 }: Pick<ComponentProps<typeof Button>, 'className' | 'variant'> & { formClassName?: string }) {
   const [ocupado, setOcupado] = useState(false)
-  const [resultado, setResultado] = useState<ResultadoFilas | null>(null)
+  const [resultado, setResultado] = useState(false)
 
   async function aoEnviar(e: FormEvent) {
     e.preventDefault()
     if (ocupado) return
     setOcupado(true)
     try {
-      const r = await sincronizarAntesDeSair()
-      if (r.naoSalvas.length > 0) {
-        setResultado(r)
+      await sincronizarAntesDeSair()
+      // Decisão pelo que há no IndexedDB (qualquer aba/fila), não só pelas filas desta página.
+      if (await haCopiaNaoSincronizada()) {
+        setResultado(true)
         setOcupado(false)
         return
       }
-      await sairLimpando(r)
+      await sairLimpando()
     } catch {
       setOcupado(false)
     }
@@ -46,7 +47,7 @@ export function BotaoSair({
     if (!resultado || ocupado) return
     setOcupado(true)
     try {
-      await sairLimpando(resultado)
+      await sairLimpando()
     } catch {
       setOcupado(false)
     }
@@ -59,7 +60,7 @@ export function BotaoSair({
           Sair
         </Button>
       </form>
-      <Dialog open={resultado !== null} onOpenChange={(aberto) => !aberto && !ocupado && setResultado(null)}>
+      <Dialog open={resultado} onOpenChange={(aberto) => !aberto && !ocupado && setResultado(false)}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Há alterações que ainda não foram salvas no servidor.</DialogTitle>
@@ -71,7 +72,7 @@ export function BotaoSair({
             <Button type="button" variant="outline" disabled={ocupado} onClick={sairMesmoAssim}>
               Sair mesmo assim
             </Button>
-            <Button type="button" autoFocus disabled={ocupado} onClick={() => setResultado(null)}>
+            <Button type="button" autoFocus disabled={ocupado} onClick={() => setResultado(false)}>
               Continuar editando
             </Button>
           </DialogFooter>

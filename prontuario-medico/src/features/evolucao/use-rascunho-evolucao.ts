@@ -77,7 +77,7 @@ export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVa
 
   useEffect(() => {
     window.addEventListener('online', fila.aoVoltarConexao)
-    const desregistrar = registrarFila({ chave, forcar: () => fila.forcar(), cancelar: () => fila.cancelar() })
+    const desregistrar = registrarFila({ chave, forcar: () => fila.forcar(), cancelar: () => fila.cancelar(), reabrir: () => fila.reabrir() })
     return () => {
       desregistrar()
       window.removeEventListener('online', fila.aoVoltarConexao)

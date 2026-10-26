@@ -47,8 +47,8 @@ async function listarChaves(page: Page): Promise<string[]> {
 
 test('logout limpa cópias locais', async ({ page }) => {
   await entrar(page, 'medico1@teste.local');
-  await gravarChave(page, 'rascunho:i-1:u-1', { dados: {}, textoLivre: 'segredo' });
-  await gravarChave(page, 'rascunho:i-2:u-1', { dados: {}, textoLivre: 'outro' });
+  await gravarChave(page, 'rascunho:i-1:u-1', { dados: {}, textoLivre: 'segredo', sincronizado: true });
+  await gravarChave(page, 'rascunho:i-2:u-1', { dados: {}, textoLivre: 'outro', sincronizado: true });
   expect((await listarChaves(page)).filter((c) => c.startsWith('rascunho:'))).toHaveLength(2);
 
   await page.getByRole('button', { name: 'Sair' }).click();
