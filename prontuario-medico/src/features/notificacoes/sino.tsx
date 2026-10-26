@@ -69,7 +69,7 @@ export function Sino({ usuarioId, inicial }: Props) {
     <Link
       href="/notificacoes"
       aria-label={total > 0 ? `Notificações, ${total} não lidas` : 'Notificações'}
-      className="relative inline-flex size-11 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted"
+      className="relative inline-flex size-11 items-center justify-center rounded-md text-current transition-colors hover:bg-white/10"
     >
       <Bell aria-hidden className="size-6" />
       {total > 0 && (

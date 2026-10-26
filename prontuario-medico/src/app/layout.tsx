@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Atkinson_Hyperlegible } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { SerwistProvider } from "@serwist/turbopack/react";
 import { Toaster } from "@/components/ui/sonner";
 
-const atkinson = Atkinson_Hyperlegible({
-  variable: "--font-atkinson",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "700"],
+  display: "swap",
+});
+
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -18,7 +25,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${atkinson.variable} h-full antialiased`}>
+    <html lang="pt-BR" className={`${inter.variable} ${poppins.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <SerwistProvider swUrl="/sw.js" cacheOnNavigation={false} reloadOnOnline={false}>
           {children}

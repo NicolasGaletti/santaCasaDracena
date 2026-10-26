@@ -22,6 +22,12 @@ type Props = {
   children: ReactNode
 }
 
+function iniciais(nome: string) {
+  const partes = nome.trim().replace(/\([^)]*\)/g, '').split(/\s+/).filter((p) => /^\p{L}/u.test(p) && !/^(dr|dra|prof|profa)\.?$/i.test(p))
+  const letras = partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : (partes[0] ?? '?').slice(0, 2)
+  return letras.toUpperCase()
+}
+
 const PERFIS_QUE_ADMITEM = ['medico', 'recepcao'] as const
 const PERFIS_NAO_CLINICOS = ['recepcao', 'admin'] as const
 
@@ -63,23 +69,28 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
-          <div className="min-w-0">
-            <p className="truncate font-bold text-foreground">{profissional.nome}</p>
-            <p className="text-sm text-muted-foreground">{identificacao}</p>
+      <header className="bg-cabecalho text-cabecalho-foreground">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-decorativo font-heading text-sm font-bold">
+              {iniciais(profissional.nome)}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-heading font-bold">{profissional.nome}</p>
+              <p className="truncate text-[13px] text-cabecalho-suave">{identificacao}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {!admin && usuarioId && <Sino usuarioId={usuarioId} inicial={naoLidas} />}
             <Link
               href="/conta/seguranca"
               aria-label="Conta e segurança"
-              className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md px-2.5 text-foreground transition-colors hover:bg-muted"
+              className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md px-2.5 transition-colors hover:bg-white/10"
             >
               <UserRound aria-hidden className="size-6" />
               <span className="hidden text-sm font-medium lg:inline">Segurança</span>
             </Link>
-            <BotaoSair />
+            <BotaoSair className="border-slate-600 bg-transparent text-cabecalho-foreground hover:bg-white/10 hover:text-cabecalho-foreground" />
           </div>
         </div>
       </header>
@@ -102,10 +113,10 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
                   key={item.href}
                   href={item.href}
                   aria-current={ativo ? 'page' : undefined}
-                  className={`inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-md px-3 font-semibold sm:px-4 transition-colors ${
+                  className={`inline-flex min-h-11 shrink-0 snap-start items-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors ${
                     ativo
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'border border-border bg-card text-texto-forte hover:bg-muted'
                   }`}
                 >
                   <span className="sm:hidden">{item.rotuloCurto}</span>
@@ -120,7 +131,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
             })}
           </nav>
           {podeAdmitir && pathname === '/' && (
-            <Button asChild size="lg" className="w-full lg:w-auto">
+            <Button asChild variant="primaria" size="lg" className="w-full lg:w-auto">
               <Link href="/internacoes/nova">Admitir paciente</Link>
             </Button>
           )}

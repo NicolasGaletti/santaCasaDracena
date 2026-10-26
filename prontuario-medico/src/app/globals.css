@@ -6,56 +6,78 @@
 
 /*
  * Tokens de design (Santa Casa Dracena).
- * Paleta: papel frio + tinta petróleo. Sem teal do protótipo.
- * Contrastes WCAG AA verificados: texto >= 6:1, borda de controle 4.2:1.
+ * Paleta do protótipo aprovado (Plano 5): slate + teal.
+ * Texto com contraste AA; a borda do campo segue o desenho (slate-300).
  * Só modo claro: o uso noturno vem do brilho do dispositivo, não de um tema escuro.
  */
 :root {
   color-scheme: light;
 
-  /* Superfícies e texto */
-  --background: #f4f6f4;
-  --foreground: #17232b;
+  /* Superfícies e texto (slate) */
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
   --card: #ffffff;
-  --card-foreground: #17232b;
+  --card-foreground: #0f172a;
   --popover: #ffffff;
-  --popover-foreground: #17232b;
-  --muted: #edf1f2;
-  --muted-foreground: #4b5b64;
+  --popover-foreground: #0f172a;
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #475569; /* slate-600: texto secundário com AA sobre slate-50 e branco */
+  --texto-forte: #334155; /* slate-700 */
 
-  /* Ação principal: petróleo */
-  --primary: #1d4f63;
+  /* Ação principal: teal. Fundo teal-700 (5,5:1 com branco); teal-600 só decorativo. */
+  --primary: #0f766e; /* teal-700 */
+  --primary-hover: #115e59; /* teal-800 */
   --primary-foreground: #ffffff;
-  --secondary: #e6ebed;
-  --secondary-foreground: #17232b;
-  --accent: #dce8ec;
-  --accent-foreground: #123845;
+  --teal-decorativo: #0d9488; /* teal-600: avatar, realces sem texto pequeno */
+  --primary-suave: #f0fdfa; /* teal-50 */
+  --primary-suave-borda: #99f6e4; /* teal-200 */
+  --primary-suave-foreground: #115e59; /* teal-800 */
+  --secondary: #e2e8f0; /* slate-200 */
+  --secondary-foreground: #0f172a;
+  --accent: #ccfbf1; /* teal-100: item ativo da navegação */
+  --accent-foreground: #134e4a; /* teal-900 */
 
-  /* Erro */
-  --destructive: #9b1c1c;
-  --destructive-soft: #fbe4e4;
-  --destructive-soft-foreground: #7f1717;
+  /* Cabeçalho escuro do app e do paciente */
+  --cabecalho: #0f172a; /* slate-900 */
+  --cabecalho-foreground: #ffffff;
+  --cabecalho-suave: #cbd5e1; /* slate-300 */
+  --cabecalho-destaque: #2dd4bf; /* teal-400 */
 
-  /* Bordas, controles e foco */
-  --border: #d3dbdf;
-  --input: #6f7d86;
+  /* Erro / alta (rose) */
+  --destructive: #be123c; /* rose-700 */
+  --destructive-soft: #fff1f2; /* rose-50 */
+  --destructive-soft-foreground: #be123c;
+  --destructive-soft-borda: #fecdd3; /* rose-200 */
+
+  /* Bordas, campos e foco */
+  --border: #e2e8f0; /* slate-200 */
+  --input: #cbd5e1; /* slate-300: borda do campo */
+  --campo: #f8fafc; /* slate-50: fundo do campo */
   --ring: #a34700;
 
   /* Status clínico: sempre texto + cor, nunca só cor */
-  --status-feito-bg: #ddefe0;
-  --status-feito-fg: #1e5631;
-  --status-rascunho-bg: #fcebc4;
-  --status-rascunho-fg: #6b4300;
-  --status-nenhum-bg: #e6ebed;
-  --status-nenhum-fg: #34414a;
+  --status-feito-bg: #d1fae5; /* emerald-100 */
+  --status-feito-fg: #065f46; /* emerald-800 */
+  --status-rascunho-bg: #fffbeb; /* amber-50 */
+  --status-rascunho-fg: #92400e; /* amber-800 */
+  --status-rascunho-borda: #fde68a; /* amber-200 */
+  --status-nenhum-bg: #e2e8f0;
+  --status-nenhum-fg: #334155;
+
+  /* Cores por tipo de exame e conduta */
+  --exame-ecg: #be123c; /* rose-700 */
+  --exame-imagem: #0369a1; /* sky-700 */
+  --exame-lab: #047857; /* emerald-700 */
+  --conduta: #9a3412; /* orange-800 */
 
   /* Raios: controles 8px, cartões 12px, etiquetas 4px */
   --radius: 0.5rem;
   --radius-card: 0.75rem;
   --radius-tag: 0.25rem;
 
-  /* Tipografia: Atkinson Hyperlegible, pensada para leitura rápida */
-  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  /* Tipografia: Inter (texto) e Poppins (títulos), via next/font */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 
 @theme inline {
@@ -76,6 +98,23 @@
   --color-destructive: var(--destructive);
   --color-destructive-soft: var(--destructive-soft);
   --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-teal-decorativo: var(--teal-decorativo);
+  --color-primary-suave: var(--primary-suave);
+  --color-primary-suave-borda: var(--primary-suave-borda);
+  --color-primary-suave-foreground: var(--primary-suave-foreground);
+  --color-texto-forte: var(--texto-forte);
+  --color-cabecalho: var(--cabecalho);
+  --color-cabecalho-foreground: var(--cabecalho-foreground);
+  --color-cabecalho-suave: var(--cabecalho-suave);
+  --color-cabecalho-destaque: var(--cabecalho-destaque);
+  --color-destructive-soft-borda: var(--destructive-soft-borda);
+  --color-campo: var(--campo);
+  --color-status-rascunho-borda: var(--status-rascunho-borda);
+  --color-exame-ecg: var(--exame-ecg);
+  --color-exame-imagem: var(--exame-imagem);
+  --color-exame-lab: var(--exame-lab);
+  --color-conduta: var(--conduta);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -93,6 +132,7 @@
   --radius-tag: var(--radius-tag);
 
   --font-sans: var(--font-sans);
+  --font-heading: var(--font-heading);
 }
 
 @layer base {
@@ -101,7 +141,11 @@
   }
 
   html {
-    font-size: 17px;
+    font-size: 16px;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-heading);
   }
 
   body {
