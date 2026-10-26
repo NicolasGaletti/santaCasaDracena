@@ -65,12 +65,13 @@ async function academicoEnvia(page: Page, id: string, evolucao: string, conduta:
   await expect(page).toHaveURL(URL_PRONTUARIO);
 }
 
-test('acadêmico envia e vê Aguardando validação', async ({ page }) => {
+test('acadêmico envia e vê o aviso de aguardando validação', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.context().clearCookies();
   await academicoEnvia(page, id, 'Paciente em acompanhamento, sem intercorrências', 'Manter dieta e acompanhar');
 
-  await expect(page.getByText('Aguardando validação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
+  await expect(page.getByTestId('cartao-evolucao')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });
 
@@ -116,7 +117,7 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO);
-  await expect(page.getByText('Aguardando validação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
   expect(
     sqlLocal(`select devolvida_motivo is null from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`),
   ).toBe('t');

@@ -148,7 +148,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             </TabsTrigger>
           </TabsList>
           <TabsContent value="evolucoes">
-            <Timeline evolucoes={linhasTimeline} />
+            <Timeline evolucoes={linhasTimeline.filter((e) => e.status === 'FINALIZADA')} />
           </TabsContent>
           <TabsContent value="exames">
             <GaleriaExames anexos={anexosGaleria} />

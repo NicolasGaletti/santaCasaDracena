@@ -155,7 +155,7 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
 
   await expect(page).toHaveURL(URL_PRONTUARIO);
-  await expect(page.getByText('Aguardando validação', { exact: true })).toBeVisible();
+  await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
   expect(
     sqlLocal(
       `select count(*) from public.evolucoes where internacao_id = '${id}' and adendo_de = '${evolucaoId}' and status = 'AGUARDANDO_VALIDACAO'`,

@@ -153,14 +153,8 @@ export function CartaoEvolucao({
               Adendo
             </Badge>
           )}
-          {finalizada ? (
-            <>
-              <Badge className="shrink-0 bg-status-feito-bg px-2 text-xs text-status-feito-fg">Finalizada</Badge>
-            </>
-          ) : evolucao.status === 'AGUARDANDO_VALIDACAO' ? (
+          {evolucao.status === 'AGUARDANDO_VALIDACAO' && (
             <Badge className="shrink-0 bg-status-nenhum-bg px-2 text-xs text-status-nenhum-fg">Aguardando validação</Badge>
-          ) : (
-            <Badge className="shrink-0 bg-status-rascunho-bg px-2 text-xs text-status-rascunho-fg">Rascunho</Badge>
           )}
         </div>
       </header>

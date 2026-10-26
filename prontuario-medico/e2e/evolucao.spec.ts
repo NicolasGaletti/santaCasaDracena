@@ -156,13 +156,14 @@ test('copiar anterior preenche conduta', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'Conduta' })).toHaveValue('Conduta original E2E');
 });
 
-test('finalizar trava: sem botão de editar e badge Finalizada', async ({ page }) => {
+test('finalizar trava: sem botão de editar e sem badge Finalizada na timeline', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
   await abrirNovaEvolucao(page);
   await finalizarEvolucao(page, 'Evolução final E2E', 'Conduta final E2E');
 
-  await expect(page.getByText('Finalizada', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('cartao-evolucao')).toBeVisible();
+  await expect(page.getByText('Finalizada', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /editar/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /editar/i })).toHaveCount(0);
 });
