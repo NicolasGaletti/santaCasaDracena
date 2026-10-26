@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatarData, hojeSP, idade } from './datas';
+import { diasEntre, formatarData, hojeSP, idade } from './datas';
 
 describe('datas', () => {
   it('idade em fuso SP', () => {
@@ -18,3 +18,10 @@ describe('datas', () => {
     expect(formatarData('2000-01-05')).toBe('05/01/2000');
   });
 });
+
+describe('diasEntre', () => {
+  it('conta dias pelo calendário de São Paulo', () => {
+    expect(diasEntre('2026-08-05T10:00:00-03:00', new Date('2026-08-05T20:00:00-03:00'))).toBe(0)
+    expect(diasEntre('2026-08-02T23:30:00-03:00', new Date('2026-08-05T00:10:00-03:00'))).toBe(3)
+  })
+})

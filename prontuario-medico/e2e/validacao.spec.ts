@@ -56,14 +56,14 @@ async function clienteComo(email: string): Promise<SupabaseClient> {
 async function academicoEnvia(page: Page, id: string, evolucao: string, conduta: string) {
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill(conduta);
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de enviada, a evolução só pode ser alterada se o médico devolver.');
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 }
 
 test('acadêmico envia e vê o aviso de aguardando validação', async ({ page }) => {
@@ -82,12 +82,13 @@ test('após enviar não há formulário editável', async ({ page }) => {
   await academicoEnvia(page, id, 'Evolução enviada para revisão', 'Conduta enviada');
 
   await page.goto(`/internacoes/${id}/evolucao`);
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  await expect(page).toHaveURL(new RegExp(`/internacoes/${id}#ficha$`));
   await expect(page.getByLabel('Evolução clínica')).toHaveCount(0);
 
   await page.goto(`/internacoes/${id}`);
   await expect(page.getByRole('link', { name: 'Nova evolução' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Nova evolução' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Nova evolução' })).toHaveCount(0);
+  await expect(page.getByLabel('Evolução clínica')).toHaveCount(0);
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
 });
 
@@ -108,8 +109,7 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Continuar rascunho' }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
   await expect(page.getByText(/Devolvida por \S+/)).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Evolução para devolver');
@@ -118,7 +118,8 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
   await page.getByLabel('Evolução clínica').fill('Evolução corrigida com a dose do diurético');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
   expect(
     sqlLocal(`select devolvida_motivo is null from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`),
@@ -130,7 +131,6 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
   await page.context().clearCookies();
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
 
   await page.route('**/storage/v1/object/**', (r) => r.abort());
   await anexarPeloCampo(page, 'IMAGEM', FOTO);
@@ -142,7 +142,7 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
 
   await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de enviar.')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
 });
 
 test.describe.serial('tela de validação do médico', () => {
@@ -232,7 +232,6 @@ test.describe.serial('tela de validação do médico', () => {
     await page.context().clearCookies();
     await entrar(page, 'academico@teste.local');
     await page.goto(`/internacoes/${id}`);
-    await page.getByRole('link', { name: 'Continuar rascunho' }).click();
     await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
   });
 
@@ -264,15 +263,15 @@ test.describe.serial('validação: anexos e menu', () => {
     await page.context().clearCookies();
     await entrar(page, 'academico@teste.local');
     await page.goto(`/internacoes/${id}`);
-    await page.getByRole('link', { name: 'Nova evolução' }).click();
-    await expect(page).toHaveURL(/\/evolucao$/);
+    await expect(page.locator('#ficha')).toBeVisible();
     await page.getByLabel('Evolução clínica').fill('Evolução com foto');
     await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com foto');
     await anexarPeloCampo(page, 'IMAGEM', path.join(__dirname, 'fixtures', 'exame.jpg'));
     await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 });
     await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
     await page.getByRole('button', { name: 'Confirmar envio' }).click();
-    await expect(page).toHaveURL(URL_PRONTUARIO);
+    // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+    await expect(page.getByRole('dialog')).toBeHidden();
 
     await page.context().clearCookies();
     await entrar(page, 'medico1@teste.local');
@@ -323,7 +322,8 @@ test('médico vê a original do adendo na validação', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   const adendoId = sqlLocal(
     `select id from public.evolucoes where internacao_id = '${id}' and adendo_de = '${originalId}' and status = 'AGUARDANDO_VALIDACAO'`,
   );

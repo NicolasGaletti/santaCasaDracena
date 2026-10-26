@@ -1,4 +1,8 @@
+import { Lock, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { PilulaStatus } from '@/components/layout/barra-acoes'
+import { GaleriaExames } from '@/features/anexos/galeria-exames'
+import type { AnexoGaleria } from '@/features/anexos/consultas'
 import { BotaoAdendo } from './botao-adendo'
 import { BotaoImprimirEvolucao } from './botao-imprimir'
 import type { DadosMedica } from './modelos/medica'
@@ -98,19 +102,42 @@ const ROTULO_SINAIS: [keyof DadosMedica['sinais'], string][] = [
   ['diurese', 'Diurese'],
 ]
 
-/** Seção de exame preenchida, para o filtro da timeline. */
+/** Cor do rótulo de cada campo, pelos tokens de exame e conduta. */
+const COR_ROTULO: Partial<Record<string, string>> = {
+  ecg: 'text-exame-ecg',
+  exames_imagem: 'text-exame-imagem',
+  exames_laboratoriais: 'text-exame-lab',
+  conduta: 'text-conduta',
+  evolucao_clinica: 'text-primary-suave-foreground',
+}
+
+/** Seção de exame preenchida, para as abas de ECG, imagem e laboratório. */
 export function temSecao(d: DadosMedica, secao: SecaoExame): boolean {
   return d[secao].trim() !== ''
+}
+
+type Bloco = { chave: string; rotulo: string; valor: string }
+
+function BlocoTexto({ b, destaque = false }: { b: Bloco; destaque?: boolean }) {
+  return (
+    <section className={destaque ? 'min-w-0 rounded-md border border-border bg-campo p-3' : 'min-w-0'}>
+      <h4 className={`text-[12px] font-bold ${COR_ROTULO[b.chave] ?? 'text-texto-forte'}`}>{b.rotulo}</h4>
+      <p className="mt-0.5 text-[13px] break-words whitespace-pre-line text-foreground [overflow-wrap:anywhere]">{b.valor}</p>
+    </section>
+  )
 }
 
 export function CartaoEvolucao({
   evolucao,
   secao,
   ocultarAcoes = false,
+  anexosOutros = [],
 }: {
   evolucao: EvolucaoTimeline
   secao?: SecaoExame
   ocultarAcoes?: boolean
+  /** Anexos antigos do tipo OUTRO desta evolução. */
+  anexosOutros?: AnexoGaleria[]
 }) {
   const d = lerDadosMedica(evolucao.dados)
   const finalizada = evolucao.status === 'FINALIZADA'
@@ -119,48 +146,67 @@ export function CartaoEvolucao({
   const simples = evolucao.categoria !== 'medica' ? lerDadosSimples(evolucao.dados) : null
   const sinais = simples ? simples.sinais : d.sinais
   const sinaisPreenchidos = ROTULO_SINAIS.filter(([k]) => sinais[k] !== null && sinais[k] !== '')
-  const blocos: { chave: string; rotulo: string; valor: string }[] = simples
+  const preenchido = (chave: string) => String(d[chave as keyof DadosMedica] ?? '').trim() !== ''
+  const bloco = (chave: string): Bloco => {
+    const s = SECOES.find((x) => x.chave === chave)!
+    return { chave, rotulo: s.rotulo, valor: String(d[chave as keyof DadosMedica]) }
+  }
+
+  const blocosSimples: Bloco[] = simples
     ? [
         { chave: 'texto', rotulo: 'Evolução', valor: simples.texto },
         { chave: 'plano', rotulo: 'Plano', valor: simples.plano },
       ].filter((b) => b.valor.trim() !== '')
-    : secao
-      ? SECOES.filter((s) => s.chave === secao).map((s) => ({ chave: s.chave, rotulo: s.rotulo, valor: String(d[s.chave as keyof DadosMedica]) }))
-      : SECOES.filter((s) => d[s.chave as keyof DadosMedica] && String(d[s.chave as keyof DadosMedica]).trim() !== '').map((s) => ({
-          chave: s.chave,
-          rotulo: s.rotulo,
-          valor: String(d[s.chave as keyof DadosMedica]),
-        }))
+    : []
+  // Resumo (diagnóstico, comorbidades, exames) em colunas; evolução e conduta em seguida.
+  const resumo = simples || secao ? [] : ['diagnosticos', 'ecg', 'exames_imagem', 'exames_laboratoriais'].filter(preenchido).map(bloco)
+  const comorbidades: Bloco | null =
+    !simples && !secao && d.comorbidades.trim() ? { chave: 'comorbidades', rotulo: 'Comorbidades', valor: d.comorbidades } : null
+  if (comorbidades) resumo.splice(Math.min(1, resumo.length), 0, comorbidades)
+  const corpo = simples || secao ? [] : ['evolucao_clinica'].filter(preenchido).map(bloco)
+  const conduta = !simples && !secao && preenchido('conduta') ? bloco('conduta') : null
+  const soSecao = secao ? [bloco(secao)] : []
+  const vazio = !secao && !simples && resumo.length + corpo.length === 0 && !conduta
+  const semBlocos = vazio && blocosSimples.length === 0
 
   return (
     <article
       data-testid="cartao-evolucao"
       aria-labelledby={`evolucao-${evolucao.id}`}
-      className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 text-card-foreground"
+      className="flex min-w-0 flex-col gap-3 rounded-lg border border-l-4 border-border border-l-teal-decorativo bg-card p-4 text-card-foreground"
     >
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h3 id={`evolucao-${evolucao.id}`} className="font-bold leading-snug">
-            {evolucao.autor_nome ?? 'Autor não identificado'}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {formatarDataHora(data)} · {ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria}
-          </p>
-        </div>
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
-          {evolucao.adendo_de && (
-            <Badge data-testid="rotulo-adendo" variant="outline" className="shrink-0 px-2 text-xs">
-              Adendo
-            </Badge>
-          )}
-          {evolucao.status === 'AGUARDANDO_VALIDACAO' && (
-            <Badge className="shrink-0 bg-status-nenhum-bg px-2 text-xs text-status-nenhum-fg">Aguardando validação</Badge>
-          )}
-        </div>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h3 id={`evolucao-${evolucao.id}`} className="min-w-0 text-sm font-bold">
+          {formatarDataHora(data)}
+        </h3>
+        {finalizada ? (
+          <PilulaStatus tipo="finalizada">
+            <Lock aria-hidden />
+            Finalizada
+          </PilulaStatus>
+        ) : (
+          evolucao.status === 'AGUARDANDO_VALIDACAO' && <PilulaStatus tipo="aguardando">Aguardando validação</PilulaStatus>
+        )}
+        {evolucao.adendo_de && (
+          <Badge data-testid="rotulo-adendo" variant="outline" className="shrink-0 px-2 text-xs">
+            Adendo
+          </Badge>
+        )}
+        <span className="ml-auto max-w-full truncate rounded bg-muted px-2 py-0.5 text-[12px] text-texto-forte">
+          {ROTULO_CATEGORIA[evolucao.categoria] ?? evolucao.categoria}
+        </span>
       </header>
 
+      {resumo.length > 0 && (
+        <div className={`grid gap-3 ${resumo.length > 1 ? 'sm:grid-cols-3' : ''}`}>
+          {resumo.map((b) => (
+            <BlocoTexto key={b.chave} b={b} />
+          ))}
+        </div>
+      )}
+
       {!secao && sinaisPreenchidos.length > 0 && (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px] sm:grid-cols-4">
           {sinaisPreenchidos.map(([k, rotulo]) => (
             <div key={k} className="flex gap-1">
               <dt className="text-muted-foreground">{rotulo}:</dt>
@@ -170,26 +216,40 @@ export function CartaoEvolucao({
         </dl>
       )}
 
-      {blocos.map((b) => (
-        <section key={b.chave} className="flex flex-col gap-1">
-          <h4 className="text-sm font-bold text-muted-foreground">{b.rotulo}</h4>
-          <p className="whitespace-pre-line break-words">{b.valor}</p>
-        </section>
+      {[...corpo, ...blocosSimples.slice(0, 1)].map((b) => (
+        <BlocoTexto key={b.chave} b={b} destaque />
+      ))}
+      {conduta && <BlocoTexto b={conduta} />}
+      {blocosSimples.slice(1).map((b) => (
+        <BlocoTexto key={b.chave} b={b} />
+      ))}
+      {soSecao.map((b) => (
+        <BlocoTexto key={b.chave} b={b} destaque />
       ))}
 
-      {!secao && blocos.length === 0 && (
+      {!secao && semBlocos && (
         <p className="text-sm text-muted-foreground">
           {evolucao.texto_livre.trim() ? evolucao.texto_livre : 'Sem registros nesta evolução.'}
         </p>
       )}
 
-      {finalizada && !ocultarAcoes && (
-        <footer className="flex flex-wrap gap-2">
-          <BotaoImprimirEvolucao evolucaoId={evolucao.id} />
-          {(evolucao.qtd_anexos ?? 0) > 0 && <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />}
-          {evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
-        </footer>
+      {anexosOutros.length > 0 && (
+        <section aria-label="Outros anexos" className="grid gap-2">
+          <h4 className="text-[12px] font-bold text-texto-forte">Outros anexos</h4>
+          <GaleriaExames anexos={anexosOutros} tipo="OUTRO" />
+        </section>
       )}
+
+      <footer className="flex flex-wrap items-center gap-2">
+        <p className="flex min-w-0 max-w-full items-center gap-1 text-[12px] text-muted-foreground sm:mr-auto">
+          <UserRound aria-hidden className="size-3.5 shrink-0" />
+          <span className="min-w-0 truncate">{evolucao.autor_nome ?? 'Autor não identificado'}</span>
+        </p>
+        {/* Sem contêiner extra: o erro do adendo ocupa a linha inteira abaixo dos botões. */}
+        {finalizada && !ocultarAcoes && <BotaoImprimirEvolucao evolucaoId={evolucao.id} />}
+        {finalizada && !ocultarAcoes && (evolucao.qtd_anexos ?? 0) > 0 && <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />}
+        {finalizada && !ocultarAcoes && evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
+      </footer>
     </article>
   )
 }

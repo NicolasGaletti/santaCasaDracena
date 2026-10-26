@@ -40,13 +40,13 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 /** Cria e finaliza uma evolução médica; devolve o id (do link "Imprimir" no cartão). */
 async function finalizarEvolucao(page: Page, internacaoId: string, texto: string): Promise<string> {
   await page.goto(`/internacoes/${internacaoId}`)
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
-  await expect(page).toHaveURL(/\/evolucao$/)
+  await expect(page.locator('#ficha')).toBeVisible()
   await page.getByLabel('Evolução clínica').fill(texto)
   await page.getByRole('textbox', { name: 'Conduta' }).fill(`Conduta de ${texto}`)
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar finalização' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden()
   const link = page.locator('a[href$="/pdf"]').first()
   await expect(link).toBeVisible()
   const id = (await link.getAttribute('href'))?.match(UUID)?.[0]
@@ -83,7 +83,6 @@ test('PDF de finalizada responde 200 application/pdf', async ({ page }) => {
 test('PDF de rascunho responde 404', async ({ page }) => {
   const internacao = await admitirPaciente(page, leitoUnico())
   await page.goto(`/internacoes/${internacao}`)
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
   await page.getByLabel('Evolução clínica').fill('Rascunho que não pode ser impresso')
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 })
   // Rascunho não aparece na timeline: o id vem do banco.
@@ -169,8 +168,7 @@ test('mesma chave de impressão repetida não gera nova via', async ({ page }) =
 /** Cria evolução com foto (Imagem, "Foto do exame") e PDF (Laboratório, "Hemograma completo") e finaliza. */
 async function finalizarComAnexos(page: Page, internacaoId: string, texto: string): Promise<string> {
   await page.goto(`/internacoes/${internacaoId}`)
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
-  await expect(page).toHaveURL(/\/evolucao$/)
+  await expect(page.locator('#ficha')).toBeVisible()
   await anexarPeloCampo(page, 'IMAGEM', FOTO, 'Foto do exame')
   await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 })
   await anexarPeloCampo(page, 'LABORATORIO', PDF, 'Hemograma completo')
@@ -244,12 +242,12 @@ test('PDF de evolução de acadêmico mostra Acadêmico(a) e validador', async (
   await page.context().clearCookies()
   await entrar(page, 'academico@teste.local')
   await page.goto(`/internacoes/${internacao}`)
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
   await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico')
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico')
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar envio' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden()
 
   await medicoValida(page, leito)
   const consultaId = `select id from public.evolucoes where internacao_id = '${internacao}' and status = 'FINALIZADA'`
@@ -270,12 +268,12 @@ test('PDF de enfermagem validado pelo médico: título, Registrado por e Validad
   await page.context().clearCookies()
   await entrar(page, 'enfermeira@teste.local')
   await page.goto(`/internacoes/${internacao}`)
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
   await page.locator('#ev-texto').fill('Paciente sem queixas de dor')
   await page.locator('#ev-plano').fill('Curativo a cada 24 horas')
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar envio' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden()
 
   await medicoValida(page, leito)
   const id = sqlLocal(`select id from public.evolucoes where internacao_id = '${internacao}' and status = 'FINALIZADA'`)
@@ -298,7 +296,8 @@ test('PDF de adendo tem título com data e código da original', async ({ page }
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo para PDF')
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar finalização' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden()
 
   const adendo = sqlLocal(`select id from public.evolucoes where adendo_de = '${original}' and status = 'FINALIZADA'`)
   const resposta = await page.request.get(`/evolucoes/${adendo}/pdf`)

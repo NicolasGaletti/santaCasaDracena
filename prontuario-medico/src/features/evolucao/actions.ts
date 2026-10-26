@@ -66,7 +66,7 @@ export async function criarAdendo(evolucaoId: string): Promise<{ erro?: string }
   if (error) return { erro: mensagemDeErro(error) }
 
   revalidatePath(`/internacoes/${evolucao.internacao_id}`)
-  redirect(`/internacoes/${evolucao.internacao_id}/evolucao`)
+  redirect(`/internacoes/${evolucao.internacao_id}#ficha`)
 }
 
 export async function descartar(evolucaoId: string): Promise<void> {

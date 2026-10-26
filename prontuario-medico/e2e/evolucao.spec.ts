@@ -37,8 +37,7 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 }
 
 async function abrirNovaEvolucao(page: Page) {
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
 }
 
@@ -48,7 +47,8 @@ async function finalizarEvolucao(page: Page, evolucao: string, conduta: string) 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 }
 
 test('médico escreve, recarrega e o texto continua', async ({ page }) => {
@@ -109,7 +109,7 @@ test('campos ficam bloqueados até a hidratação e liberam depois', async ({ pa
     await r.continue();
   });
 
-  await page.goto(`/internacoes/${id}/evolucao`, { waitUntil: 'commit' });
+  await page.goto(`/internacoes/${id}`, { waitUntil: 'commit' });
   const campo = page.getByLabel('Evolução clínica');
   await campo.waitFor({ state: 'attached' });
   await expect(campo).toBeDisabled();
@@ -151,19 +151,18 @@ test('copiar anterior preenche conduta', async ({ page }) => {
   await abrirNovaEvolucao(page);
   await finalizarEvolucao(page, 'Evolução de referência', 'Conduta original E2E');
 
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await page.getByRole('button', { name: 'Copiar anterior' }).click();
   await expect(page.getByRole('textbox', { name: 'Conduta' })).toHaveValue('Conduta original E2E');
 });
 
-test('finalizar trava: sem botão de editar e sem badge Finalizada na timeline', async ({ page }) => {
+test('finalizar trava: sem botão de editar e o cartão mostra a pílula Finalizada', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
   await abrirNovaEvolucao(page);
   await finalizarEvolucao(page, 'Evolução final E2E', 'Conduta final E2E');
 
   await expect(page.getByTestId('cartao-evolucao')).toBeVisible();
-  await expect(page.getByText('Finalizada', { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('cartao-evolucao').getByText('Finalizada', { exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: /editar/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /editar/i })).toHaveCount(0);
 });
@@ -249,8 +248,8 @@ test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para duplo clique');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar finalização' }).dblclick();
-
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByTestId('cartao-evolucao')).toHaveCount(1);
   await expect(alertas(page)).toHaveCount(0);
 });
@@ -334,7 +333,7 @@ test('finalizar com a ação de servidor interrompida: aviso, botão volta a fun
 
   // Só a primeira ação de servidor (a finalização) falha; as seguintes passam.
   let abortada = false;
-  await page.route('**/internacoes/**/evolucao', (r) => {
+  await page.route(/\/internacoes\/[0-9a-f-]{36}$/, (r) => {
     if (r.request().method() === 'POST' && r.request().headers()['next-action'] && !abortada) {
       abortada = true;
       return r.abort();
@@ -347,7 +346,8 @@ test('finalizar com a ação de servidor interrompida: aviso, botão volta a fun
 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   expect(abortada).toBe(true);
 });
 
@@ -373,8 +373,7 @@ test('residente da equipe evolui sem botão Finalizar', async ({ page }) => {
 
   // Internação da Clínica Médica (seed): a residente é membro da equipe.
   await page.goto('/internacoes/c0000000-0000-0000-0000-000000000003');
-  await page.getByRole('link', { name: /Nova evolução|Continuar rascunho/ }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Enviar para validação', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });
@@ -389,8 +388,7 @@ test('recepção vê o prontuário sem conteúdo clínico', async ({ page }) => 
 test('enfermeira abre formulário simples', async ({ page }) => {
   await entrar(page, 'enfermeira@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Evolução de Enfermagem' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toBeVisible();
@@ -401,7 +399,6 @@ test('enfermeira abre formulário simples', async ({ page }) => {
 test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
   await entrar(page, 'enfermeira@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
-  await page.getByRole('link', { name: /Nova evolução|Continuar rascunho/ }).click();
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.getByRole('textbox', { name: 'Evolução', exact: true }).fill('Curativo limpo, sem sinais flogísticos');
@@ -414,13 +411,13 @@ test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toHaveValue('Trocar curativo em 48 h');
   await page.getByRole('button', { name: 'Descartar rascunho' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Descartar rascunho' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // Sem rascunho, a ficha recomeça vazia e o botão de descartar some.
+  await expect(page.getByRole('button', { name: 'Descartar rascunho' })).toHaveCount(0, { timeout: 20_000 });
 });
 
 test('acadêmico abre o formulário médico sem CRM e não finaliza', async ({ page }) => {
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });

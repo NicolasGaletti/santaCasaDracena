@@ -74,7 +74,6 @@ async function abrirEvolucaoNova(page: Page) {
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
 }
 
@@ -90,7 +89,7 @@ test('Sair com rascunho não sincronizado pede confirmação e mantém a cópia 
 
   await dialogo.getByRole('button', { name: 'Continuar editando' }).click();
   await expect(dialogo).toBeHidden();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   expect((await listarChaves(page)).filter((c) => c.startsWith('rascunho:'))).toHaveLength(1);
 
   await page.getByRole('button', { name: 'Sair', exact: true }).click();

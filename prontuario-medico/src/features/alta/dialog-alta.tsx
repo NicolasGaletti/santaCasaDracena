@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -78,7 +79,8 @@ export function DialogAlta({ internacaoId }: { internacaoId: string }) {
   return (
     <Dialog open={aberto} onOpenChange={mudarAberto}>
       <DialogTrigger asChild>
-        <Button type="button" size="lg" variant="outline" className="w-full sm:w-auto">
+        <Button type="button" size="compacto" variant="alta">
+          <LogOut aria-hidden />
           Dar alta
         </Button>
       </DialogTrigger>

@@ -1,12 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { Activity, FilePenLine, Paperclip } from 'lucide-react'
 import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { MarcarAba } from '@/components/navegacao-ativa'
 import { useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import { AnexosGerais, AvisosAnexos } from '@/features/anexos/anexos-do-campo'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
@@ -26,7 +24,8 @@ type Props = {
   internacaoId: string
   userId: string
   categoria: string
-  paciente: { nome: string; leito: string }
+  /** Chamado depois de descartar o rascunho, para a ficha recomeçar vazia. */
+  aoDescartar?: (idRascunho: string) => void
   rascunho: { id: string; dados: DadosSimples; textoLivre: string; devolvidaMotivo: string | null; devolvidaPorNome?: string | null } | null
   anexos: AnexoRascunho[]
   /** Evolução original quando o rascunho é um adendo. */
@@ -34,7 +33,7 @@ type Props = {
 }
 
 /** Formulário das categorias não médicas (enfermagem, fisioterapia, nutrição, psicologia, fonoaudiologia, serviço social). */
-export function FormSimples({ internacaoId, userId, categoria, paciente, rascunho, anexos, adendo }: Props) {
+export function FormSimples({ internacaoId, userId, categoria, rascunho, anexos, adendo, aoDescartar }: Props) {
   const titulo = adendo ? tituloAdendo(adendo.finalizada_em ?? adendo.criado_em) : tituloEvolucao(categoria)
   const [brutos, setBrutos] = useState<BrutosSinais>(() => brutosDeSinais((rascunho?.dados ?? rascunhoSimplesVazio()).sinais))
   const [erros, setErros] = useState<string[]>([])
@@ -64,6 +63,7 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
     rascunho,
     dadosVazios: rascunhoSimplesVazio(),
     aoRestaurar: (d) => setBrutos(brutosDeSinais(d.sinais)),
+    aoDescartar,
   })
 
   const anexosEvolucao = useAnexosEvolucao({ iniciais: anexos, garantirRascunho })
@@ -135,32 +135,20 @@ export function FormSimples({ internacaoId, userId, categoria, paciente, rascunh
 
   return (
     <div className="flex flex-col gap-4">
-      <MarcarAba status="INTERNADO" />
-      <header className="flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-3">
-          <Link
-            href={`/internacoes/${internacaoId}`}
-            className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline"
+      {idRascunho && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="compacto"
+            className="font-semibold text-destructive hover:text-destructive"
+            disabled={enviando || anexosEvolucao.enviando}
+            onClick={() => setDescartarAberto(true)}
           >
-            ← Prontuário
-          </Link>
-          {idRascunho && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="compacto"
-              className="font-semibold text-destructive hover:text-destructive"
-              disabled={enviando || anexosEvolucao.enviando}
-              onClick={() => setDescartarAberto(true)}
-            >
-              Descartar rascunho
-            </Button>
-          )}
+            Descartar rascunho
+          </Button>
         </div>
-        <p className="min-w-0 break-words text-muted-foreground">
-          {paciente.nome} · Leito {paciente.leito}
-        </p>
-      </header>
+      )}
 
       {adendo && <OriginalAdendo original={adendo} />}
 

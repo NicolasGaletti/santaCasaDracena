@@ -46,13 +46,15 @@ type Opcoes<D> = {
   dadosVazios: D
   /** Chamado quando a cópia local vence o servidor, para o formulário sincronizar seus campos. */
   aoRestaurar?: (dados: D) => void
+  /** Chamado depois do descarte, antes da página recarregar: a ficha recomeça vazia. */
+  aoDescartar?: (idRascunho: string) => void
 }
 
 /**
  * Estado de um rascunho de evolução: autosave em IndexedDB + servidor, hidratação, salvar agora,
  * garantia de rascunho para anexos e descarte. Não conhece o modelo: quem usa decide os campos.
  */
-export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVazios, aoRestaurar }: Opcoes<D>) {
+export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVazios, aoRestaurar, aoDescartar }: Opcoes<D>) {
   const router = useRouter()
   const chave = `rascunho:${internacaoId}:${userId}`
 
@@ -150,7 +152,7 @@ export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVa
     return fila.evolucaoId
   }
 
-  /** Retorna false se o descarte falhou (a mensagem já está em `erroAcao`). Em sucesso, navega ao prontuário. */
+  /** Retorna false se o descarte falhou (a mensagem já está em `erroAcao`). Em sucesso, recarrega o prontuário. */
   async function descartarRascunho(): Promise<boolean> {
     const idRascunho = fila.evolucaoId
     if (!idRascunho) return false
@@ -167,7 +169,8 @@ export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVa
       return false
     }
     await fila.apagarCopiaLocal().catch(() => {})
-    router.push(`/internacoes/${internacaoId}`)
+    aoDescartar?.(idRascunho)
+    setEnviando(false)
     router.refresh()
     return true
   }

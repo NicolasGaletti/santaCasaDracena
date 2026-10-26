@@ -12,10 +12,13 @@ export function CampoLeito({
   internacaoId,
   leitoInicial,
   editavel,
+  escuro = false,
 }: {
   internacaoId: string
   leitoInicial: string
   editavel: boolean
+  /** Sobre o cabeçalho escuro: rótulo claro. */
+  escuro?: boolean
 }) {
   const [valor, setValor] = useState(leitoInicial)
   const [salvo, setSalvo] = useState(leitoInicial)
@@ -62,7 +65,7 @@ export function CampoLeito({
 
   return (
     <div className="flex flex-col gap-1">
-      <RotuloCampo htmlFor="leito-internacao" className="mb-0">
+      <RotuloCampo htmlFor="leito-internacao" className={`mb-0 ${escuro ? 'text-cabecalho-suave' : ''}`}>
         Leito / ala
       </RotuloCampo>
       <Input
@@ -83,15 +86,15 @@ export function CampoLeito({
         }}
         aria-invalid={erro ? true : undefined}
         aria-describedby={erro ? 'erro-leito' : undefined}
-        className="w-full max-w-40 font-bold tabular-nums"
+        className="w-full max-w-48 font-bold tabular-nums"
       />
       {enviando && (
-        <p role="status" className="text-sm font-semibold text-muted-foreground">
+        <p role="status" className={`text-sm font-semibold ${escuro ? 'text-cabecalho-suave' : 'text-muted-foreground'}`}>
           Salvando leito…
         </p>
       )}
       {erro && (
-        <p id="erro-leito" role="alert" className="text-sm font-semibold text-destructive">
+        <p id="erro-leito" role="alert" className={`text-sm font-semibold ${escuro ? 'text-rose-300' : 'text-destructive'}`}>
           {erro}
         </p>
       )}

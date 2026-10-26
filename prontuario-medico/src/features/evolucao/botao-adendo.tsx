@@ -38,7 +38,7 @@ export function BotaoAdendo({ evolucaoId }: { evolucaoId: string }) {
   return (
     // Fragmento: o botão fica na fila do rodapé e o erro ocupa a linha inteira abaixo dela (basis-full).
     <>
-      <Button type="button" variant="outline" className="min-h-11" disabled={enviando} onClick={criar}>
+      <Button type="button" variant="contorno-teal" size="compacto" disabled={enviando} onClick={criar}>
         Adendo
       </Button>
       {erro && (

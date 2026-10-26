@@ -106,7 +106,9 @@ function MiniaturaFoto({
   )
 }
 
-export function GaleriaExames({ anexos }: { anexos: AnexoGaleria[] }) {
+export function GaleriaExames({ anexos: todos, tipo }: { anexos: AnexoGaleria[]; tipo?: TipoAnexo }) {
+  // Com `tipo` a galeria é fixa nesse tipo e não mostra o filtro.
+  const anexos = tipo ? todos.filter((a) => a.tipo === tipo) : todos
   const [filtro, setFiltro] = useState<Filtro>('todos')
   const [erro, setErro] = useState<string | null>(null)
   const [visualizando, setVisualizando] = useState<AnexoGaleria | null>(null)
@@ -159,7 +161,7 @@ export function GaleriaExames({ anexos }: { anexos: AnexoGaleria[] }) {
 
   return (
     <section className="grid gap-4" aria-label="Galeria de exames">
-      {anexos.length > 0 && (
+      {!tipo && anexos.length > 0 && (
         <div
           role="group"
           aria-label="Filtrar exames por tipo"
@@ -192,7 +194,7 @@ export function GaleriaExames({ anexos }: { anexos: AnexoGaleria[] }) {
 
       {anexos.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-muted-foreground">
-          Nenhum exame anexado em evoluções finalizadas.
+          {tipo ? `Nenhum anexo de ${ROTULO_TIPO_ANEXO[tipo]} em evoluções finalizadas.` : 'Nenhum exame anexado em evoluções finalizadas.'}
         </p>
       ) : visiveis.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-muted-foreground">

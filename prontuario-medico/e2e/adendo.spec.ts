@@ -4,7 +4,6 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const SENHA = 'Teste@123';
 const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const URL_EVOLUCAO = /\/internacoes\/[0-9a-f-]{36}\/evolucao$/;
 const TITULO_ADENDO = /^Adendo à evolução de \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_CHAVE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
@@ -54,13 +53,13 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 /** Médico cria a evolução original e finaliza. */
 async function medicoFinalizaOriginal(page: Page, id: string, evolucao: string) {
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await expect(page).toHaveURL(URL_EVOLUCAO);
+  await expect(page.locator('#ficha')).toBeVisible();
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta da original');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 }
 
 test('médico cria adendo e finaliza', async ({ page }) => {
@@ -68,20 +67,20 @@ test('médico cria adendo e finaliza', async ({ page }) => {
   await medicoFinalizaOriginal(page, id, 'Evolução original do médico');
 
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
-  await expect(page).toHaveURL(URL_EVOLUCAO);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByRole('heading', { name: TITULO_ADENDO })).toBeVisible();
   await page.getByText('Ver evolução original').click();
-  await expect(page.getByText('Evolução original do médico')).toBeVisible();
+  await expect(page.locator('#ficha').getByText('Evolução original do médico')).toBeVisible();
 
   await page.getByLabel('Evolução clínica').fill('Complemento feito pelo adendo');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByTestId('rotulo-adendo')).toHaveCount(1);
-  await expect(page.getByText('Complemento feito pelo adendo')).toBeVisible();
+  await expect(page.getByTestId('cartao-evolucao').getByText('Complemento feito pelo adendo')).toBeVisible();
   expect(
     sqlLocal(`select count(*) from public.evolucoes where internacao_id = '${id}' and adendo_de is not null and status = 'FINALIZADA'`),
   ).toBe('1');
@@ -101,14 +100,14 @@ test('adendo em internação com alta', async ({ page }) => {
   await expect(page.getByText('Internação com alta: prontuário somente para consulta.')).toBeVisible();
 
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
-  await expect(page).toHaveURL(URL_EVOLUCAO);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByRole('heading', { name: TITULO_ADENDO })).toBeVisible();
   await page.getByLabel('Evolução clínica').fill('Adendo após a alta');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta após a alta');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Adendo após a alta')).toBeVisible();
 });
 
@@ -129,12 +128,12 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 
   const evolucaoId = sqlLocal(
     `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
@@ -147,14 +146,14 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
-  await expect(page).toHaveURL(URL_EVOLUCAO);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByRole('heading', { name: TITULO_ADENDO })).toBeVisible();
   await page.getByLabel('Evolução clínica').fill('Adendo do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
   expect(
     sqlLocal(
@@ -169,10 +168,11 @@ test('médico com rascunho aberto não vê o botão Adendo', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(1);
 
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
-  await expect(page).toHaveURL(URL_EVOLUCAO);
+  await expect(page.locator('#ficha')).toBeVisible();
 
   await page.goto(`/internacoes/${id}`);
-  await expect(page.getByRole('link', { name: 'Continuar rascunho' })).toBeVisible();
+  // A ficha do rascunho de adendo já está na página.
+  await expect(page.locator('#ficha').getByRole('heading', { name: TITULO_ADENDO })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(0);
 });
 
@@ -182,12 +182,12 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await page.getByLabel('Evolução clínica').fill('Primeira evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 
   const evolucaoId = sqlLocal(
     `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
@@ -198,12 +198,12 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
 
   await page.goto(`/internacoes/${id}`);
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(1);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
   await page.getByLabel('Evolução clínica').fill('Segunda evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Outra conduta');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 
   await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(0);

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { diasEntre } from '@/lib/datas'
 import { notFound } from 'next/navigation'
 import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { buscarRevisao, listarPendentes } from '@/features/validacao/consultas'
@@ -33,7 +34,7 @@ export default async function PaginaValidacao({ searchParams }: { searchParams: 
     return (
       <>
         {voltar}
-        <CabecalhoPaciente linha={revisao.internacao} />
+        <CabecalhoPaciente linha={revisao.internacao} diasInternado={diasEntre(revisao.internacao.admitido_em)} />
         <RevisaoEvolucao revisao={revisao} />
       </>
     )

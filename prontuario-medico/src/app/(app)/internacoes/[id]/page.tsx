@@ -1,11 +1,13 @@
-import Link from 'next/link'
+import { FileText } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { BarraAcoes, PilulaStatus, type TipoStatus } from '@/components/layout/barra-acoes'
 import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
-import { Timeline } from '@/features/evolucao/timeline'
+import { BotaoImprimirEvolucao } from '@/features/evolucao/botao-imprimir'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
+import { Ficha } from '@/features/evolucao/ficha'
+import { HistoricoAbas } from '@/features/evolucao/historico-abas'
 import {
   categoriaAusente,
   ehMembroDaEquipe,
@@ -16,8 +18,8 @@ import {
 } from '@/features/evolucao/permissoes'
 import { DialogAlta } from '@/features/alta/dialog-alta'
 import { listarAnexosInternacao } from '@/features/anexos/consultas'
-import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import { exigirNaoAdmin } from '@/lib/auth'
+import { diasEntre } from '@/lib/datas'
 import { createClient } from '@/lib/supabase/server'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -40,14 +42,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   await supabase.rpc('registrar_acesso', { p_internacao_id: id, p_acao: 'abrir_prontuario' })
 
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
-  const [{ data: dadosClinicos }, { data: evolucoes }, anexosGaleria] = await Promise.all([
-    clinico
-      ? supabase
-          .from('internacoes_clinico')
-          .select('diagnostico_inicial, comorbidades, muc')
-          .eq('internacao_id', id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+  const [{ data: evolucoes }, anexosGaleria] = await Promise.all([
     clinico
       ? supabase
           .from('vw_evolucoes_timeline')
@@ -86,62 +81,55 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   }))
   const podeEvoluirEquipe =
     perfilEvolui && (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
-  const podeEvoluir = linha.status === 'INTERNADO' && perfilEvolui && podeEvoluirEquipe
 
   const podeDarAlta = linha.status === 'INTERNADO' && clinico && profissional.perfil === 'medico' && membroEquipe
+
+  const ficha = (() => {
+    if (!clinico || !perfilEvolui || !podeEvoluirEquipe) return null
+    if (linha.status === 'ALTA') {
+      // Em internação com alta só o adendo continua aberto: o rascunho de adendo é retomado daqui.
+      return rascunhoProprio?.adendo_de && conselhoCompleto && categoriaOk ? 'ficha' : null
+    }
+    if (aguardandoProprio) return 'aguardando'
+    if (!categoriaOk) return 'sem-categoria'
+    if (!conselhoCompleto) return 'sem-conselho'
+    return 'ficha'
+  })()
+  // Muda quando uma evolução própria é concluída: a ficha recomeça vazia.
+  const ciclo = String((evolucoes ?? []).filter((e) => e.autor_id === profissional.id && e.status !== 'RASCUNHO').length)
+
+  const finalizadas = linhasTimeline.filter((e) => e.status === 'FINALIZADA')
+  const diasInternado = diasEntre(linha.admitido_em, linha.status === 'ALTA' && linha.alta_em ? new Date(linha.alta_em) : new Date())
+  const statusDia: { tipo: TipoStatus; texto: string } =
+    linha.status === 'ALTA'
+      ? { tipo: 'alta', texto: 'Internação com alta' }
+      : aguardandoProprio
+        ? { tipo: 'aguardando', texto: 'Aguardando validação' }
+        : rascunhoProprio
+          ? { tipo: 'rascunho', texto: 'Rascunho de hoje' }
+          : linha.status_hoje === 'FINALIZADA'
+          ? { tipo: 'finalizada', texto: 'Evoluído hoje' }
+          : linha.status_hoje === 'RASCUNHO'
+            ? { tipo: 'rascunho', texto: 'Rascunho de hoje' }
+            : { tipo: 'nenhuma', texto: 'Sem evolução hoje' }
 
   return (
     <>
       <MarcarAba status={linha.status} />
-      <CabecalhoPaciente linha={linha} />
+      <CabecalhoPaciente linha={linha} diasInternado={diasInternado} />
 
-      {/* Em internação com alta só o adendo continua aberto: o rascunho de adendo é retomado daqui. */}
-      {linha.status === 'ALTA' && rascunhoProprio?.adendo_de && podeEvoluirEquipe && (
-        <Button asChild size="lg" className="w-full sm:w-auto">
-          <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
-        </Button>
-      )}
-
-      {podeEvoluir && (
-        <div className="flex flex-col gap-2">
-          {categoriaAusente(profissional.perfil, profissional.categoria) ? (
-            <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-              Complete sua categoria profissional com o administrador para registrar evoluções.
-            </p>
-          ) : rascunhoProprio ? (
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href={`/internacoes/${id}/evolucao`}>Continuar rascunho</Link>
-            </Button>
-          ) : aguardandoProprio ? (
-            <>
-              <Button type="button" size="lg" disabled className="w-full sm:w-auto">
-                Nova evolução
-              </Button>
-              <p role="status" className="rounded-lg bg-muted p-3 font-semibold text-muted-foreground">
-                Você tem uma evolução aguardando validação.
-              </p>
-            </>
-          ) : conselhoCompleto ? (
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href={`/internacoes/${id}/evolucao`}>Nova evolução</Link>
-            </Button>
-          ) : (
-            <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
-              Complete seu registro profissional (conselho, número e UF) para registrar evoluções.
-            </p>
-          )}
-        </div>
-      )}
-
-      {podeDarAlta && <DialogAlta internacaoId={id} />}
-
-      {linha.status === 'ALTA' && clinico && (
-        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-          <a href={`/internacoes/${id}/alta/pdf`} target="_blank" rel="noopener">
-            Folha de alta (PDF)
-          </a>
-        </Button>
-      )}
+      <BarraAcoes status={<PilulaStatus tipo={statusDia.tipo}>{statusDia.texto}</PilulaStatus>}>
+        {finalizadas[0] && <BotaoImprimirEvolucao evolucaoId={finalizadas[0].id} rotulo="Imprimir evolução" destaque />}
+        {podeDarAlta && <DialogAlta internacaoId={id} />}
+        {linha.status === 'ALTA' && clinico && (
+          <Button asChild variant="contorno-teal" size="compacto">
+            <a href={`/internacoes/${id}/alta/pdf`} target="_blank" rel="noopener">
+              <FileText aria-hidden />
+              Folha de alta (PDF)
+            </a>
+          </Button>
+        )}
+      </BarraAcoes>
 
       {linha.status === 'ALTA' && (
         <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">
@@ -149,42 +137,29 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
         </p>
       )}
 
+      {ficha === 'sem-categoria' && (
+        <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+          Complete sua categoria profissional com o administrador para registrar evoluções.
+        </p>
+      )}
+      {ficha === 'sem-conselho' && (
+        <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
+          Complete seu registro profissional (conselho, número e UF) para registrar evoluções.
+        </p>
+      )}
+      {ficha === 'aguardando' && (
+        <p role="status" className="rounded-lg bg-muted p-3 font-semibold text-muted-foreground">
+          Você tem uma evolução aguardando validação.
+        </p>
+      )}
+      {ficha === 'ficha' && (
+        <div id="ficha" className="min-w-0 scroll-mt-4">
+          <Ficha internacaoId={id} profissional={profissional} ciclo={ciclo} />
+        </div>
+      )}
+
       {clinico ? (
-        <Tabs defaultValue="evolucoes" className="flex flex-col gap-4">
-          <TabsList className="w-full sm:w-auto">
-            <TabsTrigger value="evolucoes" className="min-h-11 flex-1 sm:flex-none">
-              Evoluções
-            </TabsTrigger>
-            <TabsTrigger value="dados" className="min-h-11 flex-1 sm:flex-none">
-              Dados
-            </TabsTrigger>
-            <TabsTrigger value="exames" className="min-h-11 flex-1 sm:flex-none">
-              Exames
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="evolucoes">
-            <Timeline evolucoes={linhasTimeline.filter((e) => e.status === 'FINALIZADA')} />
-          </TabsContent>
-          <TabsContent value="exames">
-            <GaleriaExames anexos={anexosGaleria} />
-          </TabsContent>
-          <TabsContent value="dados">
-            <dl className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
-              <div>
-                <dt className="text-sm font-bold text-muted-foreground">Diagnóstico inicial</dt>
-                <dd className="break-words">{dadosClinicos?.diagnostico_inicial || 'Não informado'}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-bold text-muted-foreground">Comorbidades</dt>
-                <dd className="break-words">{dadosClinicos?.comorbidades || 'Não informadas'}</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-bold text-muted-foreground">MUC (medicamentos de uso contínuo)</dt>
-                <dd className="break-words">{dadosClinicos?.muc || 'Não informado'}</dd>
-              </div>
-            </dl>
-          </TabsContent>
-        </Tabs>
+        <HistoricoAbas evolucoes={finalizadas} anexos={anexosGaleria} />
       ) : (
         <p className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
           Conteúdo clínico disponível apenas para profissionais de saúde.

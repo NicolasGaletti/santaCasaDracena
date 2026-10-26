@@ -32,3 +32,10 @@ export function idade(nascimento: string, agora: Date = new Date()): number {
 export function formatarData(iso: string): string {
   return format(parseISO(iso), 'dd/MM/yyyy');
 }
+
+/** Dias corridos entre duas datas, pelo calendário de São Paulo (mesmo dia = 0). */
+export function diasEntre(inicio: string | Date, fim: Date = new Date()): number {
+  const a = partesSP(new Date(inicio));
+  const b = partesSP(fim);
+  return Math.max(0, Math.round((Date.UTC(b.ano, b.mes - 1, b.dia) - Date.UTC(a.ano, a.mes - 1, a.dia)) / 86_400_000));
+}

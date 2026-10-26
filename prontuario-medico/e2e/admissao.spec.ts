@@ -32,7 +32,7 @@ test('medico1 admite paciente e cai no prontuário', async ({ page }) => {
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
 
   await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-  await expect(page.getByText('Equipe responsável', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="cabecalho-paciente"]')).toContainText('Cardiologia');
   await expect(page.getByText('Médico responsável')).toHaveCount(0);
 });
 
@@ -50,7 +50,7 @@ test('seed antigo com médico vinculado abre sem exibir médico responsável', a
   await page.getByRole('heading', { name: 'Paciente Fictício 01' }).click();
   await expect(page).toHaveURL(/\/internacoes\/c0000000-0000-0000-0000-000000000001$/);
   await expect(page.getByRole('heading', { name: 'Paciente Fictício 01' })).toBeVisible();
-  await expect(page.getByText('Equipe responsável', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="cabecalho-paciente"]').getByLabel('Leito / ala')).toBeVisible();
   await expect(page.getByText('Médico responsável')).toHaveCount(0);
 });
 

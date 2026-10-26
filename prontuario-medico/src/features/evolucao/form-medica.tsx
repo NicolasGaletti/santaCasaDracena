@@ -1,12 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { Activity, Copy, FilePenLine, FlaskConical, HeartPulse, ScanLine } from 'lucide-react'
 import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { MarcarAba } from '@/components/navegacao-ativa'
 import { useAnexosEvolucao } from '@/features/anexos/anexos-evolucao'
 import { AnexosDoCampo, AnexosOutros, AvisosAnexos } from '@/features/anexos/anexos-do-campo'
 import type { AnexoRascunho } from '@/features/anexos/enviar-anexo'
@@ -25,7 +23,8 @@ type Props = {
   internacaoId: string
   userId: string
   perfil: string
-  paciente: { nome: string; leito: string }
+  /** Chamado depois de descartar o rascunho, para a ficha recomeçar vazia. */
+  aoDescartar?: (idRascunho: string) => void
   rascunho: { id: string; dados: DadosMedica; textoLivre: string; devolvidaMotivo: string | null; devolvidaPorNome?: string | null } | null
   anterior: DadosMedica | null
   anexos: AnexoRascunho[]
@@ -56,7 +55,7 @@ const CAMPOS_EXAME: { chave: CampoExame; rotulo: string }[] = [
   { chave: 'neuro', rotulo: 'Neurológico' },
 ]
 
-export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, anterior, anexos, adendo }: Props) {
+export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, anexos, adendo, aoDescartar }: Props) {
   const podeFinalizar = perfil === 'medico'
   const titulo = adendo ? tituloAdendo(adendo.finalizada_em ?? adendo.criado_em) : 'Evolução médica'
 
@@ -88,6 +87,7 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
     rascunho,
     dadosVazios: rascunhoMedicaVazio(),
     aoRestaurar: (d) => setBrutos(brutosDeSinais(d.sinais)),
+    aoDescartar,
   })
 
   const anexosEvolucao = useAnexosEvolucao({ iniciais: anexos, garantirRascunho })
@@ -172,32 +172,20 @@ export function FormMedica({ internacaoId, userId, perfil, paciente, rascunho, a
 
   return (
     <div className="flex flex-col gap-4">
-      <MarcarAba status="INTERNADO" />
-      <header className="flex flex-col gap-1">
-        <div className="flex items-start justify-between gap-3">
-          <Link
-            href={`/internacoes/${internacaoId}`}
-            className="inline-flex min-h-11 w-fit items-center font-semibold text-primary underline-offset-4 hover:underline"
+      {idRascunho && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="compacto"
+            className="font-semibold text-destructive hover:text-destructive"
+            disabled={enviando || anexosEvolucao.enviando}
+            onClick={() => setDescartarAberto(true)}
           >
-            ← Prontuário
-          </Link>
-          {idRascunho && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="compacto"
-              className="font-semibold text-destructive hover:text-destructive"
-              disabled={enviando || anexosEvolucao.enviando}
-              onClick={() => setDescartarAberto(true)}
-            >
-              Descartar rascunho
-            </Button>
-          )}
+            Descartar rascunho
+          </Button>
         </div>
-        <p className="min-w-0 break-words text-muted-foreground">
-          {paciente.nome} · Leito {paciente.leito}
-        </p>
-      </header>
+      )}
 
       {adendo && <OriginalAdendo original={adendo} />}
 

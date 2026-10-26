@@ -93,7 +93,6 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
   verificarNoStore(prontuario)
 
   // Upload de anexo.
-  await page.getByRole('link', { name: 'Nova evolução' }).click()
   await expect(page.getByLabel('Evolução clínica')).toBeVisible()
   await anexarPeloCampo(page, 'IMAGEM', FOTO)
   await expect(page.getByTestId('anexo-item')).toHaveCount(1, { timeout: 20_000 })
@@ -103,7 +102,8 @@ test('páginas autenticadas e PDF: headers, no-store e sem violação de CSP', a
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta headers')
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click()
   await page.getByRole('button', { name: 'Confirmar finalização' }).click()
-  await expect(page).toHaveURL(URL_PRONTUARIO)
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden()
 
   const href = await page.locator('a[href$="/pdf"]').first().getAttribute('href')
   const evolucaoId = href?.match(UUID)?.[0]

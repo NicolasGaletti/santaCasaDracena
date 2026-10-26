@@ -6,6 +6,7 @@ const TIPOS = {
   aguardando: 'border-primary-suave-borda bg-primary-suave text-primary-suave-foreground',
   finalizada: 'border-transparent bg-status-feito-bg text-status-feito-fg',
   alta: 'border-destructive-soft-borda bg-destructive-soft text-destructive-soft-foreground',
+  nenhuma: 'border-border bg-status-nenhum-bg text-status-nenhum-fg',
   devolvida: 'border-destructive-soft-borda bg-destructive-soft text-destructive-soft-foreground',
 } as const
 

@@ -56,12 +56,12 @@ test('acadêmico envia e o médico vê o contador subir', async ({ page, browser
   const outra = await ctx.newPage();
   await entrar(outra, 'academico@teste.local');
   await outra.goto(`/internacoes/${id}`);
-  await outra.getByRole('link', { name: 'Nova evolução' }).click();
   await outra.getByLabel('Evolução clínica').fill('Evolução para notificar');
   await outra.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para notificar');
   await outra.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
   await outra.getByRole('button', { name: 'Confirmar envio' }).click();
-  await expect(outra).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(outra.getByRole('dialog')).toBeHidden();
   await ctx.close();
 
   await expect.poll(() => contador(page), { timeout: 15_000 }).toBeGreaterThan(antes);

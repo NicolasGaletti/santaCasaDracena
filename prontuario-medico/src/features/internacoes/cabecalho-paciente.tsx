@@ -1,37 +1,77 @@
-import { formatarData, idade } from '@/lib/datas'
+import { BedDouble, Cake, CalendarDays, IdCard, Users } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { CampoLeito } from '@/features/evolucao/campo-leito'
+import { formatarData, idade } from '@/lib/datas'
+import { iniciais } from '@/lib/iniciais'
 import type { LinhaInternacao } from './consultas'
 
-export function CabecalhoPaciente({ linha }: { linha: LinhaInternacao }) {
+function Meta({ icone, children }: { icone: ReactNode; children: ReactNode }) {
+  return (
+    <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-cabecalho-suave [&_svg]:size-4 [&_svg]:shrink-0">
+      {icone}
+      <span className="min-w-0 truncate">{children}</span>
+    </span>
+  )
+}
+
+/** Cabeçalho escuro do paciente: avatar, nome e metadados; no celular os metadados viram chips. */
+export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaInternacao; diasInternado: number }) {
   const anos = idade(linha.data_nascimento)
   const internado = linha.status === 'INTERNADO'
+  const textoAnos = `${anos} ${anos === 1 ? 'ano' : 'anos'}`
+  const textoDias = `${diasInternado} ${diasInternado === 1 ? 'dia' : 'dias'}`
 
   return (
-    <section aria-labelledby="titulo-paciente" className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-muted-foreground">
+    <section
+      data-slot="cabecalho-paciente"
+      aria-labelledby="titulo-paciente"
+      className="flex min-w-0 flex-col gap-3 rounded-xl bg-cabecalho px-4 py-4 text-cabecalho-foreground sm:px-6"
+    >
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <span
+          aria-hidden
+          className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-decorativo font-heading text-base font-bold text-white sm:size-12 sm:text-lg"
+        >
+          {iniciais(linha.nome)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 id="titulo-paciente" title={linha.nome} className="truncate font-heading text-lg leading-tight font-bold sm:text-xl">
+            {linha.nome}
+          </h1>
+          <p className="mt-0.5 flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-[13px] text-cabecalho-suave">
+            <Meta icone={<Cake aria-hidden />}>
+              <span className="sm:hidden">{textoAnos}</span>
+              <span className="hidden sm:inline">
+                D.N. <b className="text-white">{formatarData(linha.data_nascimento)}</b> ({textoAnos})
+              </span>
+            </Meta>
+            <span className="hidden sm:contents">
+              <Meta icone={<Users aria-hidden />}>
+                <b className="text-white">{linha.equipe_nome}</b>
+              </Meta>
+              <Meta icone={<IdCard aria-hidden />}>
+                Convênio <b className="text-cabecalho-destaque">{linha.convenio}</b>
+              </Meta>
+              <Meta icone={<CalendarDays aria-hidden />}>
+                {internado ? 'Internado há' : 'Internação de'} <b className="text-white">{textoDias}</b>
+              </Meta>
+            </span>
+          </p>
+        </div>
+        <span className="hidden shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold sm:flex" aria-hidden>
+          <BedDouble className="size-4" />
           {internado ? 'Internado' : 'Alta'}
-        </p>
-        <h1 id="titulo-paciente" className="break-words text-2xl font-bold leading-snug">
-          {linha.nome}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
-        </p>
+        </span>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <div>
-          <dt className="text-muted-foreground">Convênio</dt>
-          <dd className="break-words font-semibold">{linha.convenio}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Equipe responsável</dt>
-          <dd className="break-words font-semibold">{linha.equipe_nome}</dd>
-        </div>
-      </dl>
+      <ul className="flex min-w-0 flex-wrap gap-2 text-[12px] sm:hidden" aria-label="Dados da internação">
+        <li className="max-w-full truncate rounded-full bg-slate-800 px-2.5 py-1">{linha.equipe_nome}</li>
+        <li className="max-w-full truncate rounded-full bg-slate-800 px-2.5 py-1 text-teal-300">{linha.convenio}</li>
+        <li className="rounded-full bg-slate-800 px-2.5 py-1">{textoDias}</li>
+        <li className="rounded-full bg-slate-800 px-2.5 py-1 font-semibold">{internado ? 'Internado' : 'Alta'}</li>
+      </ul>
 
-      <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado} />
+      <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado} escuro />
     </section>
   )
 }

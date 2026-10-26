@@ -48,8 +48,7 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 /** Abre um rascunho novo: os campos de exame e seus anexos já ficam visíveis. */
 async function abrirExamesDeRascunho(page: Page, id: string) {
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('link', { name: 'Nova evolução' }).click();
-  await expect(page).toHaveURL(/\/evolucao$/);
+  await expect(page.locator('#ficha')).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
 }
 
@@ -63,7 +62,8 @@ async function finalizarEvolucao(page: Page, evolucao: string, conduta: string) 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
   await page.getByRole('button', { name: 'Confirmar finalização' }).click();
-  await expect(page).toHaveURL(URL_PRONTUARIO);
+  // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
+  await expect(page.getByRole('dialog')).toBeHidden();
 }
 
 /** Cliente Supabase como o médico (sessão própria, sem service_role). */
@@ -294,7 +294,7 @@ test('finalizar com anexo não enviado é bloqueado e mostra o aviso', async ({ 
 
   await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de finalizar.')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page).toHaveURL(new RegExp(`/internacoes/${id}/evolucao$`));
+  await expect(page.locator('#ficha')).toBeVisible();
 });
 
 test('descarta rascunho mesmo se o objeto já sumiu do Storage', async ({ page }) => {
@@ -314,7 +314,8 @@ test('descarta rascunho mesmo se o objeto já sumiu do Storage', async ({ page }
   await page.getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
 
-  await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
+  // Sem rascunho, a ficha recomeça vazia e o botão de descartar some.
+  await expect(page.getByRole('button', { name: 'Descartar rascunho' })).toHaveCount(0, { timeout: 20_000 });
   await expect(alertas(page)).toHaveCount(0);
   expect(linhaExiste(anexo.id)).toBe(false);
 });
@@ -333,7 +334,8 @@ test('descarta rascunho com foto anexada e limpa linha e objeto', async ({ page 
   await page.getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Descartar rascunho', exact: true }).click();
 
-  await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
+  // Sem rascunho, a ficha recomeça vazia e o botão de descartar some.
+  await expect(page.getByRole('button', { name: 'Descartar rascunho' })).toHaveCount(0, { timeout: 20_000 });
   await expect(alertas(page)).toHaveCount(0);
   expect(linhaExiste(anexo.id)).toBe(false);
   expect(objetoExiste(anexo.storage_path)).toBe(false);
@@ -351,9 +353,9 @@ async function criarExamesFinalizados(page: Page): Promise<string> {
   return id;
 }
 
-async function abrirAbaExames(page: Page, id: string) {
+async function abrirAbaExames(page: Page, id: string, aba: 'ECG' | 'Imagem' | 'Laboratório' = 'Imagem') {
   await page.goto(`/internacoes/${id}`);
-  await page.getByRole('tab', { name: 'Exames' }).click();
+  await page.getByRole('tab', { name: aba }).click();
   await expect(page.getByTestId('galeria-item').first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -370,21 +372,22 @@ test('galeria mostra anexo da evolução finalizada', async ({ page }) => {
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
 
-test('filtro ECG mostra só ECG e PDF abre em nova aba', async ({ page }) => {
+test('cada aba mostra só os anexos do seu tipo e o PDF abre em nova aba', async ({ page }) => {
   const id = await criarExamesFinalizados(page);
-  await abrirAbaExames(page, id);
+  await abrirAbaExames(page, id, 'ECG');
 
   const itens = page.getByTestId('galeria-item');
-  await expect(itens).toHaveCount(2);
-
-  await page.getByRole('button', { name: 'ECG', exact: true }).click();
   await expect(itens).toHaveCount(1);
   await expect(itens).toContainText('ECG');
 
-  await page.getByRole('button', { name: 'Todos', exact: true }).click();
-  await expect(itens).toHaveCount(2);
+  await page.getByRole('tab', { name: 'Imagem' }).click();
+  await expect(itens).toHaveCount(1);
+  await expect(itens).toContainText('Imagem');
 
-  await page.getByRole('button', { name: 'ECG', exact: true }).click();
+  await page.getByRole('tab', { name: 'Laboratório' }).click();
+  await expect(itens).toHaveCount(0);
+
+  await page.getByRole('tab', { name: 'ECG' }).click();
   // O navegador headless não renderiza PDF em nova aba: confere a abertura e a URL assinada pedida.
   const [nova, pedidoAssinado] = await Promise.all([
     page.waitForEvent('popup'),
@@ -415,11 +418,11 @@ test('visualizador em tela cheia fecha com Esc e com o voltar do navegador', asy
   await expect(page).toHaveURL(new RegExp(`/internacoes/${id}$`));
 });
 
-test('recepção não vê a aba Exames', async ({ page }) => {
+test('recepção não vê as abas do histórico', async ({ page }) => {
   const id = await criarExamesFinalizados(page);
   await page.context().clearCookies();
   await entrar(page, 'recepcao@teste.local');
   await page.goto(`/internacoes/${id}`);
   await expect(page.getByText('Conteúdo clínico disponível apenas para profissionais de saúde.')).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Exames' })).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'ECG' })).toHaveCount(0);
 });
