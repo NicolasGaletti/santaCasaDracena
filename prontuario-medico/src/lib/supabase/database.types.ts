@@ -860,6 +860,31 @@ export type Database = {
       };
     };
     Functions: {
+      admin_atualizar_profissional: {
+        Args: {
+          p_categoria: Database["public"]["Enums"]["categoria_evolucao"];
+          p_conselho: string;
+          p_id: string;
+          p_nome: string;
+          p_numero: string;
+          p_perfil: Database["public"]["Enums"]["perfil_profissional"];
+          p_uf: string;
+        };
+        Returns: undefined;
+      };
+      admin_definir_ativo: { Args: { p_ativo: boolean; p_id: string }; Returns: undefined };
+      admin_desvincular: {
+        Args: { p_equipe_id: string; p_profissional_id: string };
+        Returns: undefined;
+      };
+      admin_salvar_equipe: {
+        Args: { p_ativo: boolean; p_id: string; p_nome: string };
+        Returns: string;
+      };
+      admin_vincular: {
+        Args: { p_equipe_id: string; p_profissional_id: string };
+        Returns: undefined;
+      };
       admitir_paciente: {
         Args: {
           p_comorbidades: string;
