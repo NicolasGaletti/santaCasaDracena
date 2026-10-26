@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from './database.types'
 
-const ROTAS_PUBLICAS = ['/login']
+const ROTAS_PUBLICAS = ['/login', '/esqueci-senha']
 const PREFIXOS_PUBLICOS = ['/auth/']
 // PDF não é página: sem sessão responde 401 em vez de redirecionar para o login.
 const ROTA_PDF = /^\/evolucoes\/[^/]+\/pdf$/

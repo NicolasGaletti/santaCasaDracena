@@ -86,6 +86,16 @@ Em cada projeto:
 - Desligar "Allow new users to sign up". Usuários são criados pelo administrador.
 - Site URL e Redirect URLs: URL pública do Netlify daquele ambiente.
 
+## Plano 4 — Auth (convite e recuperação de senha)
+
+Em staging e produção, fazer manualmente (o `config.toml` só vale para o Supabase local):
+
+- Authentication → Email Templates → **Invite user**: colar o conteúdo de `prontuario-medico/supabase/templates/invite.html` e o assunto `Convite para o Prontuário Santa Casa`.
+- Authentication → Email Templates → **Reset password**: colar `prontuario-medico/supabase/templates/recovery.html` e o assunto `Recuperação de senha - Prontuário Santa Casa`.
+- Os links usam `{{ .SiteURL }}/auth/callback?token_hash=...&type=invite|recovery&next=/definir-senha` (funciona em outro aparelho). Por isso o **Site URL** deve ser a URL pública do ambiente e entrar também em Redirect URLs.
+- Netlify: variável `SITE_URL` (opcional; o Netlify já fornece `URL`) usada como origem do `redirectTo` em "Esqueci minha senha".
+- SMTP próprio (ex.: Resend) em Authentication → SMTP Settings; o SMTP padrão do Supabase tem limite baixo.
+
 ## Usuários de teste (staging)
 
 Dados fictícios, criados pelo seed.

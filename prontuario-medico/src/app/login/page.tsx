@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useActionState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { entrar } from './actions'
 import type { EstadoForm } from '@/lib/forms'
@@ -21,7 +22,9 @@ function LoginForm() {
   const erroUrl =
     searchParams.get('error') === 'sem_cadastro'
       ? 'Seu usuário não tem cadastro profissional ativo. Procure o administrador.'
-      : ''
+      : searchParams.get('error') === 'link_invalido'
+        ? 'Link inválido ou expirado. Peça um novo convite ou use "Esqueci minha senha".'
+        : ''
   const mensagemErro = state.erro ?? erroUrl
 
   return (
@@ -72,6 +75,9 @@ function LoginForm() {
             {pending ? 'Acessando...' : 'Entrar no Sistema'}
           </button>
         </form>
+        <p className="mt-4 text-center text-sm">
+          <Link href="/esqueci-senha" className="text-teal-700 hover:underline">Esqueci minha senha</Link>
+        </p>
       </div>
     </div>
   )
