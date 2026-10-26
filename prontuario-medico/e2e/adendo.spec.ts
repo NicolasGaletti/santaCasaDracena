@@ -162,3 +162,72 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
     ),
   ).toBe('1');
 });
+
+test('médico com rascunho aberto não vê o botão Adendo', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await medicoFinalizaOriginal(page, id, 'Original com rascunho aberto');
+  await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Adendo', exact: true }).click();
+  await expect(page).toHaveURL(URL_EVOLUCAO);
+
+  await page.goto(`/internacoes/${id}`);
+  await expect(page.getByRole('link', { name: 'Continuar rascunho' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(0);
+});
+
+test('acadêmico com evolução aguardando validação não vê o botão Adendo', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.context().clearCookies();
+
+  await entrar(page, 'academico@teste.local');
+  await page.goto(`/internacoes/${id}`);
+  await page.getByRole('link', { name: 'Nova evolução' }).click();
+  await page.getByLabel('Evolução clínica').fill('Primeira evolução do acadêmico');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+
+  const evolucaoId = sqlLocal(
+    `select id from public.evolucoes where internacao_id = '${id}' and status = 'AGUARDANDO_VALIDACAO'`,
+  );
+  const medico = await clienteComo('medico1@teste.local');
+  const { error } = await medico.rpc('validar_evolucao', { p_evolucao_id: evolucaoId });
+  expect(error).toBeNull();
+
+  await page.goto(`/internacoes/${id}`);
+  await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(1);
+  await page.getByRole('link', { name: 'Nova evolução' }).click();
+  await page.getByLabel('Evolução clínica').fill('Segunda evolução do acadêmico');
+  await page.getByRole('textbox', { name: 'Conduta' }).fill('Outra conduta');
+  await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page).toHaveURL(URL_PRONTUARIO);
+
+  await expect(page.getByText('Você tem uma evolução aguardando validação.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(0);
+});
+
+test('erro do adendo aparece em linha própria, abaixo da fila de botões', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await medicoFinalizaOriginal(page, id, 'Original para erro de adendo');
+  const originalId = sqlLocal(`select id from public.evolucoes where internacao_id = '${id}' and status = 'FINALIZADA'`);
+
+  // Página já carregada mostra o botão; o rascunho nasce por outra sessão e o clique falha.
+  const medico = await clienteComo('medico1@teste.local');
+  const { error } = await medico.rpc('criar_adendo', { p_evolucao_id: originalId });
+  expect(error).toBeNull();
+
+  await page.getByRole('button', { name: 'Adendo', exact: true }).click();
+  const alerta = page.getByRole('alert').filter({ hasText: 'Você já tem um rascunho aberto nesta internação.' });
+  await expect(alerta).toBeVisible();
+  const botao = page.getByRole('button', { name: 'Adendo', exact: true });
+  const [caixaAlerta, caixaBotao, caixaFooter] = await Promise.all([
+    alerta.boundingBox(),
+    botao.boundingBox(),
+    page.locator('footer').first().boundingBox(),
+  ]);
+  expect(caixaAlerta!.y).toBeGreaterThanOrEqual(caixaBotao!.y + caixaBotao!.height);
+  expect(caixaAlerta!.width).toBeGreaterThan(caixaFooter!.width * 0.9);
+});

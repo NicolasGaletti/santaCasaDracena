@@ -36,15 +36,16 @@ export function BotaoAdendo({ evolucaoId }: { evolucaoId: string }) {
   }
 
   return (
-    <div className="flex max-w-full flex-col items-end gap-2">
+    // Fragmento: o botão fica na fila do rodapé e o erro ocupa a linha inteira abaixo dela (basis-full).
+    <>
       <Button type="button" variant="outline" className="min-h-11" disabled={enviando} onClick={criar}>
         Adendo
       </Button>
       {erro && (
-        <p role="alert" className="rounded-lg bg-destructive-soft p-3 text-sm font-semibold text-destructive-soft-foreground">
+        <p role="alert" className="w-full basis-full rounded-lg bg-destructive-soft p-3 text-sm font-semibold text-destructive-soft-foreground">
           {erro}
         </p>
       )}
-    </div>
+    </>
   )
 }

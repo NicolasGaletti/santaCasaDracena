@@ -65,14 +65,6 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   const membroEquipe = clinico && perfilEvolui ? await ehMembroDaEquipe(supabase, profissional.id, linha.equipe_id) : false
   const podeAbrirAdendo = clinico && perfilEvolui && conselhoCompleto && categoriaOk
 
-  // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
-  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map((e) => ({
-    ...e,
-    podeAdendo:
-      podeAbrirAdendo &&
-      e.status === 'FINALIZADA' &&
-      podeCriarAdendo(profissional.perfil, e.autor_id === profissional.id, membroEquipe),
-  }))
   const rascunhoProprio = (evolucoes ?? []).find(
     (e) => e.status === 'RASCUNHO' && e.autor_id === profissional.id,
   )
@@ -81,6 +73,16 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     (e) => e.status === 'AGUARDANDO_VALIDACAO' && e.autor_id === profissional.id,
   )
 
+  // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
+  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map((e) => ({
+    ...e,
+    podeAdendo:
+      podeAbrirAdendo &&
+      !rascunhoProprio &&
+      !aguardandoProprio &&
+      e.status === 'FINALIZADA' &&
+      podeCriarAdendo(profissional.perfil, e.autor_id === profissional.id, membroEquipe),
+  }))
   const podeEvoluirEquipe =
     perfilEvolui && (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
   const podeEvoluir = linha.status === 'INTERNADO' && perfilEvolui && podeEvoluirEquipe
