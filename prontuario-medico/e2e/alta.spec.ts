@@ -51,7 +51,7 @@ test('médico dá alta e paciente vai para Anteriores', async ({ page }) => {
   await admitirPaciente(page, leito)
 
   await darAlta(page, 'Paciente estável, segue em acompanhamento ambulatorial.')
-  await expect(page.getByText('Internação com alta: prontuário somente para consulta.')).toBeVisible()
+  await expect(page.getByText('Somente consulta')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Dar alta' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Folha de alta (PDF)' })).toBeVisible()
 

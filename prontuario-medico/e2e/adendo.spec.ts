@@ -97,7 +97,7 @@ test('adendo em internação com alta', async ({ page }) => {
   await page.goto('/anteriores');
   await page.getByRole('link', { name: new RegExp(`Paciente adendo ${leito}`) }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO);
-  await expect(page.getByText('Internação com alta: prontuário somente para consulta.')).toBeVisible();
+  await expect(page.getByText('Somente consulta')).toBeVisible();
 
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
   await expect(page.locator('#ficha')).toBeVisible();

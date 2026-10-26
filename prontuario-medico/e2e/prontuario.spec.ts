@@ -123,3 +123,22 @@ test('Dar alta continua só para médico da equipe', async ({ page, browser }) =
   await expect(recepcao.getByRole('button', { name: 'Dar alta' })).toHaveCount(0);
   await recepcao.close();
 });
+
+test('leito é texto no cabeçalho e troca pelo botão; rodapé e ações têm alvos de 44px', async ({ page }) => {
+  const leito = leitoUnico();
+  const id = await admitirPaciente(page, leito);
+  await page.goto(`/internacoes/${id}`);
+
+  await expect(page.locator('[data-slot="cabecalho-paciente"] [data-slot="leito-texto"]')).toHaveText(leito);
+  await expect(page.getByLabel('Leito / ala')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Trocar leito' })).toBeEnabled();
+
+  const alturas: number[] = [];
+  for (const nome of ['Salvar', 'Finalizar', 'Dar alta']) {
+    const caixa = await page.getByRole('button', { name: nome, exact: true }).boundingBox();
+    expect(caixa, nome).not.toBeNull();
+    alturas.push(caixa!.height);
+  }
+  const mobile = (page.viewportSize()?.width ?? 1280) < 640;
+  if (mobile) for (const h of alturas) expect(h).toBeGreaterThanOrEqual(44);
+});

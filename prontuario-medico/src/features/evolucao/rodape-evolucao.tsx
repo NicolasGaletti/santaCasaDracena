@@ -18,6 +18,7 @@ export function RodapeEvolucao({
   return (
     <div className="sm:overflow-hidden sm:rounded-b-xl sm:border sm:border-t-0 sm:border-border">
       <RodapeAcoes
+        espaco={false}
         info={
           <p role="status" aria-live="polite" className="font-semibold">
             {indicador}
@@ -25,7 +26,7 @@ export function RodapeEvolucao({
         }
       >
         {acaoSecundaria}
-        <Button type="button" variant="suave" size="compacto" disabled={salvar.desabilitado} onClick={salvar.onSalvar}>
+        <Button type="button" variant="suave" size="lg" className="sm:h-9 sm:px-3 sm:text-[13px]" disabled={salvar.desabilitado} onClick={salvar.onSalvar}>
           Salvar
         </Button>
         {acaoPrincipal}

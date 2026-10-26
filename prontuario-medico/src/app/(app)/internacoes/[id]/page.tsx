@@ -1,12 +1,13 @@
 import { FileText } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { BarraAcoes, PilulaStatus, type TipoStatus } from '@/components/layout/barra-acoes'
+import { BarraAcoes, PilulaStatus } from '@/components/layout/barra-acoes'
 import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
 import { BotaoImprimirEvolucao } from '@/features/evolucao/botao-imprimir'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { Ficha } from '@/features/evolucao/ficha'
+import { statusDoDia } from '@/features/evolucao/status-dia'
 import { HistoricoAbas } from '@/features/evolucao/historico-abas'
 import {
   categoriaAusente,
@@ -100,18 +101,16 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
 
   const finalizadas = linhasTimeline.filter((e) => e.status === 'FINALIZADA')
   const diasInternado = diasEntre(linha.admitido_em, linha.status === 'ALTA' && linha.alta_em ? new Date(linha.alta_em) : new Date())
-  const statusDia: { tipo: TipoStatus; texto: string } =
-    linha.status === 'ALTA'
-      ? { tipo: 'alta', texto: 'Internação com alta' }
-      : aguardandoProprio
-        ? { tipo: 'aguardando', texto: 'Aguardando validação' }
-        : rascunhoProprio
-          ? { tipo: 'rascunho', texto: 'Rascunho de hoje' }
-          : linha.status_hoje === 'FINALIZADA'
-          ? { tipo: 'finalizada', texto: 'Evoluído hoje' }
-          : linha.status_hoje === 'RASCUNHO'
-            ? { tipo: 'rascunho', texto: 'Rascunho de hoje' }
-            : { tipo: 'nenhuma', texto: 'Sem evolução hoje' }
+  const { data: devolvidaRow } = rascunhoProprio
+    ? await supabase.from('evolucoes').select('devolvida_motivo').eq('id', rascunhoProprio.id).maybeSingle()
+    : { data: null }
+  const statusDia = statusDoDia({
+    internacaoAlta: linha.status === 'ALTA',
+    rascunhoProprio: Boolean(rascunhoProprio),
+    devolvidaParaMim: Boolean(devolvidaRow?.devolvida_motivo),
+    aguardandoProprio,
+    finalizadaHoje: linha.status_hoje === 'FINALIZADA',
+  })
 
   return (
     <>
@@ -130,12 +129,6 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
           </Button>
         )}
       </BarraAcoes>
-
-      {linha.status === 'ALTA' && (
-        <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">
-          Internação com alta: prontuário somente para consulta.
-        </p>
-      )}
 
       {ficha === 'sem-categoria' && (
         <p className="rounded-lg bg-destructive-soft p-3 font-semibold text-destructive-soft-foreground">
@@ -159,12 +152,14 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
       )}
 
       {clinico ? (
-        <HistoricoAbas evolucoes={finalizadas} anexos={anexosGaleria} />
+        <HistoricoAbas evolucoes={finalizadas} anexos={anexosGaleria} somenteConsulta={linha.status === 'ALTA'} />
       ) : (
         <p className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
           Conteúdo clínico disponível apenas para profissionais de saúde.
         </p>
       )}
+      {/* Reserva o espaço do rodapé fixo da ficha no celular, depois do histórico. */}
+      {ficha === 'ficha' && <div aria-hidden className="h-[calc(6rem+env(safe-area-inset-bottom))] sm:hidden" />}
     </>
   )
 }

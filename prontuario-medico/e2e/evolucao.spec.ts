@@ -137,11 +137,12 @@ test('leito fica bloqueado até a hidratação', async ({ page }) => {
   });
 
   await page.goto(`/internacoes/${id}`, { waitUntil: 'commit' });
-  await page.getByLabel('Leito / ala').waitFor({ state: 'attached' });
-  await expect(page.getByLabel('Leito / ala')).toBeDisabled();
+  const trocar = page.getByRole('button', { name: 'Trocar leito' });
+  await trocar.waitFor({ state: 'attached' });
+  await expect(trocar).toBeDisabled();
 
   liberar();
-  await expect(page.getByLabel('Leito / ala')).toBeEnabled({ timeout: 20_000 });
+  await expect(trocar).toBeEnabled({ timeout: 20_000 });
   await page.unroute('**/_next/static/**');
 });
 
@@ -151,7 +152,7 @@ test('copiar anterior preenche conduta', async ({ page }) => {
   await abrirNovaEvolucao(page);
   await finalizarEvolucao(page, 'Evolução de referência', 'Conduta original E2E');
 
-  await page.getByRole('button', { name: 'Copiar anterior' }).click();
+  await page.getByRole('button', { name: 'Copiar evolução anterior' }).click();
   await expect(page.getByRole('textbox', { name: 'Conduta' })).toHaveValue('Conduta original E2E');
 });
 
@@ -185,6 +186,7 @@ test('leito muda só ao sair do campo', async ({ page }) => {
     if (req.method() === 'POST' && req.headers()['next-action']) chamadas.push(req.url());
   });
 
+  await page.getByRole('button', { name: 'Trocar leito' }).click();
   const campo = page.getByLabel('Leito / ala');
   await campo.fill('E2E-NOVO');
   await page.waitForTimeout(500);
@@ -192,12 +194,12 @@ test('leito muda só ao sair do campo', async ({ page }) => {
 
   // Espera a resposta, não só o envio: recarregar com a ação em voo pode perder a gravação.
   const gravado = page.waitForResponse((r) => r.request().method() === 'POST' && !!r.request().headers()['next-action']);
-  await campo.press('Tab');
+  await page.getByRole('button', { name: 'Salvar leito' }).click();
   await gravado;
   await expect.poll(() => chamadas.length).toBe(1);
 
   await page.reload();
-  await expect(page.getByLabel('Leito / ala')).toHaveValue('E2E-NOVO');
+  await expect(page.locator('[data-slot="leito-texto"]')).toHaveText('E2E-NOVO');
 });
 
 test('offline: mostra "Sem conexão", volta online e salva', async ({ page, context }) => {
@@ -300,8 +302,9 @@ test('troca de leito em envio: mostra "Salvando leito…" e grava antes do reloa
     await r.continue();
   });
 
+  await page.getByRole('button', { name: 'Trocar leito' }).click();
   await page.getByLabel('Leito / ala').fill('E2E-ENVIO');
-  await page.getByLabel('Leito / ala').press('Tab');
+  await page.getByRole('button', { name: 'Salvar leito' }).click();
   await expect(page.getByText('Salvando leito…')).toBeVisible();
 
   liberar();
@@ -309,7 +312,7 @@ test('troca de leito em envio: mostra "Salvando leito…" e grava antes do reloa
   await page.unroute(`**/internacoes/${id}`);
 
   await page.reload();
-  await expect(page.getByLabel('Leito / ala')).toHaveValue('E2E-ENVIO');
+  await expect(page.locator('[data-slot="leito-texto"]')).toHaveText('E2E-ENVIO');
 });
 
 test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }) => {
@@ -317,10 +320,11 @@ test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }
   const id = await admitirPaciente(page, leito);
   await page.goto(`/internacoes/${id}`);
 
+  await page.getByRole('button', { name: 'Trocar leito' }).click();
   const campo = page.getByLabel('Leito / ala');
   await campo.fill('   ');
-  await campo.press('Tab');
-  await expect(alertas(page)).toHaveText('Informe o leito.');
+  await page.getByRole('button', { name: 'Salvar leito' }).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toHaveText('Informe o leito.');
   await expect(campo).toHaveValue(leito);
 });
 

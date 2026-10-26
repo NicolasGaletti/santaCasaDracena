@@ -135,21 +135,6 @@ export function FormSimples({ internacaoId, userId, categoria, rascunho, anexos,
 
   return (
     <div className="flex flex-col gap-4">
-      {idRascunho && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="compacto"
-            className="font-semibold text-destructive hover:text-destructive"
-            disabled={enviando || anexosEvolucao.enviando}
-            onClick={() => setDescartarAberto(true)}
-          >
-            Descartar rascunho
-          </Button>
-        </div>
-      )}
-
       {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
@@ -185,6 +170,20 @@ export function FormSimples({ internacaoId, userId, categoria, rascunho, anexos,
             icone={FilePenLine}
             subtitulo="O rascunho salva sozinho. Envie para validação quando terminar."
             className="sm:rounded-b-none"
+            acao={
+              idRascunho && (
+                <Button
+                type="button"
+                variant="ghost"
+                size="compacto"
+                className="font-semibold text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                disabled={enviando || anexosEvolucao.enviando}
+                onClick={() => setDescartarAberto(true)}
+              >
+                Descartar rascunho
+              </Button>
+              )
+            }
           >
             <div className="flex flex-col gap-4">
               <CampoTextual id="ev-texto" rotulo="Evolução" valor={dados.texto} onChange={(v) => alterarCampo('texto', v)} obrigatorio linhas={6} />
@@ -217,7 +216,7 @@ export function FormSimples({ internacaoId, userId, categoria, rascunho, anexos,
           indicador={indicador}
           salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
           acaoPrincipal={
-            <Button type="button" variant="primaria" size="compacto" disabled={!hidratado || enviando} onClick={pedirEnvio}>
+            <Button type="button" variant="primaria" size="lg" className="flex-[1.4] bg-teal-700 hover:bg-teal-800 sm:h-9 sm:flex-none sm:px-3 sm:text-[13px]" disabled={!hidratado || enviando} onClick={pedirEnvio}>
               Enviar para validação
             </Button>
           }

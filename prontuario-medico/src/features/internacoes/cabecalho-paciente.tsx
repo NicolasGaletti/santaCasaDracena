@@ -1,4 +1,4 @@
-import { BedDouble, Cake, CalendarDays, IdCard, Users } from 'lucide-react'
+import { Cake, CalendarDays, IdCard, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { CampoLeito } from '@/features/evolucao/campo-leito'
 import { formatarData, idade } from '@/lib/datas'
@@ -25,9 +25,9 @@ export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaIntern
     <section
       data-slot="cabecalho-paciente"
       aria-labelledby="titulo-paciente"
-      className="flex min-w-0 flex-col gap-3 rounded-xl bg-cabecalho px-4 py-4 text-cabecalho-foreground sm:px-6"
+      className="relative flex min-w-0 flex-col gap-3 rounded-xl bg-cabecalho px-4 py-4 text-cabecalho-foreground sm:px-6"
     >
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4 sm:pr-44">
         <span
           aria-hidden
           className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-decorativo font-heading text-base font-bold text-white sm:size-12 sm:text-lg"
@@ -58,10 +58,6 @@ export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaIntern
             </span>
           </p>
         </div>
-        <span className="hidden shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold sm:flex" aria-hidden>
-          <BedDouble className="size-4" />
-          {internado ? 'Internado' : 'Alta'}
-        </span>
       </div>
 
       <ul className="flex min-w-0 flex-wrap gap-2 text-[12px] sm:hidden" aria-label="Dados da internação">
@@ -71,7 +67,9 @@ export function CabecalhoPaciente({ linha, diasInternado }: { linha: LinhaIntern
         <li className="rounded-full bg-slate-800 px-2.5 py-1 font-semibold">{internado ? 'Internado' : 'Alta'}</li>
       </ul>
 
-      <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado} escuro />
+      <div className="sm:absolute sm:top-4 sm:right-6">
+        <CampoLeito internacaoId={linha.internacao_id} leitoInicial={linha.leito_ala} editavel={internado} />
+      </div>
     </section>
   )
 }

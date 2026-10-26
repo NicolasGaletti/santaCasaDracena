@@ -50,7 +50,7 @@ test('seed antigo com médico vinculado abre sem exibir médico responsável', a
   await page.getByRole('heading', { name: 'Paciente Fictício 01' }).click();
   await expect(page).toHaveURL(/\/internacoes\/c0000000-0000-0000-0000-000000000001$/);
   await expect(page.getByRole('heading', { name: 'Paciente Fictício 01' })).toBeVisible();
-  await expect(page.locator('[data-slot="cabecalho-paciente"]').getByLabel('Leito / ala')).toBeVisible();
+  await expect(page.locator('[data-slot="cabecalho-paciente"] [data-slot="leito-texto"]')).toBeVisible();
   await expect(page.getByText('Médico responsável')).toHaveCount(0);
 });
 

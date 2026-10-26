@@ -24,11 +24,19 @@ const DE_EXAME: { valor: string; secao: SecaoExame; tipo: TipoAnexo }[] = [
 ]
 
 /** Histórico da internação: evoluções finalizadas e, por abas, o texto e os anexos de ECG, imagem e laboratório. */
-export function HistoricoAbas({ evolucoes, anexos }: { evolucoes: EvolucaoTimeline[]; anexos: AnexoGaleria[] }) {
+export function HistoricoAbas({
+  evolucoes,
+  anexos,
+  somenteConsulta = false,
+}: {
+  evolucoes: EvolucaoTimeline[]
+  anexos: AnexoGaleria[]
+  somenteConsulta?: boolean
+}) {
   const [aba, setAba] = useState('evolucoes')
 
   return (
-    <CartaoSecao titulo="Histórico da internação" icone={History}>
+    <CartaoSecao titulo="Histórico da internação" icone={History} subtitulo={somenteConsulta ? 'Somente consulta' : undefined}>
       <AbasColoridas abas={ABAS} valor={aba} onValorChange={setAba}>
         <AbaPainel valor="evolucoes">
           <Timeline evolucoes={evolucoes} anexos={anexos} />

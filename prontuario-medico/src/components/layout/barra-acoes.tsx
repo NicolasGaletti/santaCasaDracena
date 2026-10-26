@@ -3,7 +3,7 @@ import { cn } from 'cn'
 
 const TIPOS = {
   rascunho: 'border-status-rascunho-borda bg-status-rascunho-bg text-status-rascunho-fg',
-  aguardando: 'border-primary-suave-borda bg-primary-suave text-primary-suave-foreground',
+  aguardando: 'border-orange-300 bg-orange-100 text-orange-900',
   finalizada: 'border-transparent bg-status-feito-bg text-status-feito-fg',
   alta: 'border-destructive-soft-borda bg-destructive-soft text-destructive-soft-foreground',
   nenhuma: 'border-border bg-status-nenhum-bg text-status-nenhum-fg',
@@ -28,17 +28,15 @@ export function PilulaStatus({ tipo, children }: { tipo: TipoStatus; children: R
   )
 }
 
-/** Linha compacta: status à esquerda, ações à direita. No celular rola na horizontal, sem barra. */
+/** Linha compacta: status à esquerda, ações à direita. No celular as ações quebram de linha, sem rolagem. */
 export function BarraAcoes({ status, children }: { status?: ReactNode; children?: ReactNode }) {
   return (
     <div
       data-slot="barra-acoes"
-      className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-card px-3 py-2 sm:px-4 sm:py-3"
+      className="flex min-w-0 flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 sm:flex-nowrap sm:gap-3 sm:px-4 sm:py-3"
     >
-      {status && <div className="shrink-0">{status}</div>}
-      <div className="-my-1 flex min-w-0 flex-1 snap-x items-center gap-2 overflow-x-auto py-1 [scrollbar-width:none] sm:ml-auto sm:justify-end [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-        {children}
-      </div>
+      {status && <div className="max-w-full shrink-0">{status}</div>}
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:flex-1 sm:flex-nowrap sm:justify-end">{children}</div>
     </div>
   )
 }

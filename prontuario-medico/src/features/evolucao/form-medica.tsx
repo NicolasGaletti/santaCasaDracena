@@ -172,21 +172,6 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, a
 
   return (
     <div className="flex flex-col gap-4">
-      {idRascunho && (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            size="compacto"
-            className="font-semibold text-destructive hover:text-destructive"
-            disabled={enviando || anexosEvolucao.enviando}
-            onClick={() => setDescartarAberto(true)}
-          >
-            Descartar rascunho
-          </Button>
-        </div>
-      )}
-
       {adendo && <OriginalAdendo original={adendo} />}
 
       {rascunho?.devolvidaMotivo && (
@@ -217,18 +202,32 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, a
             subtitulo="O rascunho salva sozinho. Finalize para liberar a impressão."
             className="sm:rounded-b-none"
             acao={
+              <div className="flex flex-wrap items-center justify-end gap-1">
+                {idRascunho && (
+                  <Button
+                type="button"
+                variant="ghost"
+                size="compacto"
+                className="font-semibold text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                disabled={enviando || anexosEvolucao.enviando}
+                onClick={() => setDescartarAberto(true)}
+              >
+                Descartar rascunho
+              </Button>
+                )}
               <Button
                 type="button"
                 variant="contorno-teal"
                 size="compacto"
                 disabled={!hidratado || !anterior || enviando || salvando}
                 title={anterior ? undefined : 'Sem evolução finalizada anterior para copiar.'}
-                aria-label="Copiar anterior"
+                aria-label="Copiar evolução anterior"
                 onClick={copiarAnterior}
               >
                 <Copy aria-hidden="true" />
                 <span className="hidden sm:inline">Copiar anterior</span>
               </Button>
+              </div>
             }
           >
             <div className="flex flex-col gap-4">
@@ -282,7 +281,7 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, a
           indicador={indicador}
           salvar={{ desabilitado: !hidratado || enviando || salvando || anexosEvolucao.enviando, onSalvar: salvarAgora }}
           acaoPrincipal={
-            <Button type="button" variant="primaria" size="compacto" disabled={!hidratado || enviando} onClick={pedirConclusao}>
+            <Button type="button" variant="primaria" size="lg" className="flex-[1.4] bg-teal-700 hover:bg-teal-800 sm:h-9 sm:flex-none sm:px-3 sm:text-[13px]" disabled={!hidratado || enviando} onClick={pedirConclusao}>
               {podeFinalizar ? 'Finalizar' : 'Enviar para validação'}
             </Button>
           }

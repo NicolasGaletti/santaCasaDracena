@@ -9,11 +9,11 @@ export type CorAba = 'teal' | 'rose' | 'sky' | 'emerald'
 
 export type AbaColorida = { valor: string; rotulo: string; icone: LucideIcon; cor: CorAba }
 
-const ATIVA: Record<CorAba, string> = {
-  teal: 'data-[state=active]:border-teal-700 data-[state=active]:text-primary-suave-foreground',
-  rose: 'data-[state=active]:border-exame-ecg data-[state=active]:text-exame-ecg',
-  sky: 'data-[state=active]:border-exame-imagem data-[state=active]:text-exame-imagem',
-  emerald: 'data-[state=active]:border-exame-lab data-[state=active]:text-exame-lab',
+const INATIVA: Record<CorAba, string> = {
+  teal: 'text-slate-600',
+  rose: 'text-rose-700',
+  sky: 'text-sky-700',
+  emerald: 'text-emerald-700',
 }
 
 type Props = {
@@ -27,14 +27,14 @@ type Props = {
 export function AbasColoridas({ abas, valor, onValorChange, children }: Props) {
   return (
     <TabsPrimitive.Root data-slot="abas-coloridas" value={valor} onValueChange={onValorChange} className="flex min-w-0 flex-col gap-4">
-      <TabsPrimitive.List className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <TabsPrimitive.List className="flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden">
         {abas.map(({ valor: v, rotulo, icone: Icone, cor }) => (
           <TabsPrimitive.Trigger
             key={v}
             value={v}
             className={cn(
-              '-mb-px inline-flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 border-transparent px-3 text-sm font-semibold whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground sm:px-4',
-              ATIVA[cor],
+              'inline-flex min-h-11 flex-1 shrink-0 max-sm:[&_svg]:hidden items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold sm:text-sm whitespace-nowrap transition-colors outline-none hover:bg-white/70 focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:hover:bg-teal-700 sm:flex-none sm:px-4',
+              INATIVA[cor],
             )}
           >
             <Icone aria-hidden className="size-4" />
