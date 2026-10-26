@@ -28,6 +28,7 @@ function LoginForm() {
           ? 'Sua sessão expirou por inatividade.'
           : ''
   const mensagemErro = state.erro ?? erroUrl
+  const rascunhoPendente = searchParams.get('pendente') === '1'
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -40,6 +41,12 @@ function LoginForm() {
         {mensagemErro && (
           <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
             {mensagemErro}
+          </p>
+        )}
+
+        {rascunhoPendente && (
+          <p role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            Um rascunho não sincronizado ficou guardado neste aparelho e será enviado quando você entrar de novo.
           </p>
         )}
 

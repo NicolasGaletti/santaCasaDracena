@@ -77,13 +77,13 @@ export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVa
 
   useEffect(() => {
     window.addEventListener('online', fila.aoVoltarConexao)
-    const desregistrar = registrarFila(fila)
+    const desregistrar = registrarFila({ chave, forcar: () => fila.forcar(), cancelar: () => fila.cancelar() })
     return () => {
       desregistrar()
       window.removeEventListener('online', fila.aoVoltarConexao)
       fila.encerrar()
     }
-  }, [fila])
+  }, [fila, chave])
 
   // Restaura a cópia local (IndexedDB) só se o formulário ainda não foi editado: nunca sobrescreve digitação.
   useEffect(() => {

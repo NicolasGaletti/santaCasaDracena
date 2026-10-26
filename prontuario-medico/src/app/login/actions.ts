@@ -20,14 +20,15 @@ export async function entrar(_prev: EstadoLogin, form: FormData): Promise<Estado
   redirect(destinoSeguro(next))
 }
 
-export async function sair(): Promise<void> {
+/** `pendente`: um rascunho não sincronizado ficou guardado no aparelho (a tela de login avisa). */
+export async function sair(pendente = false): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/login')
+  redirect(pendente ? '/login?pendente=1' : '/login')
 }
 
-export async function sairPorInatividade(): Promise<void> {
+export async function sairPorInatividade(pendente = false): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()
-  redirect('/login?motivo=inatividade')
+  redirect(pendente ? '/login?motivo=inatividade&pendente=1' : '/login?motivo=inatividade')
 }

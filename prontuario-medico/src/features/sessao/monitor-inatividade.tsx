@@ -5,6 +5,7 @@ import { encerrarPorInatividade } from './encerrar'
 
 const CHAVE = 'ultima-atividade'
 const GRAVAR_A_CADA_MS = 30_000
+const REPETIR_APOS_FALHA_MS = 30_000
 const EVENTOS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'] as const
 
 function lerCompartilhado(): number {
@@ -40,11 +41,25 @@ export function MonitorInatividade({ minutos = 30 }: { minutos?: number }) {
     function verificar() {
       if (encerrado) return
       const agora = Date.now()
-      const restante = limiteMs - (agora - Math.max(ultima, lerCompartilhado()))
+      // Relógio que andou para trás: timestamp futuro vale como "agora", senão a sessão nunca expira.
+      let compartilhado = lerCompartilhado()
+      if (compartilhado > agora) {
+        // Regrava o valor corrigido, senão ele seguiria "no futuro" e valeria como agora a cada checagem.
+        compartilhado = agora
+        try {
+          localStorage.setItem(CHAVE, String(agora))
+        } catch {
+          // Sem localStorage: vale só a atividade desta aba.
+        }
+      }
+      const atividade = Math.min(agora, Math.max(ultima, compartilhado))
+      const restante = limiteMs - (agora - atividade)
       if (restante <= 0) {
         encerrado = true
         void encerrarPorInatividade().catch(() => {
           encerrado = false
+          clearTimeout(timer)
+          timer = setTimeout(verificar, REPETIR_APOS_FALHA_MS)
         })
         return
       }

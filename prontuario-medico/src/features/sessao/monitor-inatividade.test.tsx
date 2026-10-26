@@ -85,4 +85,25 @@ describe('MonitorInatividade', () => {
     act(() => vi.advanceTimersByTime(10 * MIN))
     expect(encerrar).toHaveBeenCalledTimes(1)
   })
+
+  it('tenta de novo em 30 s se o encerramento falhar', async () => {
+    encerrar.mockRejectedValueOnce(new Error('rede'))
+    render(<MonitorInatividade minutos={1} />)
+    await act(async () => {
+      vi.advanceTimersByTime(MIN + 1000)
+    })
+    expect(encerrar).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      vi.advanceTimersByTime(31_000)
+    })
+    expect(encerrar).toHaveBeenCalledTimes(2)
+  })
+
+  it('timestamp compartilhado no futuro (relógio voltou) não impede a expiração', () => {
+    render(<MonitorInatividade minutos={1} />)
+    localStorage.setItem('ultima-atividade', String(Date.now() + 5 * 60 * MIN))
+    // 1ª checagem corrige o valor futuro para "agora"; a expiração conta dali.
+    act(() => vi.advanceTimersByTime(2 * MIN + 2000))
+    expect(encerrar).toHaveBeenCalledTimes(1)
+  })
 })
