@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation'
+import { Filter } from 'lucide-react'
+import { RotuloCampo } from '@/components/layout/rotulo-campo'
 import { FilaImpressao, type LinhaFila } from '@/features/impressao/fila-impressao'
 import { formatarDataHora } from '@/features/evolucao/cartao-evolucao'
 import { listarEquipes, listarMedicos } from '@/features/internacoes/consultas'
@@ -77,16 +79,16 @@ export default async function PaginaImprimir({ searchParams }: { searchParams: P
     ]
   })
 
-  const campo = 'h-11 w-full min-w-0 rounded-lg border border-input bg-card px-2.5 text-base md:text-sm'
+  const campo = 'h-11 w-full min-w-0 rounded-lg border border-input bg-campo px-2.5 text-base sm:text-sm'
 
   return (
     <>
-      <h1 className="text-xl font-bold">Imprimir evoluções</h1>
+      <h1 className="text-xl font-bold sm:text-2xl">Imprimir evoluções</h1>
 
-      <form method="get" aria-label="Filtrar evoluções para impressão" className="grid gap-3 rounded-lg border border-border bg-card p-4 sm:grid-cols-3">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Equipe
-          <select name="equipe" defaultValue={equipeId ?? ''} className={campo}>
+      <form method="get" aria-label="Filtrar evoluções para impressão" className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-3">
+        <div className="min-w-0">
+          <RotuloCampo htmlFor="f-equipe">Equipe</RotuloCampo>
+          <select id="f-equipe" name="equipe" defaultValue={equipeId ?? ''} className={campo}>
             <option value="">Todas as equipes</option>
             {equipes.map((e) => (
               <option key={e.id} value={e.id}>
@@ -94,10 +96,10 @@ export default async function PaginaImprimir({ searchParams }: { searchParams: P
               </option>
             ))}
           </select>
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Médico validador
-          <select name="medico" defaultValue={medico} className={campo}>
+        </div>
+        <div className="min-w-0">
+          <RotuloCampo htmlFor="f-medico">Médico validador</RotuloCampo>
+          <select id="f-medico" name="medico" defaultValue={medico} className={campo}>
             <option value="eu">Eu ({profissional.nome})</option>
             <option value="todos">Todos os médicos</option>
             {medicos
@@ -108,16 +110,17 @@ export default async function PaginaImprimir({ searchParams }: { searchParams: P
                 </option>
               ))}
           </select>
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Dia
-          <input type="date" name="dia" defaultValue={dia} className={campo} />
-        </label>
+        </div>
+        <div className="min-w-0">
+          <RotuloCampo htmlFor="f-dia">Dia</RotuloCampo>
+          <input id="f-dia" type="date" name="dia" defaultValue={dia} className={campo} />
+        </div>
         <div className="sm:col-span-3">
           <button
             type="submit"
-            className="inline-flex h-11 items-center rounded-lg border border-border bg-background px-5 font-medium hover:bg-muted"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-hover"
           >
+            <Filter aria-hidden className="size-4" />
             Filtrar
           </button>
         </div>

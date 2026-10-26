@@ -9,7 +9,7 @@ export default async function NotificacoesPage() {
   const itens = await listarNotificacoes()
   return (
     <div className="flex max-w-2xl flex-col gap-4">
-      <h1 className="text-xl font-bold text-foreground">Notificações</h1>
+      <h1 className="text-xl font-bold text-foreground sm:text-2xl">Notificações</h1>
       <ListaNotificacoes itens={itens} />
     </div>
   )

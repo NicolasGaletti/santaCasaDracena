@@ -73,20 +73,20 @@ export function RevisaoEvolucao({ revisao }: { revisao: RevisaoValidacao }) {
       {revisao.original && <OriginalAdendo original={revisao.original} />}
       <CartaoEvolucao evolucao={revisao.evolucao} />
 
-      <p className="text-sm font-semibold text-muted-foreground">
+      <p className="px-1 text-[13px] font-semibold text-muted-foreground">
         {`Registrado por ${revisao.evolucao.autor_nome ?? 'autor não identificado'} – ${revisao.autorIdentificacao || 'Perfil não identificado'}`}
       </p>
 
       {revisao.anexos.length > 0 && (
         <section aria-labelledby={`titulo-anexos-${id}`} className="flex flex-col gap-3">
-          <h2 id={`titulo-anexos-${id}`} className="text-lg font-bold">
+          <h2 id={`titulo-anexos-${id}`} className="font-heading text-base font-bold text-primary-suave-foreground">
             Exames anexados
           </h2>
           <GaleriaExames anexos={revisao.anexos} />
         </section>
       )}
 
-      <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 sm:flex-row sm:justify-end">
         <Button
           type="button"
           variant="outline"
@@ -97,7 +97,13 @@ export function RevisaoEvolucao({ revisao }: { revisao: RevisaoValidacao }) {
         >
           Devolver
         </Button>
-        <Button type="button" size="lg" className="w-full sm:w-auto" disabled={enviando} onClick={() => setDialogo('validar')}>
+        <Button
+          type="button"
+          size="lg"
+          className="w-full bg-primary text-primary-foreground hover:bg-primary-hover sm:w-auto"
+          disabled={enviando}
+          onClick={() => setDialogo('validar')}
+        >
           Validar
         </Button>
       </div>
@@ -133,7 +139,7 @@ export function RevisaoEvolucao({ revisao }: { revisao: RevisaoValidacao }) {
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <label htmlFor={`motivo-${id}`} className="text-sm font-semibold">
+            <label htmlFor={`motivo-${id}`} className="text-[11px] font-bold tracking-wide text-texto-forte uppercase">
               Motivo da devolução
             </label>
             <Textarea

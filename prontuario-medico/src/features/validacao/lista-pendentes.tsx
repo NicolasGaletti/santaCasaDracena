@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Clock, MapPin, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ROTULO_CATEGORIA } from '@/features/evolucao/rotulos'
 import { formatarDataHora } from '@/features/evolucao/cartao-evolucao'
@@ -18,7 +19,7 @@ export function tempoDesde(iso: string, agora: Date = new Date()): string {
 export function ListaPendentes({ pendentes }: { pendentes: PendenteValidacao[] }) {
   if (pendentes.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-border p-4 text-muted-foreground">
+      <p className="rounded-xl border border-dashed border-input bg-card p-6 text-center text-muted-foreground">
         Nenhuma evolução aguardando validação.
       </p>
     )
@@ -30,19 +31,29 @@ export function ListaPendentes({ pendentes }: { pendentes: PendenteValidacao[] }
         <li key={p.id}>
           <Link
             href={`/validacao?evolucao=${p.id}`}
-            className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex min-h-11 flex-col gap-2 rounded-xl border border-l-4 border-border border-l-teal-decorativo bg-card p-4 text-card-foreground transition-colors hover:bg-primary-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="min-w-0 break-words font-bold leading-snug">{p.pacienteNome}</span>
+              <span className="min-w-0 break-words font-heading font-bold leading-snug">{p.pacienteNome}</span>
               {p.adendoDe && <Badge variant="outline" className="shrink-0">Adendo</Badge>}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Leito {p.leito || 'não informado'} · {p.equipeNome}
+            <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+              <MapPin aria-hidden className="size-3.5 shrink-0" />
+              <span className="min-w-0 break-words">
+                Leito {p.leito || 'não informado'} · {p.equipeNome}
+              </span>
             </p>
-            <p className="text-sm">
-              {ROTULO_CATEGORIA[p.categoria] ?? p.categoria} · {p.autorNome}
+            <p className="flex min-w-0 flex-wrap items-center gap-2 text-[13px]">
+              <span className="rounded bg-muted px-2 py-0.5 text-[12px] text-texto-forte">
+                {ROTULO_CATEGORIA[p.categoria] ?? p.categoria}
+              </span>
+              <span className="flex min-w-0 items-center gap-1">
+                <UserRound aria-hidden className="size-3.5 shrink-0" />
+                <span className="min-w-0 break-words">{p.autorNome}</span>
+              </span>
             </p>
-            <p className="text-xs font-semibold text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-orange-900">
+              <Clock aria-hidden className="size-3.5 shrink-0" />
               Enviada {formatarDataHora(p.enviadaEm)} ({tempoDesde(p.enviadaEm)})
             </p>
           </Link>

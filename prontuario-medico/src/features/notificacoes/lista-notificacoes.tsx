@@ -34,17 +34,17 @@ export function ListaNotificacoes({ itens }: { itens: Notificacao[] }) {
   }
 
   if (itens.length === 0) {
-    return <p className="rounded-lg border border-border bg-card p-4 text-muted-foreground">Nenhuma notificação por aqui.</p>
+    return <p className="rounded-xl border border-dashed border-input bg-card p-6 text-center text-muted-foreground">Nenhuma notificação por aqui.</p>
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <Button type="button" variant="outline" disabled={naoLidas === 0} onClick={marcarTodas}>
+        <Button type="button" variant="contorno-teal" size="compacto" disabled={naoLidas === 0} onClick={marcarTodas}>
           Marcar todas como lidas
         </Button>
       </div>
-      <ul className="overflow-hidden rounded-lg border border-border bg-card">
+      <ul className="overflow-hidden rounded-xl border border-border bg-card">
         {itens.map((n) => {
           const lida = estaLida(n)
           return (
@@ -55,11 +55,11 @@ export function ListaNotificacoes({ itens }: { itens: Notificacao[] }) {
                   if (!lida) void marcar(n.id)
                 }}
                 data-lida={lida}
-                className={`flex min-h-14 items-start gap-3 px-4 py-3 transition-colors hover:bg-muted ${lida ? 'text-muted-foreground' : 'bg-accent/40 text-foreground'}`}
+                className={`flex min-h-14 items-start gap-3 px-4 py-3 transition-colors hover:bg-muted ${lida ? 'text-muted-foreground' : 'bg-primary-suave text-foreground'}`}
               >
                 <span
                   aria-hidden
-                  className={`mt-2 size-2.5 shrink-0 rounded-full ${lida ? 'bg-transparent' : 'bg-destructive'}`}
+                  className={`mt-2 size-2.5 shrink-0 rounded-full ${lida ? 'bg-transparent' : 'bg-primary'}`}
                 />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className={lida ? '' : 'font-bold'}>{n.texto}</span>

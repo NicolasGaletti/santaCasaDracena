@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export type LinhaFila = {
@@ -56,12 +57,13 @@ export function FilaImpressao({ linhas }: { linhas: LinhaFila[] }) {
           {linhas.length === 1 ? '1 evolução para imprimir' : `${linhas.length} evoluções para imprimir`}
         </p>
         <Button type="button" size="lg" onClick={imprimir} disabled={selecionadas.size === 0}>
+          <Printer aria-hidden />
           Imprimir selecionadas{selecionadas.size > 0 ? ` (${selecionadas.size})` : ''}
         </Button>
       </div>
 
       {linhas.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border bg-card p-6 text-center text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-input bg-card p-6 text-center text-muted-foreground">
           Nenhuma evolução pendente de impressão com estes filtros.
         </p>
       ) : (
@@ -69,18 +71,18 @@ export function FilaImpressao({ linhas }: { linhas: LinhaFila[] }) {
           {linhas.map((l) => (
             <li
               key={l.id}
-              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3"
+              className={`flex items-start gap-3 rounded-xl border border-l-4 p-3 ${selecionadas.has(l.id) ? 'border-primary-suave-borda border-l-primary bg-primary-suave' : 'border-border border-l-teal-decorativo bg-card'}`}
             >
               <input
                 id={`imprimir-${l.id}`}
                 type="checkbox"
                 checked={selecionadas.has(l.id)}
                 onChange={(e) => alternar(l.id, e.target.checked)}
-                className="mt-1 size-5 shrink-0 accent-primary"
+                className="mt-0.5 size-6 shrink-0 accent-primary"
                 aria-label={`Selecionar ${l.paciente}`}
               />
               <label htmlFor={`imprimir-${l.id}`} className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5">
-                <span className="font-bold break-words">{l.paciente}</span>
+                <span className="font-heading font-bold break-words">{l.paciente}</span>
                 <span className="text-sm text-muted-foreground">
                   Leito {l.leito} · {l.equipe}
                 </span>

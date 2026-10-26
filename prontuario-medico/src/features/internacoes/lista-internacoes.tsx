@@ -40,7 +40,7 @@ function FiltroChips({
             aria-current={ativo ? 'true' : undefined}
             className={`${CLASSE_CHIP} ${
               ativo
-                ? 'border-primary-suave-borda bg-primary-suave text-primary-suave-foreground'
+                ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-input bg-card text-foreground hover:bg-muted'
             }`}
           >
