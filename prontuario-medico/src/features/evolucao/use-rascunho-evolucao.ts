@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ErroAnexo, MENSAGEM_SEM_CONEXAO_ANEXO } from '@/features/anexos/enviar-anexo'
 import { createBrowserSupabase } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/database.types'
+import { registrarFila } from '@/features/sessao/limpeza'
 import { descartar } from './actions'
 import {
   armazenamentoIdb,
@@ -76,7 +77,9 @@ export function useRascunhoEvolucao<D>({ internacaoId, userId, rascunho, dadosVa
 
   useEffect(() => {
     window.addEventListener('online', fila.aoVoltarConexao)
+    const desregistrar = registrarFila(fila)
     return () => {
+      desregistrar()
       window.removeEventListener('online', fila.aoVoltarConexao)
       fila.encerrar()
     }

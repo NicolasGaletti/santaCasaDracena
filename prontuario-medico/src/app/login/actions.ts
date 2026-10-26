@@ -25,3 +25,9 @@ export async function sair(): Promise<void> {
   await supabase.auth.signOut()
   redirect('/login')
 }
+
+export async function sairPorInatividade(): Promise<void> {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/login?motivo=inatividade')
+}

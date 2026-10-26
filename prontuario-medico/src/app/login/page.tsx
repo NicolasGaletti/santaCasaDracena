@@ -24,7 +24,9 @@ function LoginForm() {
       ? 'Seu usuário não tem cadastro profissional ativo. Procure o administrador.'
       : searchParams.get('error') === 'link_invalido'
         ? 'Link inválido ou expirado. Peça um novo convite ou use "Esqueci minha senha".'
-        : ''
+        : searchParams.get('motivo') === 'inatividade'
+          ? 'Sua sessão expirou por inatividade.'
+          : ''
   const mensagemErro = state.erro ?? erroUrl
 
   return (

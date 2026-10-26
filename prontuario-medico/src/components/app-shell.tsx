@@ -4,9 +4,9 @@ import { UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { sair } from '@/app/login/actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { BotaoSair } from '@/features/sessao/botao-sair'
 import { Sino } from '@/features/notificacoes/sino'
 import { useAbaAtiva } from '@/components/navegacao-ativa'
 import type { Profissional } from '@/lib/auth'
@@ -77,11 +77,7 @@ export function AppShell({ profissional, pendentesValidacao = 0, usuarioId, naoL
               <UserRound aria-hidden className="size-6" />
               <span className="hidden text-sm font-medium lg:inline">Segurança</span>
             </Link>
-            <form action={sair}>
-              <Button type="submit" variant="outline">
-                Sair
-              </Button>
-            </form>
+            <BotaoSair />
           </div>
         </div>
       </header>
