@@ -599,7 +599,7 @@ select ok(
     where id = '44400000-0000-0000-0000-000000000012'
       and status = 'FINALIZADA' and hash_versao = 2
       and snapshot_autor->>'nome' = 'Teste medico'
-      and snapshot_autor = snapshot_validador
+      and snapshot_autor - 'perfil' = snapshot_validador
   ),
   'finalizar_evolucao grava snapshots e hash v2'
 );

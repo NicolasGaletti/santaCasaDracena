@@ -63,6 +63,32 @@ function assinante(json: unknown): Assinante | null {
   return { nome, conselho: texto(obj.conselho), numero: texto(obj.numero), uf: texto(obj.uf) }
 }
 
+/**
+ * Perfil do autor congelado na finalização. Linha antiga, sem `perfil` no snapshot: acadêmico quando
+ * é categoria médica, o snapshot não tem conselho e outro médico validou. Sem decisão, null.
+ */
+function perfilCongelado(evolucao: {
+  categoria: string
+  snapshot_autor: unknown
+  autor_id: string
+  validada_por: string | null
+}): string | null {
+  const snapshot = evolucao.snapshot_autor && typeof evolucao.snapshot_autor === 'object'
+    ? (evolucao.snapshot_autor as Record<string, unknown>)
+    : null
+  if (typeof snapshot?.perfil === 'string') return snapshot.perfil
+  if (
+    evolucao.categoria === 'medica' &&
+    snapshot &&
+    !snapshot.conselho &&
+    evolucao.validada_por !== null &&
+    evolucao.validada_por !== evolucao.autor_id
+  ) {
+    return 'academico'
+  }
+  return null
+}
+
 /** Junta os PDFs de cada evolução numa página única sequencial. */
 async function juntarPdfs(buffers: Buffer[]): Promise<Uint8Array> {
   const final = await PDFDocument.create()
@@ -201,12 +227,11 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
     : { data: [], error: null }
   if (erroOriginais) return erro(500, 'Não foi possível gerar o PDF.')
   const originalPorId = new Map((originais ?? []).map((o) => [o.id, o]))
-  // Perfil atual do autor: só para o rótulo de acadêmico sem conselho.
-  const autorIds = [...new Set((evolucoes ?? []).map((e) => e.autor_id))]
-  const { data: autores, error: erroAutores } = await supabase
-    .from('vw_profissionais_publico')
-    .select('id, perfil')
-    .in('id', autorIds)
+  // Perfil atual do autor: só quando o snapshot não decide (ver perfilCongelado).
+  const autorIds = [...new Set((evolucoes ?? []).filter((e) => perfilCongelado(e) === null).map((e) => e.autor_id))]
+  const { data: autores, error: erroAutores } = autorIds.length
+    ? await supabase.from('vw_profissionais_publico').select('id, perfil').in('id', autorIds)
+    : { data: [], error: null }
   if (erroAutores) return erro(500, 'Não foi possível gerar o PDF.')
   const perfilAutor = new Map((autores ?? []).map((a) => [a.id, a.perfil]))
   const internacaoIds = [...new Set((evolucoes ?? []).map((e) => e.internacao_id))]
@@ -245,7 +270,7 @@ export async function gerarPdf(ids: string[], opcoes: OpcoesPdf = {}): Promise<R
         snapshot_validador: assinante(evolucao.snapshot_validador),
         autor_id: evolucao.autor_id,
         validada_por: evolucao.validada_por,
-        autor_perfil: perfilAutor.get(evolucao.autor_id) ?? null,
+        autor_perfil: perfilCongelado(evolucao) ?? perfilAutor.get(evolucao.autor_id) ?? null,
         adendo_de: adendoDe,
         conteudo_hash: evolucao.conteudo_hash,
         hash_versao: evolucao.hash_versao,

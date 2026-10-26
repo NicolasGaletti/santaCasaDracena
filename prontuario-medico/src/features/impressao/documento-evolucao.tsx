@@ -45,7 +45,7 @@ export type EvolucaoImpressao = {
     /** Autor e validador (ids) para decidir se a linha "Registrado por" aparece. */
     autor_id: string
     validada_por: string | null
-    /** Perfil atual do autor: só usado para o rótulo de acadêmico sem conselho. */
+    /** Perfil do autor (congelado no snapshot ou inferido): só usado para o rótulo de acadêmico sem conselho. */
     autor_perfil: string | null
     /** Evolução original quando esta é um adendo. */
     adendo_de: { id: string; finalizada_em: string } | null

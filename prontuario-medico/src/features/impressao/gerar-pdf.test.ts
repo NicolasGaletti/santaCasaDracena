@@ -253,3 +253,55 @@ describe('gerarPdf: anexos', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 })
+
+describe('gerarPdf: registro do autor congelado', () => {
+  const AUTOR = 'a0000000-0000-0000-0000-00000000000a'
+  const VALIDADOR = 'a0000000-0000-0000-0000-00000000000b'
+
+  /** Evolução finalizada de categoria médica, validada por outro médico, com o snapshot dado. */
+  function prepararRegistro(snapshotAutor: unknown, perfilAtual: string) {
+    prepararFinalizada([])
+    tabelas.vw_evolucoes_timeline = {
+      data: [
+        {
+          ...(tabelas.vw_evolucoes_timeline as { data: Record<string, unknown>[] }).data[0],
+          autor_id: AUTOR,
+          validada_por: VALIDADOR,
+          validada_em: '2026-10-25T16:10:00.000Z',
+          snapshot_autor: snapshotAutor,
+          snapshot_validador: { nome: 'Dr. Validador', conselho: 'CRM', numero: '999', uf: 'SP' },
+        },
+      ],
+      error: null,
+    }
+    tabelas.vw_profissionais_publico = { data: [{ id: AUTOR, perfil: perfilAtual }], error: null }
+  }
+
+  it('autor promovido: snapshot de acadêmico imprime acadêmico mesmo com perfil atual de médico', async () => {
+    prepararRegistro({ nome: 'Ana Acadêmica', conselho: null, numero: null, uf: null, perfil: 'academico' }, 'medico')
+
+    const resposta = await gerarPdf([ID])
+
+    const texto = await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))
+    expect(texto).toContain('Registrado por: Ana Acadêmica – Acadêmico(a) de Medicina')
+  })
+
+  it('snapshot antigo sem perfil e sem conselho, validado por outro médico: infere acadêmico', async () => {
+    prepararRegistro({ nome: 'Ana Acadêmica', conselho: null, numero: null, uf: null }, 'medico')
+
+    const resposta = await gerarPdf([ID])
+
+    const texto = await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))
+    expect(texto).toContain('Registrado por: Ana Acadêmica – Acadêmico(a) de Medicina')
+  })
+
+  it('snapshot antigo com conselho imprime o registro e não o rótulo de acadêmico', async () => {
+    prepararRegistro({ nome: 'Dra. Marina', conselho: 'CRM', numero: '145892', uf: 'SP' }, 'academico')
+
+    const resposta = await gerarPdf([ID])
+
+    const texto = await textoDoPdf(Buffer.from(await resposta.arrayBuffer()))
+    expect(texto).toContain('Registrado por: Dra. Marina – CRM 145892/SP')
+    expect(texto).not.toContain('Acadêmico(a) de Medicina')
+  })
+})

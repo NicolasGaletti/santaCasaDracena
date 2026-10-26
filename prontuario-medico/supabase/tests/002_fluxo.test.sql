@@ -176,7 +176,7 @@ select ok(
       and finalizada_em = current_setting('tst.fin_em')::timestamptz
       and validada_em = finalizada_em
       and validada_por = current_setting('tst.medico_a')::uuid
-      and snapshot_autor = snapshot_validador
+      and snapshot_autor - 'perfil' = snapshot_validador
       and snapshot_autor->>'nome' = 'Teste medico'
       and snapshot_autor->>'conselho' = 'CRM'
       and snapshot_autor->>'numero' = '123456'
