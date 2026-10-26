@@ -424,6 +424,7 @@ export type Database = {
           motivo_alta: string | null;
           paciente_id: string;
           status: Database["public"]["Enums"]["status_internacao"];
+          tipo_alta: Database["public"]["Enums"]["tipo_alta"] | null;
         };
         ComputedFields: never;
         Insert: {
@@ -437,6 +438,7 @@ export type Database = {
           motivo_alta?: string | null;
           paciente_id: string;
           status?: Database["public"]["Enums"]["status_internacao"];
+          tipo_alta?: Database["public"]["Enums"]["tipo_alta"] | null;
         };
         Update: {
           admitido_em?: string;
@@ -449,6 +451,7 @@ export type Database = {
           motivo_alta?: string | null;
           paciente_id?: string;
           status?: Database["public"]["Enums"]["status_internacao"];
+          tipo_alta?: Database["public"]["Enums"]["tipo_alta"] | null;
         };
         Relationships: [
           {
@@ -805,6 +808,7 @@ export type Database = {
           paciente_id: string;
           status: Database["public"]["Enums"]["status_internacao"];
           status_hoje: string | null;
+          tipo_alta: Database["public"]["Enums"]["tipo_alta"] | null;
         };
         ComputedFields: never;
         Relationships: [
@@ -883,6 +887,15 @@ export type Database = {
           storage_path: string;
         }[];
       };
+      dar_alta: {
+        Args: {
+          p_alta_em?: string;
+          p_internacao_id: string;
+          p_resumo: string;
+          p_tipo: Database["public"]["Enums"]["tipo_alta"];
+        };
+        Returns: undefined;
+      };
       descartar_rascunho: { Args: { p_evolucao_id: string }; Returns: undefined };
       devolver_evolucao: { Args: { p_evolucao_id: string; p_motivo: string }; Returns: undefined };
       enviar_evolucao: { Args: { p_evolucao_id: string }; Returns: undefined };
@@ -926,6 +939,7 @@ export type Database = {
         | "academico";
       status_evolucao: "RASCUNHO" | "AGUARDANDO_VALIDACAO" | "FINALIZADA";
       status_internacao: "INTERNADO" | "ALTA";
+      tipo_alta: "MELHORADA" | "CURADA" | "A_PEDIDO" | "TRANSFERENCIA" | "EVASAO" | "OBITO";
       tipo_anexo: "LABORATORIO" | "IMAGEM" | "ECG" | "OUTRO";
     };
     CompositeTypes: {
@@ -1065,6 +1079,7 @@ export const Constants = {
       ],
       status_evolucao: ["RASCUNHO", "AGUARDANDO_VALIDACAO", "FINALIZADA"],
       status_internacao: ["INTERNADO", "ALTA"],
+      tipo_alta: ["MELHORADA", "CURADA", "A_PEDIDO", "TRANSFERENCIA", "EVASAO", "OBITO"],
       tipo_anexo: ["LABORATORIO", "IMAGEM", "ECG", "OUTRO"],
     },
   },
