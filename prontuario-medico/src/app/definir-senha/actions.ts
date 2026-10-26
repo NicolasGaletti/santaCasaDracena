@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import type { EstadoForm } from '@/lib/forms'
 import { validarSenha } from '@/lib/senha'
+import { mfaPendente } from '@/lib/auth'
 import { sessaoPorLinkDeEmail } from '@/lib/sessao'
 import { createClient } from '@/lib/supabase/server'
 
@@ -21,6 +22,8 @@ export async function definirSenha(_prev: EstadoForm, form: FormData): Promise<E
   if (!data?.claims || !sessaoPorLinkDeEmail(data.claims)) {
     return { erro: 'Use o link enviado por e-mail para definir a senha.' }
   }
+
+  if (await mfaPendente(supabase)) redirect('/mfa/verificar?next=%2Fdefinir-senha')
 
   const { error } = await supabase.auth.updateUser({ password: senha })
   if (error) {

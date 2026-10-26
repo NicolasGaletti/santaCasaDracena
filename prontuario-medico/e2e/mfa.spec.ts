@@ -73,3 +73,60 @@ test('qualquer perfil cadastra autenticador em /conta/seguranca', async ({ page 
   await expect(page.getByText('Autenticador ativo')).toBeVisible()
   removerFatores('recepcao@teste.local')
 })
+
+test('perfil não admin com autenticador ativo pede o código no login e respeita next', async ({ page }) => {
+  removerFatores('recepcao@teste.local')
+  try {
+    await entrarComSenha(page, 'recepcao@teste.local')
+    await expect(page).toHaveURL('/')
+    await page.goto('/conta/seguranca')
+    await page.getByRole('button', { name: 'Configurar autenticador' }).click()
+    const segredoRecepcao = (await page.getByTestId('segredo-mfa').innerText()).trim()
+    await page.getByLabel('Código de 6 dígitos').fill(await codigoTotp(segredoRecepcao))
+    await page.getByRole('button', { name: 'Ativar autenticador' }).click()
+    await expect(page.getByText('Autenticador ativo')).toBeVisible()
+
+    // novo login: senha não basta, mesmo sem ser admin
+    await page.context().clearCookies()
+    await page.goto('/conta/seguranca')
+    await expect(page).toHaveURL(/\/login\?next=/)
+    await page.getByLabel('E-mail Profissional').fill('recepcao@teste.local')
+    await page.getByLabel('Senha').fill('Teste@123')
+    await page.getByRole('button', { name: 'Entrar no Sistema' }).click()
+    await expect(page).toHaveURL(/\/mfa\/verificar\?next=%2Fconta%2Fseguranca$/)
+
+    // com sessão aal1 nenhuma página protegida abre
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/mfa\/verificar/)
+
+    await page.goto('/mfa/verificar?next=%2Fconta%2Fseguranca')
+    await page.getByLabel('Código de 6 dígitos').fill(await codigoTotp(segredoRecepcao))
+    await page.getByRole('button', { name: 'Confirmar' }).click()
+    await expect(page).toHaveURL(/\/conta\/seguranca$/)
+  } finally {
+    removerFatores('recepcao@teste.local')
+  }
+})
+
+test('next externo em /mfa/verificar é ignorado', async ({ page }) => {
+  removerFatores('recepcao@teste.local')
+  try {
+    await entrarComSenha(page, 'recepcao@teste.local')
+    await expect(page).toHaveURL('/')
+    await page.goto('/conta/seguranca')
+    await page.getByRole('button', { name: 'Configurar autenticador' }).click()
+    const seg = (await page.getByTestId('segredo-mfa').innerText()).trim()
+    await page.getByLabel('Código de 6 dígitos').fill(await codigoTotp(seg))
+    await page.getByRole('button', { name: 'Ativar autenticador' }).click()
+    await expect(page.getByText('Autenticador ativo')).toBeVisible()
+    await page.context().clearCookies()
+    await entrarComSenha(page, 'recepcao@teste.local')
+    await expect(page).toHaveURL(/\/mfa\/verificar$/)
+    await page.goto('/mfa/verificar?next=https%3A%2F%2Fevil.example%2F')
+    await page.getByLabel('Código de 6 dígitos').fill(await codigoTotp(seg))
+    await page.getByRole('button', { name: 'Confirmar' }).click()
+    await expect(page).toHaveURL('http://localhost:3000/')
+  } finally {
+    removerFatores('recepcao@teste.local')
+  }
+})

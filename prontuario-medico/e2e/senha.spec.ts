@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
-import { entrarAdmin, tokenAdminAal2 } from './helpers/mfa'
+import { createClient } from '@supabase/supabase-js'
+import {
+  ADMIN_COM_FATOR, SEGREDO_ADMIN_SEED, codigoTotp, entrarAdmin, tokenAdminAal2,
+} from './helpers/mfa'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321'
 const SUPABASE_CHAVE =
@@ -123,6 +126,49 @@ test('recuperação de senha', async ({ page }) => {
   await entrar(page, email, 'OutraSenha2027')
   await expect(page).toHaveURL('/')
 })
+
+test('admin recupera a senha: link, código do autenticador, nova senha', async ({ page }) => {
+  // limpa e-mails antigos do admin semeado para não usar um link vencido
+  await fetch(`${MAILPIT_URL}/api/v1/search?query=${encodeURIComponent(`to:${ADMIN_COM_FATOR}`)}`, { method: 'DELETE' })
+
+  try {
+    await page.goto('/esqueci-senha')
+    await page.getByLabel('E-mail').fill(ADMIN_COM_FATOR)
+    await page.getByRole('button', { name: 'Enviar link' }).click()
+    await expect(page.getByText(MENSAGEM_NEUTRA)).toBeVisible()
+
+    await page.goto(await linkDoEmail(ADMIN_COM_FATOR, 'type=recovery'))
+    // sessão do link é aal1 e o admin tem fator: o código vem antes da nova senha
+    await expect(page).toHaveURL(/\/mfa\/verificar\?next=%2Fdefinir-senha$/)
+    await page.getByLabel('Código de 6 dígitos').fill(await codigoTotp(SEGREDO_ADMIN_SEED))
+    await page.getByRole('button', { name: 'Confirmar' }).click()
+    await expect(page).toHaveURL(/\/definir-senha$/)
+
+    await definirSenha(page, 'NovaSenhaAdmin2026')
+    await expect(page).toHaveURL(/\/admin\/profissionais$/)
+
+    await page.context().clearCookies()
+    await entrar(page, ADMIN_COM_FATOR, 'NovaSenhaAdmin2026')
+    await expect(page).toHaveURL(/\/mfa\/verificar/)
+  } finally {
+    await restaurarSenhaAdmin()
+  }
+})
+
+/** Devolve a senha do seed ao admin (fixture compartilhada pelas outras specs). */
+async function restaurarSenhaAdmin() {
+  for (const senha of ['NovaSenhaAdmin2026', 'Teste@123']) {
+    const cliente = createClient(SUPABASE_URL, SUPABASE_CHAVE, { auth: { persistSession: false } })
+    const { error } = await cliente.auth.signInWithPassword({ email: ADMIN_COM_FATOR, password: senha })
+    if (error) continue
+    const { data: fatores } = await cliente.auth.mfa.listFactors()
+    await cliente.auth.mfa.challengeAndVerify({ factorId: fatores!.totp[0].id, code: await codigoTotp(SEGREDO_ADMIN_SEED) })
+    const { error: erroSenha } = await cliente.auth.updateUser({ password: 'Teste@123' })
+    if (erroSenha && !/different/i.test(erroSenha.message)) throw new Error(`restaurar senha do admin: ${erroSenha.message}`)
+    return
+  }
+  throw new Error('não foi possível restaurar a senha do admin')
+}
 
 test('resposta igual para e-mail inexistente', async ({ page }) => {
   await page.goto('/esqueci-senha')

@@ -29,6 +29,9 @@ export const exigirProfissional = cache(async (): Promise<Profissional> => {
     const { temFator, verificado } = await situacaoMfa(supabase, data.claims.aal)
     if (!temFator) redirect('/mfa/cadastrar')
     if (!verificado) redirect('/mfa/verificar')
+  } else if (await mfaPendente(supabase)) {
+    // qualquer perfil com autenticador ativo: senha sozinha (aal1) não basta
+    redirect('/mfa/verificar')
   }
 
   return profissional
@@ -55,6 +58,12 @@ export async function exigirSessaoMfa() {
   }
 
   return situacaoMfa(supabase, data.claims.aal)
+}
+
+/** True se a conta tem fator verificado e a sessão ainda é aal1 (falta o código). Sem consulta de fatores. */
+export async function mfaPendente(supabase: SupabaseClient<Database>): Promise<boolean> {
+  const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  return data?.nextLevel === 'aal2' && data.currentLevel === 'aal1'
 }
 
 /** `aal` vem das claims já validadas; fator verificado vem do servidor de autenticação. */
