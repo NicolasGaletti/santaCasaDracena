@@ -45,7 +45,10 @@ export async function listarEquipes(): Promise<{ id: string; nome: string }[]> {
 /** Convênios ativos na ordem da view: mais usados primeiro, depois alfabética. */
 export async function listarConveniosDaLista(): Promise<{ id: string; nome: string }[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase.from('vw_convenios_ordenados').select('id, nome')
+  const { data, error } = await supabase.from('vw_convenios_ordenados')
+    .select('id, nome')
+    .order('usos', { ascending: false })
+    .order('nome')
   if (error) throw new Error(error.message)
   return (data ?? [])
     .flatMap((c) => (c.id && c.nome ? [{ id: c.id, nome: c.nome }] : []))

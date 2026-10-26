@@ -14,7 +14,7 @@ describe('statusDoDia', () => {
     expect(statusDoDia(base)).toEqual({ tipo: 'nenhuma', texto: 'Sem evolução hoje' })
   })
   it('rascunho próprio', () => {
-    expect(statusDoDia({ ...base, rascunhoProprio: true })).toEqual({ tipo: 'rascunho', texto: 'Rascunho de hoje' })
+    expect(statusDoDia({ ...base, rascunhoProprio: true })).toEqual({ tipo: 'rascunho', texto: 'Rascunho' })
   })
   it('rascunho próprio vence finalizada hoje', () => {
     expect(statusDoDia({ ...base, rascunhoProprio: true, finalizadaHoje: true }).tipo).toBe('rascunho')

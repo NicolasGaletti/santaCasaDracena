@@ -70,6 +70,7 @@ const ROTULO_TABELA: Record<string, string> = {
   equipes: 'Equipes',
   membros_equipe: 'Membros de equipe',
   convites: 'Convites',
+  convenios: 'Convênios',
 }
 export const rotuloTabela = (t: string) => ROTULO_TABELA[t] ?? t
 

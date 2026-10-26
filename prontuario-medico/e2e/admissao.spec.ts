@@ -209,6 +209,7 @@ test('convênio desativado depois de abrir a tela → "Escolha um convênio da l
   await expect(page.getByLabel('Leito / ala')).toHaveValue('E2E-CONV');
   await expect(page.getByLabel('Diagnóstico inicial')).toHaveValue('Dor torácica');
   await expect(page.getByRole('radio', { name: 'Cardiologia' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByLabel('Convênio').locator('option', { hasText: convenio })).toHaveCount(0);
 });
 
 test('chips de equipe por teclado', async ({ page }) => {

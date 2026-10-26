@@ -23,8 +23,17 @@ type Props =
 export function FichaCliente({ ciclo, ...props }: Props & { ciclo: string }) {
   const [reinicio, setReinicio] = useState(0)
   const [descartado, setDescartado] = useState<string | null>(null)
+  // Trocar o alvo do adendo (A para B) recomeça a ficha. Aparecer o alvo pela primeira vez (null para A) é só o
+  // rascunho recém-criado voltando do servidor: remontar aí apagaria o que está sendo digitado.
+  const alvo = props.adendo?.id ?? null
+  const [alvoAnterior, setAlvoAnterior] = useState(alvo)
+  const [trocas, setTrocas] = useState(0)
+  if (alvo !== alvoAnterior) {
+    setAlvoAnterior(alvo)
+    if (alvo && alvoAnterior) setTrocas((n) => n + 1)
+  }
   const velho = props.rascunho !== null && props.rascunho.id === descartado
-  const chave = `${props.internacaoId}:${ciclo}:${reinicio}`
+  const chave = `${props.internacaoId}:${ciclo}:${reinicio}:${trocas}`
   const comum = { internacaoId: props.internacaoId, userId: props.userId, anexos: velho ? [] : props.anexos, adendo: velho ? null : props.adendo }
   const aoDescartar = (id: string) => {
     setDescartado(id)

@@ -1,6 +1,7 @@
-import { FileText } from 'lucide-react'
+import { FileText, Stethoscope } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { CartaoSecao } from '@/components/layout/cartao-secao'
 import { BarraAcoes, PilulaStatus } from '@/components/layout/barra-acoes'
 import { CabecalhoPaciente } from '@/features/internacoes/cabecalho-paciente'
 import { MarcarAba } from '@/components/navegacao-ativa'
@@ -43,7 +44,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   await supabase.rpc('registrar_acesso', { p_internacao_id: id, p_acao: 'abrir_prontuario' })
 
   const clinico = !(PERFIS_NAO_CLINICOS as readonly string[]).includes(profissional.perfil)
-  const [{ data: evolucoes }, anexosGaleria] = await Promise.all([
+  const [{ data: evolucoes }, anexosGaleria, { data: quadro }] = await Promise.all([
     clinico
       ? supabase
           .from('vw_evolucoes_timeline')
@@ -52,6 +53,9 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),
     clinico ? listarAnexosInternacao(id) : Promise.resolve([]),
+    clinico
+      ? supabase.from('internacoes_clinico').select('diagnostico_inicial, comorbidades, muc').eq('internacao_id', id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   const perfilEvolui = (PERFIS_QUE_EVOLUEM as readonly string[]).includes(profissional.perfil)
@@ -70,15 +74,15 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     (e) => e.status === 'AGUARDANDO_VALIDACAO' && e.autor_id === profissional.id,
   )
 
-  // autor_id fica de fora do cartão; a coluna serve só para achar o rascunho próprio.
-  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map((e) => ({
+  // autor_id não vai ao cliente: a coluna serve só para achar o rascunho próprio e calcular podeAdendo aqui.
+  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map(({ autor_id, ...e }) => ({
     ...e,
     podeAdendo:
       podeAbrirAdendo &&
       !rascunhoProprio &&
       !aguardandoProprio &&
       e.status === 'FINALIZADA' &&
-      podeCriarAdendo(profissional.perfil, e.autor_id === profissional.id, membroEquipe),
+      podeCriarAdendo(profissional.perfil, autor_id === profissional.id, membroEquipe),
   }))
   const podeEvoluirEquipe =
     perfilEvolui && (await podeEvoluirNaInternacao(supabase, profissional.perfil, profissional.id, linha.equipe_id))
@@ -111,6 +115,14 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     aguardandoProprio,
     finalizadaHoje: linha.status_hoje === 'FINALIZADA',
   })
+
+  const quadroItens = (
+    [
+      ['Diagnóstico inicial', quadro?.diagnostico_inicial],
+      ['Comorbidades', quadro?.comorbidades],
+      ['MUC (medicamentos de uso contínuo)', quadro?.muc],
+    ] as const
+  ).flatMap(([rotulo, valor]) => (valor?.trim() ? [[rotulo, valor.trim()] as const] : []))
 
   return (
     <>
@@ -149,6 +161,19 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
         <div id="ficha" className="min-w-0 scroll-mt-4">
           <Ficha internacaoId={id} profissional={profissional} ciclo={ciclo} />
         </div>
+      )}
+
+      {quadroItens.length > 0 && (
+        <CartaoSecao titulo="Quadro de admissão" icone={Stethoscope}>
+          <dl className="grid items-start gap-4 sm:grid-cols-3">
+            {quadroItens.map(([rotulo, valor]) => (
+              <div key={rotulo} className="min-w-0">
+                <dt className="text-[11px] font-bold uppercase text-slate-700">{rotulo}</dt>
+                <dd className="mt-1 whitespace-pre-line break-words text-slate-900">{valor}</dd>
+              </div>
+            ))}
+          </dl>
+        </CartaoSecao>
       )}
 
       {clinico ? (

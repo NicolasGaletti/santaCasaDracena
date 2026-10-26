@@ -33,7 +33,7 @@ export function AbasColoridas({ abas, valor, onValorChange, children }: Props) {
             key={v}
             value={v}
             className={cn(
-              'inline-flex min-h-11 flex-1 shrink-0 max-sm:[&_svg]:hidden items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold sm:text-sm whitespace-nowrap outline-none hover:bg-white focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:opacity-100 data-[state=active]:hover:bg-teal-700 sm:flex-none sm:px-4',
+              'inline-flex min-h-11 flex-1 shrink-0 max-sm:[&_svg]:hidden items-center justify-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold sm:text-sm whitespace-nowrap hover:bg-white data-[state=active]:bg-teal-700 data-[state=active]:text-white data-[state=active]:opacity-100 data-[state=active]:hover:bg-teal-700 sm:flex-none sm:px-4',
               INATIVA[cor],
             )}
           >

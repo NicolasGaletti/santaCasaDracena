@@ -13,7 +13,7 @@ export type EntradaStatusDia = {
 /** Estado do dia para o usuário atual; a ordem das verificações é a prioridade. */
 export function statusDoDia(e: EntradaStatusDia): { tipo: TipoStatus; texto: string } {
   if (e.devolvidaParaMim) return { tipo: 'devolvida', texto: 'Devolvida' }
-  if (e.rascunhoProprio) return { tipo: 'rascunho', texto: 'Rascunho de hoje' }
+  if (e.rascunhoProprio) return { tipo: 'rascunho', texto: 'Rascunho' }
   if (e.aguardandoProprio) return { tipo: 'aguardando', texto: 'Aguardando validação' }
   if (e.internacaoAlta) return { tipo: 'alta', texto: 'Alta' }
   if (e.finalizadaHoje) return { tipo: 'finalizada', texto: 'Evoluído hoje' }

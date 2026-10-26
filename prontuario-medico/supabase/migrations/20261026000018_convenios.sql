@@ -57,6 +57,9 @@ begin
     end if;
   end if;
   return v_id;
+exception when unique_violation then
+  -- Corrida entre duas gravações do mesmo nome: o índice único decide.
+  raise exception 'Já existe um convênio com esse nome.' using errcode = 'P0001';
 end;
 $$;
 revoke all on function public.admin_salvar_convenio(uuid, text, boolean) from public, anon;

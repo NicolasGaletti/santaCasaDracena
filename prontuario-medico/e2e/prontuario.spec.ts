@@ -16,7 +16,12 @@ function leitoUnico(): string {
 }
 
 /** Admite um paciente como medico1 (Cardiologia); devolve o id da internação. */
-async function admitirPaciente(page: Page, leito: string, nome = `Paciente Prontuario ${leito}`): Promise<string> {
+async function admitirPaciente(
+  page: Page,
+  leito: string,
+  nome = `Paciente Prontuario ${leito}`,
+  quadro?: { diagnostico: string; comorbidades: string; muc: string },
+): Promise<string> {
   await entrar(page, 'medico1@teste.local');
   await page.getByRole('link', { name: 'Admitir paciente' }).click();
   await page.getByLabel('Nome completo').fill(nome);
@@ -24,6 +29,11 @@ async function admitirPaciente(page: Page, leito: string, nome = `Paciente Pront
   await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
   await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill(leito);
+  if (quadro) {
+    await page.getByLabel('Diagnóstico inicial').fill(quadro.diagnostico);
+    await page.getByLabel('Comorbidades').fill(quadro.comorbidades);
+    await page.getByLabel('MUC (medicamentos de uso contínuo)').fill(quadro.muc);
+  }
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });
   return new URL(page.url()).pathname.split('/').pop() as string;
@@ -141,4 +151,22 @@ test('leito é texto no cabeçalho e troca pelo botão; rodapé e ações têm a
   }
   const mobile = (page.viewportSize()?.width ?? 1280) < 640;
   if (mobile) for (const h of alturas) expect(h).toBeGreaterThanOrEqual(44);
+});
+
+test('quadro de admissão aparece para a equipe clínica e não para a recepção', async ({ page, browser }) => {
+  const quadro = { diagnostico: 'IAMSSST quadro-e2e', comorbidades: 'HAS e DM2 quadro-e2e', muc: 'Enalapril quadro-e2e' };
+  const id = await admitirPaciente(page, leitoUnico(), undefined, quadro);
+  await page.goto(`/internacoes/${id}`);
+  const cartao = page.locator('[data-slot="cartao-secao"]', { hasText: 'Quadro de admissão' });
+  await expect(cartao).toContainText(quadro.diagnostico);
+  await expect(cartao).toContainText(quadro.comorbidades);
+  await expect(cartao).toContainText(quadro.muc);
+
+  const ctx = await browser.newContext();
+  const pagRecepcao = await ctx.newPage();
+  await entrar(pagRecepcao, 'recepcao@teste.local');
+  const resposta = await pagRecepcao.goto(`/internacoes/${id}`);
+  await expect(pagRecepcao.getByText('Quadro de admissão')).toHaveCount(0);
+  expect(await resposta!.text()).not.toContain('quadro-e2e');
+  await ctx.close();
 });

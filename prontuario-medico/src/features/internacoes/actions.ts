@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { EstadoForm } from '@/lib/forms'
 import { createClient } from '@/lib/supabase/server'
@@ -37,7 +38,12 @@ export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<Es
     // Só mensagens P0001 são pt-BR escritas para o usuário; o resto é erro técnico.
     const erro =
       error?.code === 'P0001' ? error.message : 'Não foi possível concluir a admissão. Tente novamente.'
-    return { erro, valores, campo: erro === ERRO_CONVENIO ? 'convenio' : undefined }
+    if (erro === ERRO_CONVENIO) {
+      // A lista mudou (convênio desativado): recarrega as opções e descarta só a escolha inválida.
+      revalidatePath('/internacoes/nova')
+      return { erro, valores: { ...valores, convenio: '' }, campo: 'convenio' }
+    }
+    return { erro, valores }
   }
 
   redirect(`/internacoes/${data}`)
