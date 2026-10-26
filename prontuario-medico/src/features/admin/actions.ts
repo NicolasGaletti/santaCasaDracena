@@ -166,3 +166,19 @@ export async function vincularMembro(profissionalId: string, equipeId: string, v
   depois()
   return {}
 }
+
+export async function salvarConvenio(id: string | null, nome: string, ativo: boolean | null): Promise<Resultado> {
+  await exigirAdmin()
+  if (id !== null && !UUID.test(id)) return { erro: GENERICA }
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('admin_salvar_convenio', {
+    // @ts-expect-error p_id nulo cria o convênio (tipos gerados não marcam argumentos opcionais)
+    p_id: id,
+    p_nome: nome,
+    // @ts-expect-error p_ativo nulo mantém o valor atual
+    p_ativo: ativo,
+  })
+  if (error) return { erro: mensagemBanco(error) }
+  depois()
+  return {}
+}

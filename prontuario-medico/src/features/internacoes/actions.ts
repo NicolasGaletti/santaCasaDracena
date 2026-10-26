@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation'
 import type { EstadoForm } from '@/lib/forms'
 import { createClient } from '@/lib/supabase/server'
 
-export type EstadoAdmissao = EstadoForm & { valores?: Record<string, string> }
+export type EstadoAdmissao = EstadoForm & { valores?: Record<string, string>; campo?: 'convenio' }
+
+const ERRO_CONVENIO = 'Escolha um convênio da lista.'
 
 const CAMPOS_OBRIGATORIOS = ['nome', 'nascimento', 'convenio', 'equipe', 'leito'] as const
 
@@ -35,7 +37,7 @@ export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<Es
     // Só mensagens P0001 são pt-BR escritas para o usuário; o resto é erro técnico.
     const erro =
       error?.code === 'P0001' ? error.message : 'Não foi possível concluir a admissão. Tente novamente.'
-    return { erro, valores }
+    return { erro, valores, campo: erro === ERRO_CONVENIO ? 'convenio' : undefined }
   }
 
   redirect(`/internacoes/${data}`)

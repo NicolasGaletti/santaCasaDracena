@@ -69,8 +69,8 @@ async function abrirEvolucaoNova(page: Page) {
   const leito = `E2E-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   await page.getByLabel('Nome completo').fill(`Paciente E2E ${leito}`);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
-  await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });

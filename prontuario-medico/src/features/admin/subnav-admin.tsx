@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 const ABAS = [
   { href: '/admin/profissionais', rotulo: 'Profissionais' },
   { href: '/admin/equipes', rotulo: 'Equipes' },
+  { href: '/admin/convenios', rotulo: 'Convênios' },
 ]
 
 /** Subnavegação da administração: sublinhado marca a seção atual. */

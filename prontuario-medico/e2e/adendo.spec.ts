@@ -42,8 +42,8 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
   await page.getByRole('link', { name: 'Admitir paciente' }).click();
   await page.getByLabel('Nome completo').fill(`Paciente adendo ${leito}`);
   await page.getByLabel('Data de nascimento').fill('1972-08-20');
-  await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });

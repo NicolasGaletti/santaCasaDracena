@@ -40,8 +40,8 @@ test('acadêmico envia e o médico vê o contador subir', async ({ page, browser
   await page.getByRole('link', { name: 'Admitir paciente' }).click();
   await page.getByLabel('Nome completo').fill(`Paciente notificação ${leito}`);
   await page.getByLabel('Data de nascimento').fill('1968-05-02');
-  await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   await expect(page).toHaveURL(URL_PRONTUARIO, { timeout: 20_000 });

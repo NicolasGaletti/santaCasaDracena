@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { clienteAdmin, convenioOrdenados, salvarConvenio } from './helpers/convenios';
 
 const SENHA = 'Teste@123';
 const EQUIPE_NEFROLOGIA = 'e0000000-0000-0000-0000-000000000003';
@@ -25,8 +26,8 @@ test('medico1 admite paciente e cai no prontuário', async ({ page }) => {
 
   await page.getByLabel('Nome completo').fill(nome);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
-  await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill('E2E-01');
   await page.getByLabel('Diagnóstico inicial').fill('Dor torácica');
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
@@ -96,8 +97,8 @@ test('admissão sem leito mostra erro e mantém campos', async ({ page }) => {
 
   await page.getByLabel('Nome completo').fill(nome);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
-  await page.getByLabel('Convênio').fill('Unimed');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'Unimed' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   // Espaços passam na validação nativa de "required" mas o servidor recusa após trim.
   await page.getByLabel('Leito / ala').fill('   ');
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
@@ -143,4 +144,85 @@ test('anteriores mostra só ALTA, sem ações de admissão ou evolução', async
 
   await expect(page.getByText('Sem evolução')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Admitir paciente' })).toHaveCount(0);
+});
+
+async function abrirAdmissao(page: Page) {
+  await entrar(page, 'medico1@teste.local');
+  await page.getByRole('link', { name: 'Admitir paciente' }).click();
+  await expect(page).toHaveURL(/\/internacoes\/nova$/);
+}
+
+test('admissão oferece só convênios ativos da lista, mais usados primeiro', async ({ page }) => {
+  const admin = await clienteAdmin();
+  const nome = `Convênio Inativo ${Math.random().toString(36).slice(2, 7)}`;
+  const id = await salvarConvenio(admin, null, nome, true);
+  await salvarConvenio(admin, id, nome, false);
+
+  await abrirAdmissao(page);
+  const opcoes = (await page.getByLabel('Convênio').locator('option').allTextContents()).filter((t) => t !== 'Escolha o convênio');
+  expect(opcoes).not.toContain(nome);
+  expect(opcoes).toEqual(await convenioOrdenados());
+  for (const esperado of ['SUS', 'Particular', 'Unimed', 'Bradesco Saúde']) expect(opcoes).toContain(esperado);
+  // Texto livre deixou de existir: o campo é uma lista.
+  expect(await page.getByLabel('Convênio').evaluate((el) => el.tagName)).toBe('SELECT');
+});
+
+test('idade aparece ao preencher a data, sem texto de aviso', async ({ page }) => {
+  await abrirAdmissao(page);
+  await expect(page.getByText('Idade será calculada')).toHaveCount(0);
+  await expect(page.getByTestId('idade')).toHaveCount(0);
+
+  const convenio = page.getByLabel('Convênio');
+  const antes = await convenio.boundingBox();
+  const ano = new Date().getFullYear() - 40;
+  await page.getByLabel('Data de nascimento').fill(`${ano}-01-01`);
+  await expect(page.getByTestId('idade')).toHaveText('40 anos');
+  const depois = await convenio.boundingBox();
+  expect(depois?.y).toBe(antes?.y);
+  expect(depois?.height).toBe(antes?.height);
+
+  await page.getByLabel('Data de nascimento').fill('');
+  await expect(page.getByTestId('idade')).toHaveCount(0);
+});
+
+test('convênio desativado depois de abrir a tela → "Escolha um convênio da lista." e dados mantidos', async ({ page }) => {
+  const admin = await clienteAdmin();
+  const convenio = `Convênio Efêmero ${Math.random().toString(36).slice(2, 7)}`;
+  const id = await salvarConvenio(admin, null, convenio, true);
+  const nome = nomeUnico();
+
+  await abrirAdmissao(page);
+  await page.getByLabel('Nome completo').fill(nome);
+  await page.getByLabel('Data de nascimento').fill('1970-03-10');
+  await page.getByLabel('Convênio').selectOption({ label: convenio });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
+  await page.getByLabel('Leito / ala').fill('E2E-CONV');
+  await page.getByLabel('Diagnóstico inicial').fill('Dor torácica');
+
+  await salvarConvenio(admin, id, convenio, false);
+  await page.getByRole('button', { name: 'Confirmar admissão' }).click();
+
+  await expect(page.locator('#convenio-erro')).toHaveText('Escolha um convênio da lista.');
+  await expect(page).toHaveURL(/\/internacoes\/nova$/);
+  await expect(page.getByLabel('Nome completo')).toHaveValue(nome);
+  await expect(page.getByLabel('Data de nascimento')).toHaveValue('1970-03-10');
+  await expect(page.getByLabel('Leito / ala')).toHaveValue('E2E-CONV');
+  await expect(page.getByLabel('Diagnóstico inicial')).toHaveValue('Dor torácica');
+  await expect(page.getByRole('radio', { name: 'Cardiologia' })).toHaveAttribute('aria-checked', 'true');
+});
+
+test('chips de equipe por teclado', async ({ page }) => {
+  await abrirAdmissao(page);
+  const grupo = page.getByRole('radiogroup', { name: 'Equipe responsável' });
+  const chips = grupo.getByRole('radio');
+  await expect(chips.first()).toBeVisible();
+  await expect(grupo.locator('[aria-checked="true"]')).toHaveCount(0);
+
+  await chips.first().focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(chips.nth(1)).toHaveAttribute('aria-checked', 'true');
+  await expect(chips.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(chips.first()).toHaveAttribute('aria-checked', 'true');
+  await expect(grupo.locator('[aria-checked="true"]')).toHaveCount(1);
 });

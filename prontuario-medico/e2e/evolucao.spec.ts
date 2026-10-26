@@ -27,8 +27,8 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
   await page.getByRole('link', { name: 'Admitir paciente' }).click();
   await page.getByLabel('Nome completo').fill(`Paciente E2E ${leito}`);
   await page.getByLabel('Data de nascimento').fill('1970-03-10');
-  await page.getByLabel('Convênio').fill('SUS');
-  await page.getByLabel('Equipe responsável').selectOption({ label: 'Cardiologia' });
+  await page.getByLabel('Convênio').selectOption({ label: 'SUS' });
+  await page.getByRole('radio', { name: 'Cardiologia' }).click();
   await page.getByLabel('Leito / ala').fill(leito);
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
   // Primeira navegação após o boot do dev server pode compilar a rota: tempo maior.
