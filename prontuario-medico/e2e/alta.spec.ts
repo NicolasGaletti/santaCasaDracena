@@ -2,7 +2,7 @@ import { PDFParse } from 'pdf-parse'
 import { expect, test, type Page } from '@playwright/test'
 
 const SENHA = 'Teste@123'
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/
 
 async function entrar(page: Page, email: string) {
   await page.goto('/login')

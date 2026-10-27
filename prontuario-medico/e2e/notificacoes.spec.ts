@@ -1,9 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 import { confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 const CONTAINER_DB = 'supabase_db_prontuario-medico';
 
 async function entrar(page: Page, email: string) {
@@ -57,6 +58,7 @@ test('acadêmico envia e o médico vê o contador subir', async ({ page, browser
   const outra = await ctx.newPage();
   await entrar(outra, 'academico@teste.local');
   await outra.goto(`/internacoes/${id}`);
+  await abrirFicha(outra);
   await outra.getByLabel('Evolução clínica').fill('Evolução para notificar');
   await outra.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para notificar');
   await outra.getByRole('button', { name: 'Enviar para validação', exact: true }).click();

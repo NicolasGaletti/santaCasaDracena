@@ -19,7 +19,7 @@ async function admitir(page: Page, nome: string, leito: string, equipe: string) 
   await page.getByRole('radio', { name: equipe }).click()
   await page.getByLabel('Leito / ala').fill(leito)
   await page.getByRole('button', { name: 'Confirmar admissão' }).click()
-  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f-]{36}$/, { timeout: 20_000 })
+  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f-]{36}(#ficha)?$/, { timeout: 20_000 })
 }
 
 test('360px sem rolagem horizontal com leito e nome longos; leito não sai do quadro', async ({ page }) => {

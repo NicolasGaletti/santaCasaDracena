@@ -2,9 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 const TITULO_ADENDO = /^Adendo à evolução de \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_CHAVE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
@@ -54,7 +55,7 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 /** Médico cria a evolução original e finaliza. */
 async function medicoFinalizaOriginal(page: Page, id: string, evolucao: string) {
   await page.goto(`/internacoes/${id}`);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta da original');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
@@ -129,6 +130,7 @@ test('acadêmico cria adendo da própria evolução e envia para validação', a
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill('Evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
@@ -172,7 +174,8 @@ test('médico com rascunho aberto não vê o botão Adendo', async ({ page }) =>
   await expect(page.locator('#ficha')).toBeVisible();
 
   await page.goto(`/internacoes/${id}`);
-  // A ficha do rascunho de adendo já está na página.
+  // O rascunho de adendo está salvo no servidor: a ficha abre sob demanda.
+  await abrirFicha(page);
   await expect(page.locator('#ficha').getByRole('heading', { name: TITULO_ADENDO })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(0);
 });
@@ -183,6 +186,7 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill('Primeira evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do acadêmico');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
@@ -199,6 +203,7 @@ test('acadêmico com evolução aguardando validação não vê o botão Adendo'
 
   await page.goto(`/internacoes/${id}`);
   await expect(page.getByRole('button', { name: 'Adendo', exact: true })).toHaveCount(1);
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill('Segunda evolução do acadêmico');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Outra conduta');
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();

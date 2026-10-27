@@ -1,9 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { botaoConfirmar, confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
 const INTERNACAO_SEED_A01 = 'c0000000-0000-0000-0000-000000000001';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 
 async function entrar(page: Page, email: string) {
   await page.goto('/login');
@@ -38,7 +39,7 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 }
 
 async function abrirNovaEvolucao(page: Page) {
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
 }
 
@@ -58,18 +59,21 @@ async function finalizarEvolucao(page: Page, evolucao: string, conduta: string) 
 test('médico escreve, recarrega e o texto continua', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await page.getByLabel('Evolução clínica').fill('Paciente estável, sem queixas novas');
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Paciente estável, sem queixas novas');
 });
 
 test('botão Salvar grava na hora', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await page.getByLabel('Evolução clínica').fill('Texto salvo pelo botão');
@@ -81,12 +85,14 @@ test('botão Salvar grava na hora', async ({ page }) => {
   await expect(page.getByText('Nada a salvar — já está tudo salvo.')).toBeVisible();
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto salvo pelo botão');
 });
 
 test('salvar offline mostra sem conexão', async ({ page, context }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await context.setOffline(true);
@@ -114,15 +120,18 @@ test('campos ficam bloqueados até a hidratação e liberam depois', async ({ pa
   });
 
   await page.goto(`/internacoes/${id}`, { waitUntil: 'commit' });
-  const campo = page.getByLabel('Evolução clínica');
-  await campo.waitFor({ state: 'attached' });
-  await expect(campo).toBeDisabled();
-  await expect(page.getByText('Carregando…')).toBeVisible();
+  // A ficha nasce fechada: antes de hidratar não existe campo editável no HTML.
+  await expect(page.getByRole('button', { name: 'Nova evolução' })).toBeVisible();
+  await expect(page.getByLabel('Evolução clínica')).toHaveCount(0);
 
   liberar();
+  // Antes de hidratar o botão ainda não responde: repete o clique até a ficha abrir.
+  await expect(async () => {
+    await page.getByRole('button', { name: 'Nova evolução' }).click({ timeout: 1_000 });
+    await expect(page.locator('#ficha')).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  const campo = page.getByLabel('Evolução clínica');
   await expect(campo).toBeEnabled({ timeout: 20_000 });
-  await expect(page.getByText('Carregando…')).toHaveCount(0);
-  await page.unroute('**/_next/static/**');
 
   await campo.fill('Texto depois da hidratação');
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
@@ -156,6 +165,7 @@ test('copiar anterior preenche conduta', async ({ page }) => {
   await abrirNovaEvolucao(page);
   await finalizarEvolucao(page, 'Evolução de referência', 'Conduta original E2E');
 
+  await abrirFicha(page);
   await page.getByRole('button', { name: 'Copiar evolução anterior' }).click();
   await expect(page.getByRole('textbox', { name: 'Conduta' })).toHaveValue('Conduta original E2E');
 });
@@ -209,6 +219,7 @@ test('leito muda só ao sair do campo', async ({ page }) => {
 test('offline: mostra "Sem conexão", volta online e salva', async ({ page, context }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await context.setOffline(true);
@@ -219,6 +230,7 @@ test('offline: mostra "Sem conexão", volta online e salva', async ({ page, cont
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 15_000 });
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto digitado sem conexão');
 });
 
@@ -233,6 +245,7 @@ test('texto digitado sem conexão sobrevive a recarga e é salvo ao voltar', asy
   await expect(page.getByText('Sem conexão')).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
+  await abrirFicha(page);
   // Sem envio possível, o texto só pode vir do IndexedDB.
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto antes da recarga');
   await expect(page.getByText('Sem conexão')).toBeVisible({ timeout: 10_000 });
@@ -242,12 +255,14 @@ test('texto digitado sem conexão sobrevive a recarga e é salvo ao voltar', asy
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto antes da recarga');
 });
 
 test('duplo clique em Finalizar do diálogo finaliza uma vez', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await page.getByLabel('Evolução clínica').fill('Evolução para duplo clique');
@@ -265,6 +280,7 @@ test('duplo clique em Finalizar do diálogo finaliza uma vez', async ({ page }) 
 test('ficha médica mostra todos os campos sem abrir seções', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   for (const nome of ['Diagnósticos', 'Comorbidades', 'MUC', 'Evolução clínica', 'ECG', 'Exames de imagem', 'Exames laboratoriais', 'FC (bpm)', 'Geral', 'Aparelho respiratório', 'Neurológico']) {
@@ -283,6 +299,7 @@ test('ficha médica mostra todos os campos sem abrir seções', async ({ page })
 test('sinal vital inválido mostra erro e bloqueia finalizar', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
 
   await page.getByLabel('Evolução clínica').fill('Evolução com sinal inválido');
@@ -338,6 +355,7 @@ test('leito vazio mostra "Informe o leito." e restaura o valor', async ({ page }
 test('finalizar com a ação de servidor interrompida: aviso, botão volta a funcionar', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await abrirNovaEvolucao(page);
   await page.getByLabel('Evolução clínica').fill('Evolução para falha de rede');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para falha de rede');
@@ -384,7 +402,7 @@ test('residente da equipe evolui sem botão Finalizar', async ({ page }) => {
 
   // Internação da Clínica Médica (seed): a residente é membro da equipe.
   await page.goto('/internacoes/c0000000-0000-0000-0000-000000000003');
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await expect(page.getByRole('button', { name: 'Enviar para validação', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });
@@ -399,7 +417,7 @@ test('recepção vê o prontuário sem conteúdo clínico', async ({ page }) => 
 test('enfermeira abre formulário simples', async ({ page }) => {
   await entrar(page, 'enfermeira@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await expect(page.getByRole('heading', { name: 'Evolução de Enfermagem' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toBeVisible();
@@ -410,6 +428,7 @@ test('enfermeira abre formulário simples', async ({ page }) => {
 test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
   await entrar(page, 'enfermeira@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await abrirFicha(page);
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.getByRole('textbox', { name: 'Evolução', exact: true }).fill('Curativo limpo, sem sinais flogísticos');
@@ -418,6 +437,7 @@ test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
   await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByRole('textbox', { name: 'Evolução', exact: true })).toHaveValue('Curativo limpo, sem sinais flogísticos');
   await expect(page.getByRole('textbox', { name: 'Plano', exact: true })).toHaveValue('Trocar curativo em 48 h');
   await page.getByRole('button', { name: 'Descartar rascunho' }).click();
@@ -429,6 +449,7 @@ test('enfermeira salva o formulário simples e recarrega', async ({ page }) => {
 test('acadêmico abre o formulário médico sem CRM e não finaliza', async ({ page }) => {
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${INTERNACAO_SEED_A01}`);
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Finalizar', exact: true })).toHaveCount(0);
 });

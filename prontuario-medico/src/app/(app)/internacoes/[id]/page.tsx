@@ -8,6 +8,7 @@ import { MarcarAba } from '@/components/navegacao-ativa'
 import { BotaoImprimirEvolucao } from '@/features/evolucao/botao-imprimir'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { Ficha } from '@/features/evolucao/ficha'
+import { AreaFicha, BotaoNovaEvolucao, EspacoRodapeFicha, FichaProvider } from '@/features/evolucao/ficha-recolhivel'
 import { horaLimiteReabertura, podeReabrir } from '@/features/evolucao/reabertura'
 import { statusDoDia } from '@/features/evolucao/status-dia'
 import { HistoricoAbas } from '@/features/evolucao/historico-abas'
@@ -129,8 +130,11 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   const finalizadas = linhasTimeline.filter((e) => e.status === 'FINALIZADA')
   const diasInternado = diasEntre(linha.admitido_em, linha.status === 'ALTA' && linha.alta_em ? new Date(linha.alta_em) : new Date())
   const { data: devolvidaRow } = rascunhoProprio
-    ? await supabase.from('evolucoes').select('devolvida_motivo').eq('id', rascunhoProprio.id).maybeSingle()
+    ? await supabase.from('evolucoes').select('devolvida_motivo, atualizado_em').eq('id', rascunhoProprio.id).maybeSingle()
     : { data: null }
+  const rascunhoHora = devolvidaRow?.atualizado_em
+    ? new Date(devolvidaRow.atualizado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })
+    : null
   const statusDia = statusDoDia({
     internacaoAlta: linha.status === 'ALTA',
     rascunhoProprio: Boolean(rascunhoProprio),
@@ -148,11 +152,12 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   ).flatMap(([rotulo, valor]) => (valor?.trim() ? [[rotulo, valor.trim()] as const] : []))
 
   return (
-    <>
+    <FichaProvider internacaoId={id} userId={profissional.id} rascunhoId={rascunhoProprio?.id ?? null}>
       <MarcarAba status={linha.status} />
       <CabecalhoPaciente linha={linha} diasInternado={diasInternado} />
 
       <BarraAcoes status={<PilulaStatus tipo={statusDia.tipo}>{statusDia.texto}</PilulaStatus>}>
+        {ficha === 'ficha' && <BotaoNovaEvolucao rascunhoHora={rascunhoProprio ? rascunhoHora : null} />}
         {finalizadas[0] && <BotaoImprimirEvolucao evolucaoId={finalizadas[0].id} rotulo="Imprimir evolução" destaque />}
         {podeDarAlta && <DialogAlta internacaoId={id} />}
         {linha.status === 'ALTA' && clinico && (
@@ -181,9 +186,9 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
         </p>
       )}
       {ficha === 'ficha' && (
-        <div id="ficha" className="min-w-0 scroll-mt-4">
+        <AreaFicha>
           <Ficha internacaoId={id} profissional={profissional} ciclo={ciclo} />
-        </div>
+        </AreaFicha>
       )}
 
       {quadroItens.length > 0 && (
@@ -207,7 +212,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
         </p>
       )}
       {/* Reserva o espaço do rodapé fixo da ficha no celular, depois do histórico. */}
-      {ficha === 'ficha' && <div aria-hidden className="h-[calc(6rem+env(safe-area-inset-bottom))] sm:hidden" />}
-    </>
+      {ficha === 'ficha' && <EspacoRodapeFicha />}
+    </FichaProvider>
   )
 }

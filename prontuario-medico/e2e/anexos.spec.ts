@@ -4,9 +4,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { anexarPeloCampo } from './helpers/anexos';
 import { confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 const FIXTURES = path.join(__dirname, 'fixtures');
 const FOTO = path.join(FIXTURES, 'exame.jpg');
 const PDF = path.join(FIXTURES, 'laudo.pdf');
@@ -49,7 +50,7 @@ async function admitirPaciente(page: Page, leito: string): Promise<string> {
 /** Abre um rascunho novo: os campos de exame e seus anexos já ficam visíveis. */
 async function abrirExamesDeRascunho(page: Page, id: string) {
   await page.goto(`/internacoes/${id}`);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await expect(page.getByLabel('Evolução clínica')).toBeVisible();
 }
 
@@ -115,6 +116,7 @@ test('médico anexa foto e ela aparece na lista', async ({ page }) => {
 
   // Persistido: depois de recarregar a lista vem do servidor, com prévia por URL assinada.
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByTestId('anexo-item')).toHaveCount(1);
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
@@ -189,6 +191,7 @@ test('rascunho com anexo OUTRO antigo mostra "Outros anexos" e permite remover',
   // Anexo antigo: o envio novo nunca sai como OUTRO, então reclassifica a linha direto no banco.
   sqlLocal(`update public.anexos set tipo = 'OUTRO' where internacao_id = '${id}'`);
   await page.reload();
+  await abrirFicha(page);
 
   const outros = page.getByTestId('anexos-OUTRO');
   await expect(outros).toContainText('Outros anexos');
@@ -216,6 +219,7 @@ test('anexa PDF de laudo', async ({ page }) => {
   await expect(item.getByTestId('icone-pdf')).toBeVisible();
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByTestId('anexo-item')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Abrir PDF' })).toBeVisible();
 });
@@ -237,6 +241,7 @@ test('remove anexo antes de finalizar', async ({ page }) => {
   expect(linhaExiste(anexo.id)).toBe(false);
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByTestId('anexo-item')).toHaveCount(0);
 });
 
@@ -278,6 +283,7 @@ test('sem conexão mostra mensagem e permite tentar de novo', async ({ page }) =
   await expect(page.getByText('Sem conexão. Tente enviar o anexo novamente.')).toHaveCount(0);
 
   await page.reload();
+  await abrirFicha(page);
   await expect(page.getByTestId('anexo-item')).toHaveCount(1);
   await imagemCarregada(page.getByRole('img', { name: /Foto do anexo/ }));
 });
@@ -296,7 +302,7 @@ test('finalizar com anexo não enviado é bloqueado e mostra o aviso', async ({ 
 
   await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de finalizar.')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
 });
 
 test('descarta rascunho mesmo se o objeto já sumiu do Storage', async ({ page }) => {

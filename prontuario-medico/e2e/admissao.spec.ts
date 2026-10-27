@@ -33,7 +33,7 @@ test('medico1 admite paciente e cai no prontuário', async ({ page }) => {
   await page.getByLabel('Diagnóstico inicial').fill('Dor torácica');
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
 
-  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/);
   await expect(page.locator('[data-slot="cabecalho-paciente"]')).toContainText('Cardiologia');
   await expect(page.getByText('Médico responsável')).toHaveCount(0);
 });
@@ -242,7 +242,7 @@ test('primeira evolução médica já traz o quadro de admissão; a seguinte vem
   await page.getByLabel('Comorbidades').fill('HAS, DM2');
   await page.getByLabel('MUC (medicamentos de uso contínuo)').fill('AAS 100mg');
   await page.getByRole('button', { name: 'Confirmar admissão' }).click();
-  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/, { timeout: 20_000 });
 
   const ficha = page.locator('#ficha');
   await expect(ficha.getByLabel('Diagnósticos')).toHaveValue('IAMSSST');

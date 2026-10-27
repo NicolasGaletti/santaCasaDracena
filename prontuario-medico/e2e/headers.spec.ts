@@ -4,7 +4,7 @@ import { anexarPeloCampo } from './helpers/anexos'
 import { confirmarConclusao } from './helpers/conclusao'
 
 const SENHA = 'Teste@123'
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 const FOTO = path.join(__dirname, 'fixtures', 'exame.jpg')
 

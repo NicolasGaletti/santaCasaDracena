@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
 
@@ -61,7 +62,7 @@ test('login mostra aviso de sessão expirada por inatividade', async ({ page }) 
   await expect(page.locator('p[role="alert"]')).toHaveText('Sua sessão expirou por inatividade.');
 });
 
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 
 async function abrirEvolucaoNova(page: Page) {
   await entrar(page, 'medico1@teste.local');
@@ -89,7 +90,7 @@ test('Sair com rascunho não sincronizado pede confirmação e mantém a cópia 
 
   await dialogo.getByRole('button', { name: 'Continuar editando' }).click();
   await expect(dialogo).toBeHidden();
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   expect((await listarChaves(page)).filter((c) => c.startsWith('rascunho:'))).toHaveLength(1);
 
   await page.getByRole('button', { name: 'Sair', exact: true }).click();

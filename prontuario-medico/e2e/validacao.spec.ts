@@ -4,9 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { anexarPeloCampo } from './helpers/anexos';
 import { confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_CHAVE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
 const CONTAINER_DB = 'supabase_db_prontuario-medico';
@@ -57,7 +58,7 @@ async function clienteComo(email: string): Promise<SupabaseClient> {
 async function academicoEnvia(page: Page, id: string, evolucao: string, conduta: string) {
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill(conduta);
   await page.getByRole('button', { name: 'Enviar para validação', exact: true }).click();
@@ -110,7 +111,7 @@ test('devolvida mostra motivo no rascunho', async ({ page }) => {
 
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
   await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
   await expect(page.getByText(/Devolvida por \S+/)).toBeVisible();
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Evolução para devolver');
@@ -132,6 +133,7 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
   await page.context().clearCookies();
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
 
   await page.route('**/storage/v1/object/**', (r) => r.abort());
   await anexarPeloCampo(page, 'IMAGEM', FOTO);
@@ -143,7 +145,7 @@ test('anexo não enviado bloqueia o envio com a mensagem de envio', async ({ pag
 
   await expect(page.getByText('Há anexo não enviado. Envie de novo ou cancele antes de enviar.')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('#ficha')).toBeVisible();
+  await abrirFicha(page);
 });
 
 test.describe.serial('tela de validação do médico', () => {
@@ -233,6 +235,7 @@ test.describe.serial('tela de validação do médico', () => {
     await page.context().clearCookies();
     await entrar(page, 'academico@teste.local');
     await page.goto(`/internacoes/${id}`);
+    await abrirFicha(page);
     await expect(page.getByText('Devolvida pelo médico: Falta a dose do diurético na conduta')).toBeVisible();
   });
 
@@ -264,7 +267,7 @@ test.describe.serial('validação: anexos e menu', () => {
     await page.context().clearCookies();
     await entrar(page, 'academico@teste.local');
     await page.goto(`/internacoes/${id}`);
-    await expect(page.locator('#ficha')).toBeVisible();
+    await abrirFicha(page);
     await page.getByLabel('Evolução clínica').fill('Evolução com foto');
     await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta com foto');
     await anexarPeloCampo(page, 'IMAGEM', path.join(__dirname, 'fixtures', 'exame.jpg'));
@@ -321,6 +324,7 @@ test('médico vê a original do adendo na validação', async ({ page }) => {
   await page.context().clearCookies();
   await entrar(page, 'academico@teste.local');
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await page.getByRole('button', { name: 'Adendo', exact: true }).click();
   await page.getByLabel('Evolução clínica').fill('Adendo que corrige a original');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');

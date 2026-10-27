@@ -46,5 +46,5 @@ export async function admitir(_prev: EstadoAdmissao, form: FormData): Promise<Es
     return { erro, valores }
   }
 
-  redirect(`/internacoes/${data}`)
+  redirect(`/internacoes/${data}#ficha`)
 }

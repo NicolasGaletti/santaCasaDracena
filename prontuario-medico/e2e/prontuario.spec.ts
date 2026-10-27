@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { confirmarConclusao } from './helpers/conclusao';
+import { abrirFicha } from './helpers/ficha';
 
 const SENHA = 'Teste@123';
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/;
 
 async function entrar(page: Page, email: string) {
   await page.goto('/login');
@@ -49,22 +50,58 @@ test('prontuário mostra cabeçalho, barra de ações, ficha e histórico na mes
   await expect(cabecalho.getByRole('heading', { level: 1 })).toContainText(`Paciente Prontuario ${leito}`);
   await expect(page.locator('[data-slot="barra-acoes"]')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Dar alta' })).toBeVisible();
-  // Ficha inline: sem botão de largura total "Nova evolução".
-  await expect(page.locator('#ficha').getByLabel('Evolução clínica')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Nova evolução' })).toHaveCount(0);
+  // Ficha recolhida até o usuário decidir evoluir; o histórico já aparece.
+  await expect(page.locator('#ficha')).toHaveCount(0);
+  await expect(page.getByLabel('Evolução clínica')).toHaveCount(0);
+  const novaEvolucao = page.getByRole('button', { name: 'Nova evolução' });
+  await expect(novaEvolucao).toBeVisible();
+  expect((await novaEvolucao.boundingBox())!.height).toBeGreaterThanOrEqual(36);
   await expect(page.getByRole('tab', { name: 'Evoluções' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'ECG' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Imagem' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Laboratório' })).toBeVisible();
+  await novaEvolucao.click();
+  await expect(page.locator('#ficha').getByLabel('Evolução clínica')).toBeVisible();
+  // Foco no primeiro campo da ficha.
+  await expect(page.locator('#ficha :focus')).toHaveCount(1);
+  await expect(novaEvolucao).toHaveCount(0);
   // Ordem: cabeçalho, barra, ficha, histórico.
   const y = async (sel: string) => (await page.locator(sel).first().boundingBox())!.y;
   const ys = [await y('[data-slot="cabecalho-paciente"]'), await y('[data-slot="barra-acoes"]'), await y('#ficha'), await y('[data-slot="abas-coloridas"]')];
   expect([...ys].sort((a, b) => a - b)).toEqual(ys);
 });
 
+test('com rascunho salvo o botão vira "Continuar evolução" e mostra a hora', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
+  await page.getByLabel('Evolução clínica').fill('Rascunho que não pode ser esquecido');
+  await expect(page.getByText(/Salvo às/)).toBeVisible({ timeout: 10_000 });
+
+  // Mesmo sem cópia local (aba nova e limpa), o servidor sabe do rascunho.
+  await page.evaluate(() => indexedDB.databases().then((dbs) => dbs.forEach((d) => d.name && indexedDB.deleteDatabase(d.name))));
+  await page.goto(`/internacoes/${id}`);
+  await expect(page.getByLabel('Evolução clínica')).toHaveCount(0);
+  await expect(page.getByText(/^Rascunho salvo às \d{2}:\d{2}$/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nova evolução' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continuar evolução' }).click();
+  await expect(page.getByLabel('Evolução clínica')).toHaveValue('Rascunho que não pode ser esquecido');
+});
+
+test('URL com #ficha abre a ficha sem clique', async ({ page }) => {
+  const id = await admitirPaciente(page, leitoUnico());
+  await page.goto('/');
+  await page.goto(`/internacoes/${id}`);
+  await expect(page.getByRole('button', { name: 'Nova evolução' })).toBeVisible();
+  await page.goto('/');
+  await page.goto(`/internacoes/${id}#ficha`);
+  await expect(page.locator('#ficha').getByLabel('Evolução clínica')).toBeVisible();
+});
+
 test('abas do histórico: ECG mostra o ECG do dia e anexos ECG', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill('Evolução com ECG');
   await page.getByRole('textbox', { name: 'ECG' }).fill('Ritmo sinusal sem alterações do ST');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Manter conduta');
@@ -103,6 +140,7 @@ test('360px sem rolagem horizontal com nome e evolução longos', async ({ page 
   const nomeLongo = 'Maria Aparecida da Conceição Albuquerque de Vasconcelos Figueiredo Santos Neto';
   const id = await admitirPaciente(page, 'Enfermaria Clínica B · 12', nomeLongo);
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
   await page.getByLabel('Evolução clínica').fill('Texto longo '.repeat(170) + 'palavrasemquebra'.repeat(12));
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
@@ -139,6 +177,7 @@ test('leito é texto no cabeçalho e troca pelo botão; rodapé e ações têm a
   const leito = leitoUnico();
   const id = await admitirPaciente(page, leito);
   await page.goto(`/internacoes/${id}`);
+  await abrirFicha(page);
 
   await expect(page.locator('[data-slot="cabecalho-paciente"] [data-slot="leito-texto"]')).toHaveText(leito);
   await expect(page.getByLabel('Leito / ala')).toHaveCount(0);

@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { confirmarConclusao } from './helpers/conclusao'
+import { abrirFicha } from './helpers/ficha'
 
 const SENHA = 'Teste@123'
-const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+const URL_PRONTUARIO = /\/internacoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(#ficha)?$/
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
 async function admitirPaciente(page: Page): Promise<string> {
@@ -34,7 +35,7 @@ async function finalizar(page: Page, evolucao: string) {
 test('finalizar, reabrir, editar e finalizar de novo', async ({ page }) => {
   const internacao = await admitirPaciente(page)
   await page.goto(`/internacoes/${internacao}`)
-  await expect(page.locator('#ficha')).toBeVisible()
+  await abrirFicha(page)
   await finalizar(page, 'Texto original')
 
   // O aviso da lista oferece "Reabrir" e leva ao prontuário (mesma ação nunca é chamada direto do toast).
@@ -56,7 +57,7 @@ test('finalizar, reabrir, editar e finalizar de novo', async ({ page }) => {
 test('depois de imprimir não há mais Reabrir para editar', async ({ page }) => {
   const internacao = await admitirPaciente(page)
   await page.goto(`/internacoes/${internacao}`)
-  await expect(page.locator('#ficha')).toBeVisible()
+  await abrirFicha(page)
   await finalizar(page, 'Texto para imprimir')
   await page.goto(`/internacoes/${internacao}`)
   await expect(page.getByRole('button', { name: 'Reabrir para editar' })).toBeVisible()
