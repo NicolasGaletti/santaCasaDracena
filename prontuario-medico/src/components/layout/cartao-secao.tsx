@@ -33,7 +33,7 @@ export function CartaoSecao({ titulo, icone: Icone, subtitulo, acao, rodape, tom
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 font-heading font-bold text-primary-suave-foreground">
             {Icone && <Icone aria-hidden className="size-5 shrink-0" />}
-            <span className="min-w-0 break-words">{titulo}</span>
+            <span className="min-w-0 wrap-break-word">{titulo}</span>
           </h2>
           {subtitulo && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitulo}</p>}
         </div>

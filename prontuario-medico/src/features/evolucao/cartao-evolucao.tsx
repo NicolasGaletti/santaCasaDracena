@@ -125,7 +125,7 @@ function BlocoTexto({ b, destaque = false }: { b: Bloco; destaque?: boolean }) {
   return (
     <section className={destaque ? 'min-w-0 rounded-md border border-border bg-campo p-3' : 'min-w-0'}>
       <h4 className={`text-[12px] font-bold ${COR_ROTULO[b.chave] ?? 'text-texto-forte'}`}>{b.rotulo}</h4>
-      <p className="mt-0.5 text-[13px] break-words whitespace-pre-line text-foreground [overflow-wrap:anywhere]">{b.valor}</p>
+      <p className="mt-0.5 text-[13px] wrap-anywhere whitespace-pre-line text-foreground">{b.valor}</p>
     </section>
   )
 }

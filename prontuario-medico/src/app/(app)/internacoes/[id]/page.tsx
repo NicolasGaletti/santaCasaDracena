@@ -192,7 +192,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
             {quadroItens.map(([rotulo, valor]) => (
               <div key={rotulo} className="min-w-0">
                 <dt className="text-[11px] font-bold uppercase text-slate-700">{rotulo}</dt>
-                <dd className="mt-1 whitespace-pre-line break-words text-slate-900">{valor}</dd>
+                <dd className="mt-1 whitespace-pre-line wrap-break-word text-slate-900">{valor}</dd>
               </div>
             ))}
           </dl>

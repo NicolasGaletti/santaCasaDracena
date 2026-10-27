@@ -23,7 +23,7 @@ function QuadroLeito({ leito }: { leito: string }) {
     >
       <span
         aria-hidden
-        className={`block max-w-full break-words tabular-nums ${
+        className={`block max-w-full wrap-break-word tabular-nums ${
           curto ? 'text-xl' : 'line-clamp-2 text-[11px] leading-tight'
         }`}
       >
@@ -53,13 +53,13 @@ export function CartaoInternacao({
       >
         <QuadroLeito leito={linha.leito_ala} />
         <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-          <h2 className="line-clamp-2 break-words font-heading text-base font-bold leading-snug">
+          <h2 className="line-clamp-2 wrap-break-word font-heading text-base font-bold leading-snug">
             {linha.nome}
           </h2>
           <span className="text-sm text-muted-foreground">
             D.N. {formatarData(linha.data_nascimento)} · {anos} {anos === 1 ? 'ano' : 'anos'}
           </span>
-          <span className="break-words text-sm text-muted-foreground">
+          <span className="wrap-break-word text-sm text-muted-foreground">
             {linha.equipe_nome} · {linha.convenio}
           </span>
           {alta && (

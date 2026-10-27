@@ -75,7 +75,7 @@ export function ListaConvenios({ convenios }: { convenios: ConvenioAdmin[] }) {
             >
               <div className="flex min-w-0 items-start justify-between gap-3 sm:flex-1">
                 <div className="min-w-0">
-                  <h2 className={`break-words text-base leading-snug font-bold ${c.ativo ? '' : 'text-muted-foreground'}`}>{c.nome}</h2>
+                  <h2 className={`wrap-break-word text-base leading-snug font-bold ${c.ativo ? '' : 'text-muted-foreground'}`}>{c.nome}</h2>
                   <p className="text-sm text-muted-foreground">
                     {c.usos} {c.usos === 1 ? 'uso' : 'usos'}
                   </p>

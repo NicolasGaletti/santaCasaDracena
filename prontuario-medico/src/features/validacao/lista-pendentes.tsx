@@ -34,12 +34,12 @@ export function ListaPendentes({ pendentes }: { pendentes: PendenteValidacao[] }
             className="flex min-h-11 flex-col gap-2 rounded-xl border border-l-4 border-border border-l-teal-decorativo bg-card p-4 text-card-foreground transition-colors hover:bg-primary-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="min-w-0 break-words font-heading font-bold leading-snug">{p.pacienteNome}</span>
+              <span className="min-w-0 wrap-break-word font-heading font-bold leading-snug">{p.pacienteNome}</span>
               {p.adendoDe && <Badge variant="outline" className="shrink-0">Adendo</Badge>}
             </div>
             <p className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
               <MapPin aria-hidden className="size-3.5 shrink-0" />
-              <span className="min-w-0 break-words">
+              <span className="min-w-0 wrap-break-word">
                 Leito {p.leito || 'não informado'} · {p.equipeNome}
               </span>
             </p>
@@ -49,7 +49,7 @@ export function ListaPendentes({ pendentes }: { pendentes: PendenteValidacao[] }
               </span>
               <span className="flex min-w-0 items-center gap-1">
                 <UserRound aria-hidden className="size-3.5 shrink-0" />
-                <span className="min-w-0 break-words">{p.autorNome}</span>
+                <span className="min-w-0 wrap-break-word">{p.autorNome}</span>
               </span>
             </p>
             <p className="flex items-center gap-1.5 text-xs font-semibold text-orange-900">

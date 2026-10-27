@@ -84,7 +84,7 @@ export function FilaImpressao({ linhas }: { linhas: LinhaFila[] }) {
                   aria-label={`Selecionar ${l.paciente}`}
                 />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="font-heading font-bold break-words">{l.paciente}</span>
+                  <span className="font-heading font-bold wrap-break-word">{l.paciente}</span>
                   <span className="text-sm text-muted-foreground">
                     Leito {l.leito} · {l.equipe}
                   </span>

@@ -158,7 +158,7 @@ function TabelaAlteracoes({ linhas }: { linhas: (LinhaAlteracao & { quem: string
               <td className={CLASSE_CELULA}>{l.quem}</td>
               <td className={CLASSE_CELULA}>{rotuloTabela(l.tabela)}</td>
               <td className={CLASSE_CELULA}>{rotuloOperacao(l.operacao)}</td>
-              <td className={`${CLASSE_CELULA} break-words text-muted-foreground`}>{resumoDiff(l.operacao, l.antes, l.depois)}</td>
+              <td className={`${CLASSE_CELULA} wrap-break-word text-muted-foreground`}>{resumoDiff(l.operacao, l.antes, l.depois)}</td>
             </tr>
           ))}
         </tbody>

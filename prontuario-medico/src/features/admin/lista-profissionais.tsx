@@ -123,7 +123,7 @@ export function ListaProfissionais({ profissionais, equipes, meuId }: Props) {
               <li key={p.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="break-words text-base font-bold leading-snug">{p.nome}</h2>
+                    <h2 className="wrap-break-word text-base font-bold leading-snug">{p.nome}</h2>
                     <p className="break-all text-sm text-muted-foreground">{p.email}</p>
                   </div>
                   <Badge className={`shrink-0 px-2 text-xs ${s.classe}`}>{s.texto}</Badge>

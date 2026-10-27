@@ -89,7 +89,7 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
               <li key={eq.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="break-words text-base font-bold leading-snug">{eq.nome}</h2>
+                    <h2 className="wrap-break-word text-base font-bold leading-snug">{eq.nome}</h2>
                     <p className="text-sm text-muted-foreground">
                       {membros.length} {membros.length === 1 ? 'membro' : 'membros'}
                     </p>
@@ -124,7 +124,7 @@ export function ListaEquipes({ equipes, profissionais }: Props) {
                       <ul aria-label="Membros" className="flex flex-col gap-2">
                         {membros.map((m) => (
                           <li key={m.id} className="flex min-h-11 items-center justify-between gap-3 text-sm">
-                            <span className={`min-w-0 break-words font-semibold ${m.ativo ? '' : 'text-muted-foreground line-through'}`}>
+                            <span className={`min-w-0 wrap-break-word font-semibold ${m.ativo ? '' : 'text-muted-foreground line-through'}`}>
                               {m.nome}
                             </span>
                             <Button
