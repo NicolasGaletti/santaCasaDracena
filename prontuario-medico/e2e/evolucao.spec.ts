@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { confirmarConclusao } from './helpers/conclusao';
+import { botaoConfirmar, confirmarConclusao } from './helpers/conclusao';
 
 const SENHA = 'Teste@123';
 const INTERNACAO_SEED_A01 = 'c0000000-0000-0000-0000-000000000001';
@@ -46,7 +46,10 @@ async function finalizarEvolucao(page: Page, evolucao: string, conduta: string) 
   await page.getByLabel('Evolução clínica').fill(evolucao);
   await page.getByRole('textbox', { name: 'Conduta' }).fill(conduta);
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo).toContainText('Finalizar evolução?');
+  await expect(dialogo).toContainText('Você poderá reabri-la por 15 minutos, enquanto não for impressa.');
+  await expect(dialogo.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();
@@ -242,7 +245,7 @@ test('texto digitado sem conexão sobrevive a recarga e é salvo ao voltar', asy
   await expect(page.getByLabel('Evolução clínica')).toHaveValue('Texto antes da recarga');
 });
 
-test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }) => {
+test('duplo clique em Finalizar do diálogo finaliza uma vez', async ({ page }) => {
   const id = await admitirPaciente(page, leitoUnico());
   await page.goto(`/internacoes/${id}`);
   await abrirNovaEvolucao(page);
@@ -250,7 +253,7 @@ test('duplo clique em Confirmar finalização finaliza uma vez', async ({ page }
   await page.getByLabel('Evolução clínica').fill('Evolução para duplo clique');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta para duplo clique');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).dblclick();
+  await botaoConfirmar(page, 'finalizada').dblclick();
   // Conclusão leva à lista de Internados com o aviso; volta ao prontuário para conferir.
   await expect(page).toHaveURL(/\/(\?.*)?$/, { timeout: 20_000 });
   await expect(page.getByText('Evolução finalizada.')).toBeVisible();
@@ -349,7 +352,7 @@ test('finalizar com a ação de servidor interrompida: aviso, botão volta a fun
     return r.continue();
   });
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await page.getByRole('button', { name: 'Confirmar finalização' }).click();
+  await botaoConfirmar(page, 'finalizada').click();
   await expect(alertas(page)).toContainText('Sem conexão: a evolução não foi finalizada');
 
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();

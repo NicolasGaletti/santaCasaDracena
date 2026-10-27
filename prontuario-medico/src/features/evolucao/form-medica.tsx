@@ -302,18 +302,18 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, i
             <DialogTitle>{podeFinalizar ? 'Finalizar evolução?' : 'Enviar para validação?'}</DialogTitle>
             <DialogDescription>
               {podeFinalizar
-                ? 'Depois de finalizada a evolução não pode ser alterada.'
+                ? 'Depois de finalizada, a evolução não pode mais ser alterada. Você poderá reabri-la por 15 minutos, enquanto não for impressa.'
                 : 'Depois de enviada, a evolução só pode ser alterada se o médico devolver.'}
               <br />
               {`${anexosEvolucao.anexos.length} anexo(s) será(ão) incluído(s).`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" size="lg" disabled={enviando} onClick={() => setDialogo(false)}>
-              Voltar
+            <Button type="button" variant="outline" size="lg" autoFocus disabled={enviando} onClick={() => setDialogo(false)}>
+              {podeFinalizar ? 'Cancelar' : 'Voltar'}
             </Button>
             <Button type="button" size="lg" disabled={enviando} onClick={confirmarConclusao}>
-              {podeFinalizar ? 'Confirmar finalização' : 'Confirmar envio'}
+              {podeFinalizar ? 'Finalizar' : 'Confirmar envio'}
             </Button>
           </DialogFooter>
         </DialogContent>
