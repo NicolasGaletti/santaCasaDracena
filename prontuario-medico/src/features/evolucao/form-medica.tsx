@@ -270,12 +270,12 @@ export function FormMedica({ internacaoId, userId, perfil, rascunho, anterior, i
                 <p className="text-[11px] font-bold tracking-wide text-texto-forte uppercase">Exame físico</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {CAMPOS_EXAME.map((c) => (
-                    <CampoTextual key={c.chave} id={`ev-exame-${c.chave}`} rotulo={c.rotulo} valor={dados.exame_fisico[c.chave]} onChange={(v) => alterarExame(c.chave, v)} linhas={2} placeholder={SUGESTOES_EXAME_FISICO[c.chave]} />
+                    <CampoTextual key={c.chave} id={`ev-exame-${c.chave}`} rotulo={c.rotulo} valor={dados.exame_fisico[c.chave]} onChange={(v) => alterarExame(c.chave, v)} linhas={2} placeholder={`Ex.: ${SUGESTOES_EXAME_FISICO[c.chave]}`} />
                   ))}
                 </div>
               </div>
 
-              <CampoTextual id="ev-conduta" rotulo="Conduta" corRotulo="text-conduta" valor={dados.conduta} onChange={(v) => alterarCampo('conduta', v)} obrigatorio linhas={3} placeholder="Condutas, prescrições, exames solicitados…" />
+              <CampoTextual id="ev-conduta" rotulo="Conduta" corRotulo="text-conduta" valor={dados.conduta} onChange={(v) => alterarCampo('conduta', v)} obrigatorio linhas={3} placeholder="Ex.: condutas, prescrições, exames solicitados…" />
             </div>
           </CartaoSecao>
         </fieldset>

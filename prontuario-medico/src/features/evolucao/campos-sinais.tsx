@@ -15,6 +15,7 @@ const CAMPOS: { chave: CampoSinal; curto: string; unidade: string; placeholder: 
   { chave: 'diurese', curto: 'Diurese', unidade: 'mL/24 h', placeholder: '1500', modo: 'decimal' },
 ]
 
+// Placeholder é só o valor (itálico claro, via Input): o campo do celular (~78 px, 4 colunas) não comporta o prefixo "Ex.: ".
 const rotuloDe = (c: (typeof CAMPOS)[number]) => `${c.curto} (${c.unidade})`
 
 export function brutosDeSinais(s: Sinais): BrutosSinais {

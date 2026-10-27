@@ -23,6 +23,7 @@
   --muted: #f1f5f9; /* slate-100 */
   --muted-foreground: #475569; /* slate-600: texto secundário com AA sobre slate-50 e branco */
   --texto-forte: #334155; /* slate-700 */
+  --placeholder: #64748b; /* slate-500: sugestão (placeholder), mais clara que o texto digitado mas legível */
 
   /* Ação principal: teal. Fundo teal-700 (5,5:1 com branco); teal-600 só decorativo. */
   --primary: #0f766e; /* teal-700 */
@@ -110,6 +111,7 @@
   --color-cabecalho-destaque: var(--cabecalho-destaque);
   --color-destructive-soft-borda: var(--destructive-soft-borda);
   --color-campo: var(--campo);
+  --color-placeholder: var(--placeholder);
   --color-status-rascunho-borda: var(--status-rascunho-borda);
   --color-exame-ecg: var(--exame-ecg);
   --color-exame-imagem: var(--exame-imagem);
