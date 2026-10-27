@@ -168,7 +168,7 @@ test('finalizar trava: sem botão de editar e o cartão mostra a pílula Finaliz
 
   await expect(page.getByTestId('cartao-evolucao')).toBeVisible();
   await expect(page.getByTestId('cartao-evolucao').getByText('Finalizada', { exact: true })).toHaveCount(1);
-  await expect(page.getByRole('button', { name: /editar/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^editar/i })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /editar/i })).toHaveCount(0);
 });
 

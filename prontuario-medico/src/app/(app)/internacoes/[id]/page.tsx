@@ -8,6 +8,7 @@ import { MarcarAba } from '@/components/navegacao-ativa'
 import { BotaoImprimirEvolucao } from '@/features/evolucao/botao-imprimir'
 import type { EvolucaoTimeline } from '@/features/evolucao/cartao-evolucao'
 import { Ficha } from '@/features/evolucao/ficha'
+import { horaLimiteReabertura, podeReabrir } from '@/features/evolucao/reabertura'
 import { statusDoDia } from '@/features/evolucao/status-dia'
 import { HistoricoAbas } from '@/features/evolucao/historico-abas'
 import {
@@ -48,7 +49,7 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
     clinico
       ? supabase
           .from('vw_evolucoes_timeline')
-          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre, qtd_anexos, adendo_de')
+          .select('id, status, categoria, autor_nome, autor_id, criado_em, finalizada_em, dados, texto_livre, qtd_anexos, adendo_de, validada_por, vias_impressas')
           .eq('internacao_id', id)
           .order('criado_em', { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -75,8 +76,30 @@ export default async function PaginaProntuario({ params }: { params: Promise<{ i
   )
 
   // autor_id não vai ao cliente: a coluna serve só para achar o rascunho próprio e calcular podeAdendo aqui.
-  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map(({ autor_id, ...e }) => ({
+  // validada_por e vias_impressas também ficam no servidor: só alimentam o cálculo de "reabrir".
+  const agora = new Date()
+  const reabriveis = (evolucoes ?? []).map((e) => ({
+    id: e.id,
+    status: e.status,
+    autor_id: e.autor_id,
+    validada_por: e.validada_por,
+    adendo_de: e.adendo_de,
+    finalizada_em: e.finalizada_em,
+    vias_impressas: e.vias_impressas,
+  }))
+  const linhasTimeline: EvolucaoTimeline[] = (evolucoes ?? []).map(({ autor_id, validada_por, vias_impressas, ...e }) => ({
     ...e,
+    reabrirAte:
+      clinico &&
+      podeReabrir({ id: e.id, status: e.status, autor_id, validada_por, adendo_de: e.adendo_de, finalizada_em: e.finalizada_em, vias_impressas }, reabriveis, {
+        perfil: profissional.perfil,
+        usuarioId: profissional.id,
+        internacaoInternada: linha.status === 'INTERNADO',
+        temRascunhoProprio: Boolean(rascunhoProprio),
+        agora,
+      }) && e.finalizada_em
+        ? horaLimiteReabertura(e.finalizada_em)
+        : undefined,
     podeAdendo:
       podeAbrirAdendo &&
       !rascunhoProprio &&

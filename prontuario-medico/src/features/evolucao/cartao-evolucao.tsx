@@ -5,6 +5,7 @@ import { GaleriaExames } from '@/features/anexos/galeria-exames'
 import type { AnexoGaleria } from '@/features/anexos/consultas'
 import { BotaoAdendo } from './botao-adendo'
 import { BotaoImprimirEvolucao } from './botao-imprimir'
+import { BotaoReabrir } from './botao-reabrir'
 import type { DadosMedica } from './modelos/medica'
 import { rascunhoMedicaVazio } from './modelos/medica'
 import { lerDadosSimples } from './modelos/simples'
@@ -25,6 +26,8 @@ export type EvolucaoTimeline = {
   adendo_de?: string | null
   /** Calculado no servidor: quem pode abrir um adendo desta evolução finalizada. */
   podeAdendo?: boolean
+  /** Calculado no servidor: hh:mm até quando o autor pode reabrir a evolução (ausente se não puder). */
+  reabrirAte?: string
 }
 
 const FUSO_SP = 'America/Sao_Paulo'
@@ -253,6 +256,7 @@ export function CartaoEvolucao({
         {/* Sem contêiner extra: o erro do adendo ocupa a linha inteira abaixo dos botões. */}
         {finalizada && !ocultarAcoes && <BotaoImprimirEvolucao evolucaoId={evolucao.id} />}
         {finalizada && !ocultarAcoes && (evolucao.qtd_anexos ?? 0) > 0 && <BotaoImprimirEvolucao evolucaoId={evolucao.id} comImagens />}
+        {finalizada && !ocultarAcoes && evolucao.reabrirAte && <BotaoReabrir evolucaoId={evolucao.id} ate={evolucao.reabrirAte} />}
         {finalizada && !ocultarAcoes && evolucao.podeAdendo && <BotaoAdendo evolucaoId={evolucao.id} />}
       </footer>
     </article>

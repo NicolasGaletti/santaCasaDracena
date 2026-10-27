@@ -76,7 +76,7 @@ test('médico cria adendo e finaliza', async ({ page }) => {
   await page.getByLabel('Evolução clínica').fill('Complemento feito pelo adendo');
   await page.getByRole('textbox', { name: 'Conduta' }).fill('Conduta do adendo');
   await page.getByRole('button', { name: 'Finalizar', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('Depois de finalizada a evolução não pode ser alterada');
+  await expect(page.getByRole('dialog')).toContainText('Depois de finalizada, a evolução não pode mais ser alterada');
   await confirmarConclusao(page, 'finalizada');
   // A ficha recomeça vazia quando a conclusão termina: o diálogo some junto.
   await expect(page.getByRole('dialog')).toBeHidden();

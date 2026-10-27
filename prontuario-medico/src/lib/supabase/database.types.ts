@@ -1182,6 +1182,7 @@ export type Database = {
       finalizar_evolucao: { Args: { p_evolucao_id: string }; Returns: string };
       marcar_lida: { Args: { p_id: string }; Returns: undefined };
       marcar_todas_lidas: { Args: Record<PropertyKey, never>; Returns: undefined };
+      reabrir_evolucao: { Args: { p_evolucao_id: string }; Returns: undefined };
       registrar_acesso: { Args: { p_acao: string; p_internacao_id: string }; Returns: undefined };
       registrar_assinatura_push: {
         Args: { p_auth: string; p_endpoint: string; p_p256dh: string };

@@ -19,7 +19,7 @@ export async function finalizar(evolucaoId: string): Promise<{ erro?: string }> 
 
   const { data: evolucao, error: erroBusca } = await supabase
     .from('evolucoes')
-    .select('internacao_id')
+    .select('internacao_id, adendo_de')
     .eq('id', evolucaoId)
     .maybeSingle()
   if (erroBusca || !evolucao) return { erro: MENSAGEM_GENERICA }
@@ -29,7 +29,8 @@ export async function finalizar(evolucaoId: string): Promise<{ erro?: string }> 
 
   revalidatePath(`/internacoes/${evolucao.internacao_id}`)
   revalidatePath('/')
-  redirect('/?aviso=finalizada')
+  // Adendo não pode ser reaberto: o aviso só oferece "Reabrir" para a evolução comum.
+  redirect(evolucao.adendo_de ? '/?aviso=finalizada' : `/?aviso=finalizada&internacao=${evolucao.internacao_id}`)
 }
 
 /** Envio do autor (residente, acadêmico, multiprofissional) para validação do médico da equipe. */
@@ -68,6 +69,26 @@ export async function criarAdendo(evolucaoId: string): Promise<{ erro?: string }
   if (error) return { erro: mensagemDeErro(error) }
 
   revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+  redirect(`/internacoes/${evolucao.internacao_id}#ficha`)
+}
+
+/** Reabre a própria evolução finalizada (até 15 min, sem impressão): volta a rascunho e leva à ficha. */
+export async function reabrir(evolucaoId: string): Promise<{ erro?: string }> {
+  await exigirProfissional()
+  const supabase = await createClient()
+
+  const { data: evolucao, error: erroBusca } = await supabase
+    .from('evolucoes')
+    .select('internacao_id')
+    .eq('id', evolucaoId)
+    .maybeSingle()
+  if (erroBusca || !evolucao) return { erro: MENSAGEM_GENERICA }
+
+  const { error } = await supabase.rpc('reabrir_evolucao', { p_evolucao_id: evolucaoId })
+  if (error) return { erro: mensagemDeErro(error) }
+
+  revalidatePath(`/internacoes/${evolucao.internacao_id}`)
+  revalidatePath('/')
   redirect(`/internacoes/${evolucao.internacao_id}#ficha`)
 }
 
